@@ -285,14 +285,14 @@ reflexii ale exploziei care nu este vizibilă decât parțial în cadru.
 	\caption{Screen space reflections în Minecraft\protect\footnotemark}
 	\label{fig:ssr-good}
 \end{figure}
-\footnotetext{\label{continuum}Shader folosit: https://continuum.graphics/. Accesat 06.10.2024.}
+\footnotetext{\label{continuum}Shader folosit: \textcopyright https://continuum.graphics/. Accesat 06.10.2024.}
 
 \begin{figure}[ht]
 	\centering
 	\includegraphics[width=0.8\textwidth]{pics/mc-ssr-bad.png}
 	\captionsetup{width=0.8\textwidth}
 	\caption{Artefacte vizuale în screen space reflections\protect\footref{continuum}. Se poate observa cum
-	reflexiile se pierd dacă obiectele reflectate ies din viewport}
+		reflexiile se pierd dacă obiectele reflectate ies din viewport}
 	\label{fig:ssr-bad}
 \end{figure}
 
@@ -332,45 +332,64 @@ de calitate, este nevoie de un număr mare de raze de lumină și tehnici de den
 ceea ce face ca algoritmul să fie greu de balansat între fidelitate și performanță.
 
 \section{Obiective}
-Care sunt obiectivele proiectului/soluției/abordării/ideii; Ce creșteri sau evoluții determină rezolvarea proiectului.
+
+Scopul acestei lucrări este de a cerceta și implementa algoritmul Ray Tracing în
+context de timp real și a evalua performanțele acestuia, prin comparație cu
+implementări destinate producției cinematografice. Eforturile vor fi concentrate
+pe implementarea unui motor grafic simplu, cu câteva funcționalități de bază:
+\begin{itemize}
+	\item Controale de cameră simple (mișcare, rotire)
+	\item Randarea obiectelor definite ca mesh-uri triunghiulare
+	\item Randarea obiectelor definite prin funcții implicite (e.g., sfere, planuri)
+	\item Suport pentru materiale simple (e.g., difuz, specular, sticlă)
+	\item Suport pentru schimbarea scenelor,
+\end{itemize}
+precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a scenei:
+\begin{itemize}
+	\item Iluminare globală
+	\item Reflexii și refracții
+	\item Umbre.
+	      % \item Denoising.
+\end{itemize}
+Dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
+(60 de cadre pe secundă) pentru hardware entry-level cu suport pentru
+DirectX Raytracing (e.g., Nvidia GeForce RTX 2060). Pentru a atinge acest obiectiv,
+vom explora și implementa tehnici de optimizare a algoritmului propriu-zis și vom
+urmări utilizarea API-ului DirectX 12 (cu extensia DXR) într-un mod eficient.
+
 \section{Soluția propusă}
-Descrierea pe scurt a soluției implementate; ce abordare este propusă (nu detalierea utilitarelor și a tehnologiilor, ci abordarea și ideea propusă de către autor).
+Soluția propusă este un motor grafic simplu de utilizat. Din perspectiva utilizatorului,
+acesta are un meniu din care poate configura diverși parametrii ai algoritmului
+de Ray Tracing, precum și a scenei. Utilizatorul poate încărca scene predefinite
+și poate interacționa cu acestea folosind controalele de cameră.
+
+//TODO adaugat flowchart, descriere algoritm
+
+Din perspectiva implementării, blabla
+
 \section{Rezultatele obținute}
+
+//TODO
+
 Descriere pe scurt a rezultatelor obținute, eventual de ce acestea sunt importante față de alte soluții sau studii.
+
 \section{Structura lucrării}
+
+//TODO
+
 Un paragraf în care fiecare dintre secțiunile următoare este prezentată în 1-2 fraze, punând accentul pe elementele cele mai semnificative din fiecare secțiune.
 
+\chapter{Motivație de cercetare}
 
+//TODO
 
-\chapter{Analiza Cerințelor / Motivație}
-\dezvoltare Acest capitol va analiza cerințele produsului din prisma potențialilor clienți și a scenariilor de utilizare preconizate, urmând a fi generată o lista de funcționalități.
+Proiectul de față cercetează tehnici de randare a imaginilor în timp real. Acest
+domeniu este de mare interes pentru industria jocurilor video, care investesc
+resurse semnificative în dezvoltarea de motoare grafice puternice.
 
-\cercetare Acest capitol va introduce motivația realizării proiectului propus.
+\chapter{Metode Existente}
 
-Dacă proiectul de licență face parte dintr-un proiect mai amplu (de exemplu un proiect complex, la care lucrează 2 studenți (ex: 1 student la front-end-ul aplicației, 1 student la back-end-ul aplicației), în acest capitol va fi explicat pe scurt ansamblul proiectului și ce parte din proiect este adresată de lucrarea propusă.
-
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item \dezvoltare Cerințele sunt imaginate de student pe baza unei analize a pieței;
-	\item \cercetare Nu se oferă o motivație valida.
-\end{itemize}
-
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item \dezvoltare Există un interviu, un client, analiza cerințelor este elaborată pe baza interviului;
-	\item \cercetare Motivația este doar personala.
-\end{itemize}
-
-
-Criterii pentru calificativul \textit{Bine}:
-\begin{itemize}
-	\item	 \dezvoltare Proces iterativ pe baza unor interviuri cu mai mulți clienți, dezvoltare MVP, reevaluare cerințe;
-	\item	 \cercetare Motivația este legata de o necesitate științifica / tehnica explicită.
-\end{itemize}
-
-
-\chapter{Studiu de Piață / Metode Existente}
-\dezvoltare Ce soluții similare există pe piață? Care sunt limitările lor / pentru ce cazuri de utilizare sau pentru ce tip de clienți produsele existente pe piață nu răspund cerințelor? Care sunt indicatorii pe baza cărora sunt evaluate aceste produse, de către potențiali clienți, și unde sunt lipsurile/ care este oportunitatea generată de lipsurile acestea?
+//TODO read papers motherfucker and benchmark your shit
 
 \cercetare Metode existente (sau ``State of the Art'') se referă, de regulă, la nivelul curent de dezvoltare: care este starea curentă a domeniului, unde ne găsim, care este contextul. Care sunt soluțiile actuale prezente în literatura de specialitate și care sunt limitările lor? Ce direcții de explorare sunt recomandate în literatura de specialitate? Literatura de specialitate se refera la articole științifice recente, publicate în reviste cu factor de impact mare, sau în volumele unor conferințe de top, sau în cărți.
 
@@ -397,29 +416,11 @@ Criterii pentru calificativul \textit{Bine}:
 	\item \ambele Sunt descrise tehnologii alternative. Sunt analizate cantitativ și calitativ, folosite benchmarkuri și teste efectuate de student. Analiza este rezumată prin tabele și grafice.
 \end{itemize}
 
-\section{Indicații formatare figuri}
-
-Figurile utilizate în document vor fi centrate și numerotate (de exemplu Figura~\ref{fig:pic1}).
-Orice figură ce nu este realizată de către autorul lucrării va fi în mod obligatoriu citată fie la final (de exemplu Figura ~\ref{fig:pic2} este preluată din documentul \cite{article}), fie cel puțin într-o notă de subsol (a se vedea Figura~\ref{fig:pic2}). Orice figură ce depășește ca dimensiune 50\% dintr-o pagină, va fi mutată la anexe. Toate figurile din cadrul tezei vor fi referite în text. Exemplu: Figura~\ref{fig:pic1} prezintă o schemă de principiu pentru un amplificator inversor cu AO.
-
-\begin{figure}[th]
-	\centering
-	\includegraphics{pics/Pic1.png}
-	\caption{Amplificator inversor}
-	\label{fig:pic1}
-\end{figure}
-
-\newpage
-
-\begin{figure}[th]
-	\centering
-	\includegraphics{pics/Pic1.png}
-	\caption[Amplificator de instrumentație cu 3 AO-uri]{Amplificator de instrumentație cu 3 AO-uri\protect\footnotemark}
-	\label{fig:pic2}
-\end{figure}
-\footnotetext{© http://www.ece.tamu.edu/sspalermo/ecen3205/Secton\%201III.pdf}
 
 \chapter{Soluția Propusă}
+
+//TODO
+
 Capitolul conține o privire de ansamblu a soluției ce rezolvă problema, prin prezentarea structurii / arhitecturii acesteia. În funcție de tipul lucrării acest capitol poate conține diagrame (clase, distribuție, workflow, entitate-relație), demonstrații de corectitudine pentru algoritmii propuși de autor, abordări teoretice (modelare matematică), structura hardware, arhitectura aplicației.
 
 
@@ -438,20 +439,10 @@ Criterii pentru calificativul \textit{Bine}:
 	\item 	Descriere + diagrame de baze de date, workflow, clase, algoritmi + descrierea unui proces prin care s-a realizat arhitectura/structura soluției.
 \end{itemize}
 
-\section{Indicații formatare formule}
-Formulele matematice utilizate în document vor fi centrate în pagină și numerotate.
-
-\begin{equation}
-	(x+a)^n = \sum_{k=0}^{n}\left(\begin{array}{c}n\\k\\\end{array}\right)x^ka^{n-k}
-\end{equation}
-
-\begin{equation}
-	f(x) = a_0 + \sum_{n=1}^{\infty}\left(a_n \cos\frac{n\pi x}{L} + b_n\sin\frac{n\pi x}{L}\right)
-\end{equation}
-
-
-
 \chapter{Detalii de implementare}
+
+//TODO
+
 În plus fata de capitolul precedent acesta conține elemente specifice ale rezolvării problemei care au presupus dificultăți deosebite din punct de vedere tehnic. Pot fi incluse configurații, secvențe de cod, pseudo-cod, implementări ale unor algoritmi, analize ale unor date, scripturi de testare. De asemenea, poate fi detaliat modul în care au fost utilizate tehnologiile introduse in capitolul 3.
 
 
@@ -487,6 +478,9 @@ Orice tabel prezent în teză va fi referit în text; exemplu: a se vedea Tabel~
 
 
 \chapter{Evaluare}
+
+//TODO
+
 Acest capitol trebuie să răspundă, în principiu, la 2 întrebări și să se încheie cu o discuție a rezultatelor obținute. Cele doua întrebări la care trebuie sa se răspundă sunt:
 \begin{enumerate}
 	\item  \textbf{Merge corect?} (Conform specificațiilor extrase în capitolul 2);
@@ -519,6 +513,9 @@ Criterii pentru calificativul \textit{Bine}:
 \end{itemize}
 
 \chapter{Concluzii}
+
+//TODO
+
 În acest capitol este sumarizat întreg proiectul, de la obiective, la implementare, si la relevanta rezultatelor obținute. În finalul capitolului poate exista o subsecțiune de ``Dezvoltări ulterioare''.
 
 Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
@@ -536,42 +533,6 @@ Criterii pentru calificativul \textit{Bine}:
 	\item	Concluziile sunt corelate cu conținutul lucrării, și se oferă o imagine precisa asupra relevantei și calității rezultatelor obținute în cadrul proiectului.
 \end{itemize}
 
-\chapter*{Bibliografie}\addcontentsline{toc}{chapter}{Bibliografie}
-% * <marios.choudary@gmail.com> 2018-02-28T12:07:48.730Z:
-% 
-% > BIBLIOGRAFIE
-% Am adaugat un paragraf cu cateva detalii despre folosirea citarilor bibliografice in Latex, despre folosirea lui "\cite" si despre posibilitatea folosirii bibliografiei si direct in fisierul Latex.
-% 
-% ^.
-
-\begin{itemize}
-	\item 	NU utilizați referințe la Wikipedia sau alte surse fără autor asumat.
-	\item 	Pentru referințe la articole relevante accesibile în web (descrise prin URL) se va nota la bibliografie și data accesării.
-	\item 	Mai multe detalii despre citarea referințelor din internet se pot regăsi la:
-	      \begin{itemize}
-		      \item	\url{http://www.writinghelp-central.com/apa-citation-internet.html}
-		      \item	\url{http://www.webliminal.com/search/search-web13.html}
-	      \end{itemize}
-	\item 	Note de subsol se utilizează dacă referiți un link mai puțin semnificativ o singură dată; Dacă nota este citată de mai multe ori, atunci utilizați o referință bibliografică.
-	\item 	Dacă o imagine este introdusă în text și nu este realizată de către autorul lucrării, trebuie citată sursa ei (ca notă de subsol sau referință - este de preferat utilizarea unei note de subsol).
-	\item 	Referințele se pun direct legate de text (de exemplu ``KVM [1] uses'', ``as stated by Popescu and Ionescu [12]'', etc.). Nu este recomandat să folosiți formulări de tipul ``[1] uses'', ``as stated in [12]'', ``as described in [11]'' etc..
-	\item 	Afirmațiile de forma ``are numerous'', ``have grown exponentially'', ``are among the most used'', ``are an important topic'' trebuie să fie acoperite cu citări, date concrete si analize comparative.
-	      \begin{itemize}
-		      \item	Mai ales în capitolele de introducere, ``state of the art'', ``related work'' sau ``background'' trebuie să vă argumentați afirmațiile prin citări. Fiți autocritici și gândiți-vă dacă afirmațiile au nevoie de citări, chiar și cele pe care le considerați evidente.
-		      \item	Cea mai mare parte dintre citări vor fi în capitolele de introducere ``state of the art'', ``related work'' sau ``background''.
-	      \end{itemize}
-	\item 	Toate intrările bibliografice trebuie citate în text. Nu le adăugați pur și simplu la final.
-	\item 	Nu copiați sau traduceți niciodată din surse de informație de orice tip (online, offline, cărți, etc.). Dacă totuși doriți să oferiți, prin excepție, un citat celebru - de maxim 1 frază- utilizați ghilimele și evident menționați sursa. .
-	\item 	Dacă reformulați idei sau creați un paragraf rezumat al unor idei folosind cuvintele voastre, precizați cu citare (referință bibliografică) sau cu notă de subsol sursa sau sursele de unde ați preluat ideile.
-\end{itemize}
-
-Trebuie respectat un singur standard de trimiteri bibliografice (citare), dintre următoarele alternative:
-\begin{itemize}
-	\item APA (\url{http://pitt.libguides.com/c.php?g=12108\&p=64730})
-	\item IEEE (\url{https://ieee-dataport.org/sites/default/files/analysis/27/IEEE\%20Citation\%20Guidelines.pdf})
-	\item Harvard (\url{https://libweb.anglia.ac.uk/referencing/harvard.htm})
-	\item Cu numerotarea referințelor în ordine alfabetică sau în ordinea apariției în text (de exemplu, stilul cu numere folosit de unele publicații ACM - \url{https://www.acm.org/publications/authors/reference-formatting})
-\end{itemize}
 
 În Latex este foarte ușor să folosiți referințe într-un mod corect și unitar, fie prin adăugarea unei secțiuni
 \verb!\begin{thebibliography}!
