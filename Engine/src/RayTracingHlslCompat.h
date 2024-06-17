@@ -47,10 +47,6 @@ typedef UINT16 Index;
 
 #define N_FRACTAL_ITERATIONS 4      // = <1,...>
 
-// PERFORMANCE TIP: Set max recursion depth as low as needed
-// as drivers may apply optimization strategies for low recursion depths.
-#define MAX_RAY_RECURSION_DEPTH 3    // ~ primary rays + reflections + shadow rays from reflected geometry.
-
 
 struct ProceduralPrimitiveAttributes
 {
@@ -77,6 +73,13 @@ struct SceneConstantBuffer
 	XMVECTOR lightDiffuseColor;
 	float    reflectance;
 	float    elapsedTime;                 // Elapsed application time.
+	UINT     raytracingType;              // Raytracing type to use.
+	bool	 applyJitter;				  // Apply jitter to the ray sampling (useful in path tracing only).	
+	UINT	 maxRecursionDepth;           // Max recursion depth for the raytracing.
+	UINT	 maxShadowRecursionDepth;     // Max recursion depth for casting shadow rays
+	UINT	 pathSqrtSamplesPerPixel;     // Number of samples per pixel for path tracing.
+	bool	 pathTemporal;				  // Whether to use temporal path tracing.
+	UINT	 pathFrameCacheIndex;         // Current frame index for temporal path tracing.
 };
 
 // Attributes per primitive type.
@@ -113,6 +116,14 @@ struct Vertex
 	XMFLOAT3 normal;
 };
 
+// Ray tracing types.
+namespace RaytracingType {
+	enum Enum {
+		Whitted = 0,
+		PathTracing,
+		Count
+	};
+}
 
 // Ray types traced in this sample.
 namespace RayType {

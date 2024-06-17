@@ -22,7 +22,21 @@ class DieXaR : public DXSample
 public:
 	DieXaR(UINT width, UINT height, std::wstring name);
 
+	// Resets the camera location
 	virtual void ResetCamera();
+
+	// Reloads D3D resources and reinitializes them (also rebuilds the scene)
+	virtual void Reload();
+
+	// Resets the settings stored in the CB to the ones stored in the application settings
+	// Already called in Reload() so no need to call it again after Reload()
+	virtual void ResetSettings();
+
+	// Advances the frame index for temporal path tracing
+	virtual void AdvancePathTracing();
+
+	// Resets the frame cache for temporal path tracing
+	virtual void ResetPathTracing();
 
 	// IDeviceNotify
 	virtual void OnDeviceLost() override;
@@ -87,7 +101,7 @@ private:
 	// Shader tables
 	static const wchar_t* c_hitGroupNames_TriangleGeometry[RayType::Count];
 	static const wchar_t* c_hitGroupNames_AABBGeometry[IntersectionShaderType::Count][RayType::Count];
-	static const wchar_t* c_raygenShaderName;
+	static const wchar_t* c_raygenShaderNames[RaytracingType::Count];
 	static const wchar_t* c_intersectionShaderNames[IntersectionShaderType::Count];
 	static const wchar_t* c_closestHitShaderNames[GeometryType::Count];
 	static const wchar_t* c_missShaderNames[RayType::Count];
@@ -119,6 +133,16 @@ private:
 	XMVECTOR m_at;
 	XMVECTOR m_up;
 
+	// Application settings
+	// Most of these have correspondents in the scene constant buffer
+	RaytracingType::Enum m_raytracingType{ RaytracingType::PathTracing };
+	bool m_applyJitter{ true };
+	UINT m_maxRecursionDepth{ 8 };
+	UINT m_maxShadowRecursionDepth{ 3 };	// one shadow pass in first reflection/refraction
+	UINT m_pathSqrtSamplesPerPixel{ 2 };	// CAUTION: increasing this value will increase the number of rays per pixel exponentially
+	UINT m_pathFrameCacheIndex{ 1 };		// current frame index for temporal path tracing (ALWAYS >= 1)
+	bool m_pathTemporal{ true };
+
 	void UpdateCameraMatrices();
 	void UpdateAABBPrimitiveAttributes(float animationTime);
 	void InitializeScene();
@@ -137,7 +161,7 @@ private:
 	void CreateHitGroupSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
 	void CreateLocalRootSignatureSubobjects(CD3DX12_STATE_OBJECT_DESC* raytracingPipeline);
 	void CreateRaytracingPipelineStateObject();
-	void CreateAuxilaryDeviceResources();
+	void CreateAuxiliaryDeviceResources();
 	void CreateDescriptorHeap();
 	void CreateRaytracingOutputResource();
 	void BuildProceduralGeometryAABBs();

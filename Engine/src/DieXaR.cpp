@@ -17,7 +17,11 @@ using namespace std;
 using namespace DX;
 
 // Shader entry points.
-const wchar_t* DieXaR::c_raygenShaderName = L"MyRaygenShader";
+const wchar_t* DieXaR::c_raygenShaderNames[] =
+{
+	L"MyRaygenShader",
+	L"MyRaygenShader_PathTracing",
+};
 const wchar_t* DieXaR::c_intersectionShaderNames[] =
 {
 	L"MyIntersectionShader_AnalyticPrimitive",
@@ -83,6 +87,33 @@ void DieXaR::ResetCamera()
 	UpdateCameraMatrices();
 }
 
+void DieXaR::Reload()
+{
+	// Used when changing settings that need a full reset.
+	OnDestroy();
+	OnInit();
+}
+
+void DieXaR::ResetSettings()
+{
+	m_sceneCB->raytracingType = m_raytracingType;
+	m_sceneCB->maxRecursionDepth = m_maxRecursionDepth;
+	m_sceneCB->maxShadowRecursionDepth = m_maxShadowRecursionDepth;
+	m_sceneCB->pathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
+	m_sceneCB->applyJitter = m_applyJitter;
+	m_sceneCB->pathTemporal = m_pathTemporal;
+}
+
+void DieXaR::AdvancePathTracing()
+{
+	m_sceneCB->pathFrameCacheIndex = ++m_pathFrameCacheIndex;
+}
+
+void DieXaR::ResetPathTracing()
+{
+	// Reset the frame index.
+	m_sceneCB->pathFrameCacheIndex = m_pathFrameCacheIndex = 1;
+}
 
 void DieXaR::OnInit()
 {
@@ -267,6 +298,9 @@ void DieXaR::InitializeScene()
 		lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.65f, 1.0f);
 		m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
 	}
+
+	// Initialize application settings.
+	ResetSettings();
 }
 
 // Create constant buffers.
@@ -289,7 +323,7 @@ void DieXaR::CreateAABBPrimitiveAttributesBuffers()
 // Create resources that depend on the device.
 void DieXaR::CreateDeviceDependentResources()
 {
-	CreateAuxilaryDeviceResources();
+	CreateAuxiliaryDeviceResources();
 
 	// Initialize raytracing pipeline.
 
@@ -517,7 +551,7 @@ void DieXaR::CreateRaytracingPipelineStateObject()
 	auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
 	// PERFOMANCE TIP: Set max recursion depth as low as needed
 	// as drivers may apply optimization strategies for low recursion depths.
-	UINT maxRecursionDepth = MAX_RAY_RECURSION_DEPTH;
+	UINT maxRecursionDepth = m_sceneCB->maxRecursionDepth;
 	pipelineConfig->Config(maxRecursionDepth);
 
 	PrintStateObjectDesc(raytracingPipeline);
@@ -548,7 +582,7 @@ void DieXaR::CreateRaytracingOutputResource()
 	m_raytracingOutputResourceUAVGpuDescriptor = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 }
 
-void DieXaR::CreateAuxilaryDeviceResources()
+void DieXaR::CreateAuxiliaryDeviceResources()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto commandQueue = m_deviceResources->GetCommandQueue();
@@ -956,8 +990,8 @@ void DieXaR::BuildShaderTables()
 
 	auto GetShaderIDs = [&](auto* stateObjectProperties)
 		{
-			rayGenShaderID = stateObjectProperties->GetShaderIdentifier(c_raygenShaderName);
-			shaderIdToStringMap[rayGenShaderID] = c_raygenShaderName;
+			rayGenShaderID = stateObjectProperties->GetShaderIdentifier(c_raygenShaderNames[m_raytracingType]);
+			shaderIdToStringMap[rayGenShaderID] = c_raygenShaderNames[m_raytracingType];
 
 			for (UINT i = 0; i < RayType::Count; i++)
 			{
@@ -1087,6 +1121,10 @@ void DieXaR::OnKeyDown(UINT8 key)
 		// Close the application gracefully.
 		OnDestroy();
 		PostQuitMessage(0);
+		break;
+	case VK_F1:
+		// Reloads everything.
+		Reload();
 		break;
 	case 'C':
 		m_cameraFly = !m_cameraFly;
@@ -1321,6 +1359,11 @@ void DieXaR::DoRaytracing()
 	SetCommonPipelineState(commandList);
 	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS->GetGPUVirtualAddress());
 	DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
+
+	if (m_raytracingType == RaytracingType::PathTracing && m_pathFrameCacheIndex < m_pathSqrtSamplesPerPixel * m_pathSqrtSamplesPerPixel)
+	{
+		AdvancePathTracing();
+	}
 }
 
 // Update the application state with the new resolution.
