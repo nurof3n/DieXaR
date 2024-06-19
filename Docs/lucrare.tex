@@ -26,7 +26,9 @@
 
 \usepackage{booktabs} % for much better looking tables
 \usepackage{url} % Useful for inserting web links nicely
+\urlstyle{same}	% same font as regular text
 \usepackage{scrextend} % for multiple footnote references
+\usepackage{fnpct} % for multiple footnotes in the same place
 \usepackage[bookmarks,unicode,hidelinks]{hyperref}
 
 \usepackage{array} % for better arrays (eg matrices) in maths
@@ -34,6 +36,8 @@
 \usepackage{verbatim} % adds environment for commenting out blocks of text & for better verbatim
 \usepackage{enumitem}
 \setlist{noitemsep}
+
+\usepackage{xurl} % for breaking long URLs
 
 %%% HEADERS & FOOTERS
 \usepackage{fancyhdr}
@@ -161,8 +165,8 @@ Până de curând, natura computațională intensivă a acestui algoritm a limit
 sa în aplicații interactive, precum jocurile video. Totuși, cu avansul tehnologiei,
 utilizarea acestuia a devenit tot mai accesibilă și pentru
 aceste aplicații. Suport hardware pentru Ray Tracing în contextul consumatorilor a fost
-introdus de NVIDIA în 2018, prin intermediul arhitecturii Turing\footnote{\label{turing}https://images.nvidia.com/aem-dam/en-zz/Solutions/design-visualization/technologies/turing-architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf. Accesat 06.10.2024.}.
-Tot în același an, Microsoft a anunțat DirectX Raytracing\footnote{\label{dxr}https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/. Accesat 06.10.2024.} (DXR),
+introdus de NVIDIA în 2018, prin intermediul arhitecturii Turing\footnote{\label{turing}\url{https://images.nvidia.com/aem-dam/en-zz/Solutions/design-visualization/technologies/turing-architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf}. Accesat 10.06.2024.}.
+Tot în același an, Microsoft a anunțat DirectX Raytracing\footnote{\label{dxr}\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 10.06.2024.} (DXR),
 o extensie a API-ului DirectX 12 care permite programatorilor să folosească
 Ray Tracing în aplicațiile lor, utilizând hardware-ul compatibil.
 
@@ -238,7 +242,7 @@ De asemenea, mulțumesc familiei și prietenilor pentru susținere și încuraja
 Industria jocurilor video este una dintre cele mai mari și mai profitabile industrii
 de divertisment din lume. În 2021, piața jocurilor video era evaluată la aproximativ
 202.64 miliarde de dolari și este estimat să se extindă la o rată anuală compusă de creștere de 10.2\%
-în perioada 2022-2030\footnote{https://www.grandviewresearch.com/industry-analysis/gaming-industry. Accesat 06.10.2024.}.
+în perioada 2022-2030\footnote{\url{https://www.grandviewresearch.com/industry-analysis/gaming-industry}. Accesat 10.06.2024.}.
 Această industrie este alimentată de cererea pentru experiențe interactive și captivante,
 care să ofere o experiență de joc cât mai realistă și cât mai imersivă. Toate studio-urile
 de dezvoltare de jocuri video AAA (i.e., jocuri cu bugete mari și echipe de dezvoltare
@@ -285,7 +289,7 @@ reflexii ale exploziei care nu este vizibilă decât parțial în cadru.
 	\caption{Screen space reflections în Minecraft\protect\footnotemark}
 	\label{fig:ssr-good}
 \end{figure}
-\footnotetext{\label{continuum}Shader folosit: \textcopyright https://continuum.graphics/. Accesat 06.10.2024.}
+\footnotetext{\label{continuum}Shader folosit: \textcopyright \url{https://continuum.graphics/}. Accesat  10.06.2024.}
 
 \begin{figure}[ht]
 	\centering
@@ -303,7 +307,7 @@ reflexii ale exploziei care nu este vizibilă decât parțial în cadru.
 	\vspace{1cm}
 	\label{fig:cornell-raster}
 \end{figure}
-\footnotetext{\textcopyright Nvidia Corporation: https://blogs.nvidia.com/blog/geforce-rtx-real-time-ray-tracing/. Accesat 06.10.2024.}
+\footnotetext{\textcopyright Nvidia Corporation: \url{https://blogs.nvidia.com/blog/geforce-rtx-real-time-ray-tracing/}. Accesat 10.06.2024.}
 
 \begin{figure}[ht]
 	\centering
@@ -321,7 +325,7 @@ reflexii ale exploziei care nu este vizibilă decât parțial în cadru.
 	\caption{Comparație RTX on/off în Battlefield V\protect\footnotemark}
 	\label{fig:bf5-rtx}
 \end{figure}
-\footnotetext{\textcopyright Nvidia Corporation: https://www.youtube.com/watch?v=WoQr0k2IA9A. Accesat 06.10.2024.}
+\footnotetext{\textcopyright Nvidia Corporation: \url{https://www.youtube.com/watch?v=WoQr0k2IA9A}. Accesat 10.06.2024.}
 
 Am văzut cum tehnica de Ray Tracing poate oferi rezultate mult mai realiste
 decât rasterizarea, dar această tehnologie vine cu un cost.
@@ -341,31 +345,83 @@ pe implementarea unui motor grafic simplu, cu câteva funcționalități de baz�
 	\item Controale de cameră simple (mișcare, rotire)
 	\item Randarea obiectelor definite ca mesh-uri triunghiulare
 	\item Randarea obiectelor definite prin funcții implicite (e.g., sfere, planuri)
-	\item Suport pentru materiale simple (e.g., difuz, specular, sticlă)
-	\item Suport pentru schimbarea scenelor,
+	\item Suport pentru materiale PBR (Physically Based Rendering)
+	\item Suport pentru mai multe scene precum:
+	\begin{itemize}
+		\item Cornell Box\footnote{\url{https://www.graphics.cornell.edu/online/box/}. Accesat 19.06.2024.}
+		\item Demonstrație a suprafețelor implicite
+		\item Scenă de testare a materialelor PBR
+	\end{itemize}
+	\item Meniu de configurare a mai multor parametri (e.g., pentru materiale,
+	configurarea algoritmului etc.),
 \end{itemize}
 precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a scenei:
 \begin{itemize}
 	\item Iluminare globală
 	\item Reflexii și refracții
 	\item Umbre.
-	      % \item Denoising.
 \end{itemize}
-Dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
+De asemenea, vom explora și implementa tehnici de optimizare a algoritmului propriu-zis,
+pe care le vom evalua în contextul de performanță și fidelitate obținute.
+
+Într-un final, dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
 (60 de cadre pe secundă) pentru hardware entry-level cu suport pentru
-DirectX Raytracing (e.g., Nvidia GeForce RTX 2060). Pentru a atinge acest obiectiv,
-vom explora și implementa tehnici de optimizare a algoritmului propriu-zis și vom
-urmări utilizarea API-ului DirectX 12 (cu extensia DXR) într-un mod eficient.
+DirectX Raytracing (e.g., Nvidia GeForce RTX 2060).
 
 \section{Soluția propusă}
 Soluția propusă este un motor grafic simplu de utilizat. Din perspectiva utilizatorului,
-acesta are un meniu din care poate configura diverși parametrii ai algoritmului
-de Ray Tracing, precum și a scenei. Utilizatorul poate încărca scene predefinite
+acesta are un meniu din care poate configura diverși parametri ai algoritmului
+de Ray Tracing, precum și ai scenei. Utilizatorul poate încărca scene predefinite
 și poate interacționa cu acestea folosind controalele de cameră.
 
-//TODO adaugat flowchart, descriere algoritm
+La nivel de bază, motorul grafic conține două implementări din clasa algoritmilor
+de Ray Tracing. Prima este o versiune simplă a algoritmului original descris de
+Whitted (1980)~\cite{Whitted}, peste care se aplică modelul clasic de iluminare
+Phong (1975)~\cite{Phong}. Această implementare a fost adaptată din codul sursă
+suport oferit de Microsoft\footnote{\url{https://github.com/microsoft/directx-graphics-samples/blob/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/readme.md}. Accesat 19.06.2024.}.
+A doua implementare este scrisă de la zero și folosește algoritmul de tip Monte Carlo
+Path Tracing pentru a rezolva ecuația de iluminare globală propusă de Kajiya (1986)~\cite{Kajiya}.
+Fără a intra în prea multe detalii tehnice (vezi secțiunea \ref{sec:teorie}),
+această ecuație descrie cantitatea de lumină emisă dintr-un punct de pe o suprafață,
+de-a lungul unei direcții de vizualizare, dându-se o funcție de distribuție a luminii
+și un BRDF (Bidirectional Reflectance Distribution Function) pentru materialul de pe
+suprafață. Ecuația conține o integrală de suprafață (peste emisfera unitate), care
+integrează contribuțiile din toate direcțiile. Pentru eficiență, această integrală
+este eșantionată folosind tehnici de Importance Sampling, descrise în secțiunea \ref{sec:teorie}.
+Totuși, numărul de eșantioane per pixel rămâne în continuare foarte limitat, din
+cauza bugetului de calcul (nu depășește 16 eșantioane per pixel). Pentru a reduce
+în continuare varianța (manifestată prin zgomot în imaginea finală), se folosește
+un algoritm de denoising în faza de post procesare. Mai multe detalii tehnice
+despre implementare sunt prezentate în secțiunea \ref{sec:implementare}.
 
-Din perspectiva implementării, blabla
+Algoritmul de Path Tracing folosește un sistem de materiale diferit de cel folosit
+de algoritmul Whitted. Dacă acesta din urmă este limitat de modelul simplu de iluminare
+Phong, Path Tracing folosește un model PBR (Physically Based Rendering) inspirat de
+cel introdus de Burley în 2012~\cite{Disney}, pentru a fi folosit în producția filmelor
+marca Walt Disney Animation Studios. Varianta implementată în această lucrare este
+augmentată cu o componentă de transmisie, descrisă tot de Burley în 2015~\cite{DisneyBSDF}.
+Acest model este mult mai complex,
+având la bază un BSDF (Bidirectional Scattering Distribution Function - oferă și
+o componentă de transmisie a luminii prin materiale) care descrie cum un material
+interacționează cu lumina incidentă. Fiind totuși folosit în producția cinematografică,
+modelul se concentrează pe a avea o interfață cât mai intuitivă pentru artistul
+grafic, deviând puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
+PBR sunt descrise în secțiunile \ref{sec:teorie} și \ref{sec:implementare}.
+
+Pentru evaluare se folosesc 3 scene distincte. Prima este celebra Cornell Box
+(o variantă se poate vedea în Figura~\ref{fig:cornell-raster}), care este folosită
+pentru a evalua corectitudinea algoritmului de iluminare globală. Se va putea
+face o comparație între cei doi algoritmi de Ray Tracing. Se va mai observa și
+capabilitatea algoritmului de Path Tracing de a simula surse de lumină de tip
+area light, care sunt dificil de modelat în algoritmul Whitted.
+A doua scenă este un test al materialelor PBR, exclusivă pentru algoritmul de Path Tracing.
+Aceasta conține mai multe sfere cu același material de bază, care diferă
+printr-un singur parametru. Utilizatorul poate alege care să fie acest parametru
+variabil și să seteze constante pentru restul parametrilor. Scena va fi folosită pentru
+a evalua fidelitatea sistemului de materiale.
+Ultima scenă testează performanțele de rulare a algoritmilor. Aceasta conține
+mai multe obiecte simple, definite prin suprafețe implicite, dar și obiecte
+complexe definite ca mesh-uri triunghiulare cu multe poligoane.
 
 \section{Rezultatele obținute}
 
@@ -381,33 +437,78 @@ Un paragraf în care fiecare dintre secțiunile următoare este prezentată în 
 
 \chapter{Motivație de cercetare}
 
-//TODO
-
 Proiectul de față cercetează tehnici de randare a imaginilor în timp real. Acest
 domeniu este de mare interes pentru industria jocurilor video, care investesc
 resurse semnificative în dezvoltarea de motoare grafice puternice.
 
+Un studiu de caz
+recent\footnote{\label{vnextglobal}\url{https://vnextglobal.com/category/blog/game-development-cost-an-in-depth-analysis}. Accesat 19.06.2024.}
+analizează costurile de dezvoltare ale unui joc video AAA. Două dintre jocurile
+cu cel mai mare buget sunt Grand Theft Auto V și Cyberpunk 2077, care investit
+peste 270, respectiv 300 milioane de dolari în dezvoltare și marketing. O parte
+importantă a acestor bugete a fost alocată pentru dezvoltarea motoarelor grafice
+proprietare.
+
+RAGE (Rockstar Advanced Game Engine) este motorul grafic folosit
+de Rockstar Games pentru jocurile sale de tip open-world, precum GTA V. Acesta a
+trebuit să fie adaptat pentru portarea jocului pe consolele de nouă generație
+(PS4 și Xbox One) și pentru PC, suportând rezoluții de până la 4K pe PC.\footnote{\url{https://www.eurogamer.net/digitalfoundry-2015-grand-theft-auto-5-pc-face-off}. Accesat 19.06.2024.}
+RAGE a primit o iterație semnificativă odată cu lansarea Red Dead Redemption 2 în 2018
+(un alt joc cu un buget de dezvoltare mare, de peste 100 milioane de dolari\footref{vnextglobal}),
+care a adus noi tehnici de randare precum suport PBR, nori volumetrici și iluminare globală
+precalculată\footnote{\url{https://www.eurogamer.net/digitalfoundry-2017-red-dead-redemption-2-trailer-tech-analysis}. Accesat 19.06.2024.}\footnote{\url{https://www.eurogamer.net/digitalfoundry-2018-red-dead-redemption-2-tech-analysis}. Accesat 19.06.2024.}.
+
+Cyberpunk 2077 a început dezvoltarea folosind un nou motor REDengine 3\footnote{\url{https://www.engadget.com/2013-02-01-cd-projekt-red-introduces-redengine-3-latest-iteration-of-in-ho.html}. Accesat 19.06.2024.},
+creat special pentru a îmbina o lume de joc vastă și detaliată cu o poveste complexă,
+bazată pe deciziile jucătorului. Totuși, acest motor nu era destul de flexibil pentru
+a suporta toate cerințele jocului\footnote{\url{https://www.superjumpmagazine.com/why-cd-projekt-reds-switch-to-unreal-engine-is-a-big-deal/}. Accesat 19.06.2024.}
+(precum first person shooting și condus de mașini),
+așa că au început lucrul la o nouă versiune, REDengine 4, folosind un grant de 7 milioane
+de dolari de la guvernul polonez\footnote{\label{UE5}\url{https://www.wipo.int/edocs/mdocs/mdocs/en/wipo_smes_ge_20/wipo_smes_ge_20_p3.pdf}. Accesat 19.06.2024.}.
+Nici acest proces nu a fost fără dificultăți (lansarea jocului a fost dezastruoasă
+și plină de bug-uri\footnote{\url{https://gamerant.com/cyberpunk-2077-review-bombing-negative-impact-bad-example/}. Accesat 19.06.2024.},
+iar studio-ul a decis după lansare să tranziționeze către Unreal Engine 5\footref{UE5} pentru jocurile viitoare),
+dar a permis jocului să fie primul care să ofere iluminare realizată integral cu Path Tracing\footnote{\url{https://www.tomshardware.com/news/cyberpunk-277-rt-overdrive-available-to-all}. Accesat 19.06.2024.}.
+Acest lucru a fost posibil datorită colaborării cu Nvidia\footnote{\url{https://www.nvidia.com/en-us/geforce/news/cyberpunk-2077-nvidia-partnership-ray-tracing/}. Accesat 19.06.2024.},
+care a oferit suport în implementarea tehnologiei RTX în REDengine 4.
+
+Am văzut astfel ce eforturi depun companiile mari pentru a aduce fidelitate grafică
+în jocurile lor. Un studiu realizat de Tondello și Nacke în 2019\cite{Tondello} pe
+două eșantioane de gameri a arătat că majoritatea jucătorilor sunt interesați
+de aspectele estetice ale jocurilor video, precum grafica și sunetul. În alt
+studiu realizat de Katja et al. în 2022\cite{Katja}, s-a analizat concepția
+literaturii asupra realismului în jocuri video. Deși s-a concluzionat că acest
+termen nu este bine definit de multe ori, cel mai adesea în literatură acesta
+se referă, printre altele, la fidelitatea grafică a jocului.
+
+Așadar, unul dintre cele mai importante aspecte ale unui joc video, în relație cu
+experiența jucătorului, este fidelitatea grafică\footnote{\url{https://goombastomp.com/why-good-graphics-matter-in-video-games-enhancing-the-visual-experience/}. Accesat 19.06.2024.}. Aceasta este influențată de
+calitatea modelelor 3D, a texturilor, a animațiilor, a efectelor speciale, dar
+și de iluminare. Iluminarea este un aspect critic al fidelității grafice, deoarece
+aceasta influențează cum percepem obiectele din joc. O lume frumos modelată nu
+poate avea un impact vizual puternic dacă nu este pusă într-o "lumină bună".
+Această "lumină bună" izvorăște adânc din tehnologiile folosite de motorul grafic
+pentru a da valoare obiectelor în scenă. Deși există multe stiluri atractive de
+a prezenta o scenă (e.g., cel-shading, pixel art), realismul este unul dintre cele
+mai populare, deoarece oferă o experiență de joc mai imersivă. Clasa de algoritmi
+de Ray Tracing este una dintre cele mai bune tehnici de a obține realism în jocuri,
+însă aceasta vine cu un cost computațional ridicat. De aceea, eforturi de cercetare
+în domeniu sunt necesare pentru a găsi soluții care să ofere un compromis între
+fidelitate și performanță\footnote{\url{https://blogs.nvidia.com/blog/rtx-real-time-ray-tracing/}. Accesat 19.06.2024.}.
+Ca referință, NVIDIA oferă public multe studii de cercetare și articole științifice
+publicate de echipa lor de cercetare\footnote{\url{https://research.nvidia.com/labs/rtr/publication/}. Accesat 19.06.2024.}.
+Marea majoritate se concentrează pe optimizarea tehnicilor de prezentare grafică
+(Path Tracing reprezentând o parte importantă a acestora) și oferă o privire de
+ansamblu asupra eforturilor de cercetare în domeniu.
+
+Ca o ultimă observație, imaginați-vă că fidelitatea cu care se realizează
+producția filmelor de animație ar putea fi adusă în jocurile video. Din cealaltă
+perspectivă, filmele video ar putea fi randate în timp real, fără consum enorm
+de energie. Aceste avantaje ar reduce costurile de producție și ar accelera
+procesul de dezvoltare a filmelor. Eforturile de cercetare în domeniu sunt
+necesare pentru a face aceste viziuni realitate.
+
 \chapter{Metode Existente}
-
-//TODO read papers motherfucker and benchmark your shit
-
-\cercetare Metode existente (sau ``State of the Art'') se referă, de regulă, la nivelul curent de dezvoltare: care este starea curentă a domeniului, unde ne găsim, care este contextul. Care sunt soluțiile actuale prezente în literatura de specialitate și care sunt limitările lor? Ce direcții de explorare sunt recomandate în literatura de specialitate? Literatura de specialitate se refera la articole științifice recente, publicate în reviste cu factor de impact mare, sau în volumele unor conferințe de top, sau în cărți.
-
-\ambele În încheierea acestui capitol se dorește descrierea tehnologiilor folosite în lucrare, cu alternative și cu argumente convingătoare calitative și cantitative.
-
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item \dezvoltare Sunt analizate superficial câteva produse de pe piață;
-	\item \cercetare analiza literaturii limitata la grupuri de cercetare din România;
-	\item \ambele Sunt descrise tehnologiile folosite în lucrare.
-\end{itemize}
-
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item \dezvoltare Există un interviu, un client, analiza cerințelor este elaborată pe baza interviului.
-	\item \cercetare analiza literaturii de specialitate din lume, fără poziționarea precisă a lucrării în peisajului domeniului studiat;
-	\item \ambele Sunt descrise câteva tehnologii alternative pentru fiecare din tehnologiile folosite în lucrare. Există o argumentare referitoare la alegere.
-\end{itemize}
 
 Criterii pentru calificativul \textit{Bine}:
 \begin{itemize}
@@ -415,6 +516,8 @@ Criterii pentru calificativul \textit{Bine}:
 	\item \cercetare analiza literaturii de specialitate din lume, cu poziționarea precisă a lucrării în peisajul actual al domeniului studiat;
 	\item \ambele Sunt descrise tehnologii alternative. Sunt analizate cantitativ și calitativ, folosite benchmarkuri și teste efectuate de student. Analiza este rezumată prin tabele și grafice.
 \end{itemize}
+
+
 
 
 \chapter{Soluția Propusă}
