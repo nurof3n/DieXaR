@@ -45,6 +45,11 @@
 \newcommand*\diff{\mathop{}\!\mathrm{d}}
 \newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
 
+\usepackage{amsthm}
+\newtheorem{definition}{Definiția}
+
+\captionsetup{font=small,width=0.8\textwidth}
+
 %%% HEADERS & FOOTERS
 \usepackage{fancyhdr}
 \pagestyle{empty}
@@ -302,7 +307,6 @@ reflexii ale exploziei care nu este vizibilă decât parțial în cadru.
 \begin{figure}[ht]
 	\centering
 	\includegraphics[width=0.8\textwidth]{pics/mc-ssr-bad.png}
-	\captionsetup{width=0.8\textwidth}
 	\caption{Artefacte vizuale în screen space reflections\protect\footref{continuum}. Se poate observa cum
 		reflexiile se pierd dacă obiectele reflectate ies din viewport}
 	\label{fig:ssr-bad}
@@ -373,18 +377,8 @@ De asemenea, vom explora și implementa tehnici de optimizare a algoritmului pro
 pe care le vom evalua în contextul de performanță și fidelitate obținute.
 
 În final, dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
-(60 de cadre pe secundă) pentru hardware entry-level cu suport pentru
+(60 de cadre pe secundă) la o rezoluție Full HD (1920x1080), pentru hardware entry-level cu suport pentru
 DirectX Raytracing (e.g., Nvidia GeForce RTX 2060).
-
-Adresându-mă direct cititorului, această lucrare este scrisă cu scopul de a desemna
-o introducere asupra conceptelor și metodelor prezentate. Nu se adresează experților
-în domeniu, ci mai degrabă celor care se află la primii pași de învățare. Sper
-ca explicațiile să fie intuitive și să ofere o privire de ansamblu, însă destul de
-detaliată pentru a înțelege lucrurile care stau la baza unui algoritm de Ray Tracing
-în timp real. În concluzie, lucrarea de față își propune să servească drept ghid
-pentru cititorii care vor să experimenteze tehnici de randare avansate, insă
-sunt copleșiți de complexitatea teoretică a conceptelor și de complexitatea practică
-a uneltelor precum DirectX 12.
 
 \section{Soluția propusă}
 Soluția propusă este un motor grafic simplu de utilizat. Din perspectiva utilizatorului,
@@ -448,6 +442,16 @@ complexe definite ca mesh-uri triunghiulare cu multe poligoane.
 Descriere pe scurt a rezultatelor obținute, eventual de ce acestea sunt importante față de alte soluții sau studii.
 
 \section{Structura lucrării}
+
+Vreau să încep prin a clarifica faptul că această lucrare nu își propune să introducă
+noi metode sau concepte în domeniul graficii pe calculator. Scopul acesteia
+este de a experimenta și de a înțelege mai bine tehnologiile existente, precum
+și de a pune în practică teoria care stă la baza acestora. Lucrarea este structurată
+într-o parte teoretică inițială, menită să familiarizeze cititorul printr-o introducere lină
+în conceptele care stau la baza algoritmului de Path Tracing, și o parte practică,
+care se concentrează pe utilizarea API-ului DirectX12 pentru a implementa algoritmul
+cu accelerare hardware. Din nou, nici conceptele tehnice din urmă nu vor fi prezentate
+într-o lumină precisă, ci mai degrabă într-un mod simplificat și intuitiv.
 
 În secțiunea~\ref{sec:motivatie} este descris contextul actual în care se plasează
 eforturile din domeniu, din perspectiva industriilor de gaming și de cinematografie,
@@ -549,12 +553,21 @@ Marea majoritate se concentrează pe optimizarea tehnicilor de prezentare grafic
 (Path Tracing reprezentând o parte importantă a acestora) și oferă o privire de
 ansamblu asupra eforturilor de cercetare în domeniu.
 
-Ca o ultimă observație, imaginați-vă că fidelitatea cu care se realizează
+Ca o ultimă observație, să ne imaginăm că fidelitatea cu care se realizează
 producția filmelor de animație ar putea fi adusă în jocurile video. Din cealaltă
 perspectivă, filmele video ar putea fi randate în timp real, fără consum enorm
 de energie. Aceste avantaje ar reduce costurile de producție și ar accelera
 procesul de dezvoltare a filmelor. Eforturile de cercetare în domeniu sunt
 necesare pentru a face aceste viziuni realitate.
+
+La nivel personal, această lucrare reprezintă o oportunitate de a învăța și
+de a experimenta cu tehnologii avansate de randare a imaginilor. Scriu lucrarea
+de față în ideea în care dacă ar fi să o iau de la început și să învăț aceste concepte
+din nou, aș vrea să am la dispoziție un ghid simplu și intuitiv care să mă
+ajute să înțeleg teoria și să o pun în practică. În cercetarea efectuată de mine
+nu am găsit o introducere completă și accesibilă, mai ales în contextul API-urilor
+de ultimă generație precum DirectX 12. Așadar, această lucrare își propune să
+fie un astfel de ghid, care să ofere cititorului o introducere lină și încurajatoare.
 
 \chapter{\label{sec:stateoftheart}Metode Existente}
 
@@ -573,6 +586,13 @@ introducere în teoria probabilității, vom prezenta doar conceptele de bază n
 înțelegerii algoritmilor de Path Tracing. Pentru o introducere mai detaliată în
 acest domeniu, cititorul poate consulta lucrări de specialitate precum~\cite{Halton}
 și~\cite{Hammersley}.
+
+% Câteva definiții care vor fi folosite în continuare sunt:
+% \begin{definition}
+% 	Radianța $L$ este raportul dintre fluxul luminos 
+% \end{definition}
+% \begin{definition}
+
 
 \subsection{Metode Monte Carlo}
 
@@ -689,9 +709,10 @@ varianța estimării.
 \begin{figure}[th]
 	\centering
 	\includegraphics[width=\textwidth]{pics/is.png}
-	\caption{Efectul eșantionării bazate pe importanță. Credite: \url{https://medium.com/}}
+	\caption{Efectul eșantionării bazate pe importanță\protect\footnotemark}
 	\label{fig:is}
 \end{figure}
+\footnotetext{\copyright\url{https://medium.com/}}
 
 \subsection{Eșantionare Stratificată}
 
@@ -719,7 +740,121 @@ Un exemplu de eșantionare stratificată este ilustrat sub tehnica de jittering
 
 \section{Ecuația transportului luminii}
 
+Introdusă simultan de Kajiya~\cite{Kajiya} și Immel et al.~\cite{Immel} în 1986,
+ecuația transportului luminii (sau ecuația de randare) este cea mai importantă ecuație din domeniul
+graficii pe calculator. Aceasta descrie modul în care lumina interacționează
+cu suprafețele și ajunge către observator. Una dintre formele acesteia este:
+\begin{equation}
+	\label{eq:light_transport}
+	\begin{aligned}
+		L_o(\mathbf{x}, \omega_o, \lambda, t) & = L_e(\mathbf{x}, \omega_o, \lambda, t) + L_r(\mathbf{x}, \omega_o, \lambda, t)                                                                     \\
+		L_r(\mathbf{x}, \omega_o, \lambda, t) & = \int_{\Omega_+} f_r(\mathbf{x}, \omega_i, \omega_o, \lambda, t) L_i(\mathbf{x}, \omega_i, \lambda, t) (\omega_i \cdot \mathbf{n}) \diff \omega_i.
+	\end{aligned}
+\end{equation}
 
+Sunt destul de multe simboluri folosite în această ecuație, așa că le vom explica
+pe rând. Folosind Figura~\ref{fig:light_transport2} drept referință:
+\begin{itemize}
+	\item $\mathbf{x}$ este poziția punctului de intersecție cu suprafața
+	\item $\omega_o$ este direcția de observare (direcția pe care vrem să măsurăm radianța)
+	\item $\omega_i$ este opusul direcției de incidență (direcționat de la punctul de intersecție către sursa de lumină)
+	\item $\mathbf{n}$ este normala la suprafață în punctul $\mathbf{x}$
+	\item $\lambda$ este lungimea de undă a luminii
+	\item $t$ este un moment particular în timp
+	\item $L_o(\mathbf{x}, \omega_o, \lambda, t)$ este radianța spectrală de lungime de undă $\lambda$ observată în punctul $\mathbf{x}$, pe direcția $\omega_o$, la momentul $t$
+	\item $L_e(\mathbf{x}, \omega_o, \lambda, t)$ este radianța spectrală de lungime de undă $\lambda$ emisă de suprafața în punctul $\mathbf{x}$, pe direcția $\omega_o$, la momentul $t$
+	\item $L_r(\mathbf{x}, \omega_o, \lambda, t)$ este radianța spectrală de lungime de undă $\lambda$ reflectată în punctul $\mathbf{x}$, pe direcția $\omega_o$, la momentul $t$
+	\item $L_i(\mathbf{x}, \omega_i, \lambda, t)$ este radianța spectrală de lungime de undă $\lambda$ incidentă în punctul $\mathbf{x}$, pe direcția $\omega_i$, la momentul $t$
+	\item $f_r(\mathbf{x}, \omega_i, \omega_o, \lambda, t)$ este funcția de distribuție bidirecțională a reflectanței (BRDF), care reprezintă câtă lumină este reflectată în direcția $\omega_o$ din direcția $\omega_i$
+	\item $\Omega_+$ este emisfera unitate superioară centrată în jurul normalei $\mathbf{n}$, care conține toate direcțiile posibile de incidență $\omega_i$ pentru care $\omega_i \cdot \mathbf{n} > 0$.
+\end{itemize}
+
+Putem observa că această ecuație nu include o componentă de transmisie a luminii.
+Putem augmenta aditiv ecuația~\ref{eq:light_transport} cu o componentă de transmisie, definită astfel:
+\begin{equation}
+	L_t(\mathbf{x}, \omega_o, \lambda, t) = \int_{\Omega_-} f_t(\mathbf{x}, \omega_t, \omega_o, \lambda, t) L_i(\mathbf{x}, \omega_t, \lambda, t) (\omega_t \cdot \mathbf{n}) \diff \omega_i,
+\end{equation}
+cu diferența că $\Omega_-$ este emisfera unitate inferioară centrată în jurul normalei $\mathbf{n}$, care conține toate direcțiile posibile de incidență internă $\omega_t$ pentru care $\omega_t \cdot \mathbf{n} < 0$.
+În acest caz, funcția $f_t(\mathbf{x}, \omega_t, \omega_o, \lambda, t)$ este funcția de distribuție bidirecțională a transmisiei (BTDF), care reprezintă câtă lumină este transmisă în direcția $\omega_o$ din direcția $\omega_t$.
+
+De obicei, componenta de reflectanță și cea de transmisie se combină într-o singură
+componentă, care are la bază o funcție de distribuție bidirecțională a împrăștierii (BSDF).
+Mai multe detalii despre această clasă de funcții, într-un context de materiale
+bazate pe fizică, se pot găsi în secțiunea~\ref{sec:pbr}.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/rendering_eq2.png}
+	\caption{Ilustrație a componentelor din ecuația de randare\protect\footnotemark}
+	\label{fig:light_transport2}
+\end{figure}
+\footnotetext{\label{fn:wiki}\copyright\url{https://en.wikipedia.org/}. Accesat 20.06.2024.}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.8\textwidth]{pics/rendering_eq.png}
+	\caption{Formă alternativă a ecuației transportului luminii. Se pot vedea componentele de emisie și împrăștiere\protect\footnotemark}
+	\label{fig:light_transport}
+\end{figure}
+\footnotetext{\copyright\url{https://www.researchgate.net/}. Accesat 20.06.2024.}
+
+\subsection{Rezolvarea ecuației transportului luminii}
+
+Găsirea soluției la ecuația transportului luminii (i.e., determinarea radianței $L_o$)
+este provocarea primară în algoritmii de randare realistică. Vom enumera câteva dintre
+metodele de rezolvare a acestei ecuații, însă ne vom concentra asupra algoritmului
+de Path Tracing.
+
+\subsubsection*{Radiosity}
+Radiosity este o tehnică de iluminare globală bazată pe metoda elementului finit.
+Aceasta presupune împărțirea scenei în elemente mici, numite petice, și calcularea
+energiei luminoase reflectată de fiecare dintre acestea. Algoritmul în sine consideră
+numai interacțiunile de tip difuz, ceea ce îl face să fie un algoritm independent
+de direcția de vizualizare. De aceea, acesta poate fi folosit în special pentru a precalcula
+iluminarea statică a scenei (spre exemplu, la compilarea unei hărți create în editorul
+Hammer al companiei Valve se aplică acest algoritm sub forma utilitarului VRAD\footnote{\url{https://developer.valvesoftware.com/wiki/VRAD}. Accesat 20.06.2024.}).
+
+Algoritmul funcționează prin calcularea vizibilității între petice și asocierea
+unori factori de vizualizare pentru fiecare pereche. Acest factor descrie
+cât de bine se văd două petice între ele.
+
+Într-o variantă brută a algoritmului, factorii sunt folosiți drept coeficienți pentru a rezolva
+un sistem de ecuații liniare (unde ecuațiile sunt variante simplificate ale ecuației
+de transport al luminii). Soluția acestui sistem oferă radiozitatea fiecărui petice
+(i.e., luminozitatea). O ilustrație a rezultatului algoritmului într-o scenă
+de tip Cornell Box se poate vedea în Figura~\ref{fig:radiosity}.
+
+O variantă optimizată, denumită "shooting radiosity", folosește un proces iterativ în
+care la fiecare pas se emite lumină dintr-un petice și se calculează radianța
+reflectată de celelalte petice. Acest proces se repetă până când se atinge o stare
+stabilă, așa cum se poate vedea în Figura~\ref{fig:shooting_radiosity}.
+
+Avantajele algoritmului sunt faptul că este relativ simplu de implementat, nu necesită
+matematică avansată și deci este un instrument didactic bun. De asemenea, caracterul
+său independent de direcție îl face potrivit pentru precalcularea iluminării statice.
+Ca dezavantaje, este un algoritm lent și trebuie făcut un compromis între timpul de
+randare și calitatea rezultatului (e.g., rezoluția peticelor, numărul de pași). Nu este
+potrivit pentru iluminarea speculară sau transmisie, fiind limitat la interacțiuni de tip difuz
+(deși poate fi extins la medii non-difuze~\cite{Immel}).
+Un alt aspect care îl limitează este nevoia de a precalcula funcția de vizibilitate între petice.
+Din experiență proprie, lucrând la hărți complexe în editorul Hammer\footnote{\url{https://developer.valvesoftware.com/wiki/Valve_Hammer_Editor}. Accesat 20.06.2024.},
+era necesar să ajut manual algoritmul de radiosity prin partiționarea artificială a
+scenei în zone de vizibilitate\footnote{\url{https://developer.valvesoftware.com/wiki/VIS_optimization}. Accesat 20.06.2024.}, pentru a reduce numărul de perechi de petice care
+trebuiau luate în considerare. Fără această intervenție, doar calculul vizibilității\footnote{\url{https://developer.valvesoftware.com/wiki/VVIS}. Accesat 20.06.2024.}
+putea să dureze și 24 de ore.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/radiosity.png}
+	\caption{Rezultatul algoritmului de radiosity într-o scenă de tip Cornell Box\protect\footref{fn:wiki}}
+	\label{fig:radiosity}
+\end{figure}
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.8\textwidth]{pics/shooting_radiosity.png}
+	\caption{Ilustrație a algoritmului de shooting radiosity. Tot aici se poate observa și rezoluția peticelor\protect\footref{fn:wiki}}
+	\label{fig:shooting_radiosity}
+\end{figure}
 
 \chapter{\label{sec:solutie}Soluția Propusă}
 
