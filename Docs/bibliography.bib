@@ -1,21 +1,78 @@
-@article{Whitted,
-  author     = {Whitted, Turner},
-  title      = {An improved illumination model for shaded display},
-  year       = {1980},
-  issue_date = {June 1980},
+@inproceedings{Disney,
+  title  = {Physically-Based Shading at Disney},
+  author = {Brent Burley},
+  year   = {2012},
+  url    = {https://api.semanticscholar.org/CorpusID:7260137}
+}
+
+@inproceedings{DisneyBSDF,
+  author    = {Hill, Stephen and McAuley, Stephen and Burley, Brent and Chan, Danny and Fascione, Luca and Iwanicki, Micha\l{} and Hoffman, Naty and Jakob, Wenzel and Neubelt, David and Pesce, Angelo and Pettineo, Matt},
+  title     = {Physically based shading in theory and practice},
+  year      = {2015},
+  isbn      = {9781450336345},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/2776880.2787670},
+  doi       = {10.1145/2776880.2787670},
+  booktitle = {ACM SIGGRAPH 2015 Courses},
+  articleno = {22},
+  numpages  = {8},
+  location  = {Los Angeles, California},
+  series    = {SIGGRAPH '15}
+}
+
+@article{Kajiya,
+  author     = {Kajiya, James T.},
+  title      = {The rendering equation},
+  year       = {1986},
+  issue_date = {Aug. 1986},
   publisher  = {Association for Computing Machinery},
   address    = {New York, NY, USA},
-  volume     = {23},
-  number     = {6},
-  issn       = {0001-0782},
-  url        = {https://doi.org/10.1145/358876.358882},
-  doi        = {10.1145/358876.358882},
-  abstract   = {To accurately render a two-dimensional image of a three-dimensional scene, global illumination information that affects the intensity of each pixel of the image must be known at the time the intensity is calculated. In a simplified form, this information is stored in a tree of “rays” extending from the viewer to the first surface encountered and from there to other surfaces and to the light sources. A visible surface algorithm creates this tree for each pixel of the display and passes it to the shader. The shader then traverses the tree to determine the intensity of the light received by the viewer. Consideration of all of these factors allows the shader to accurately simulate true reflection, shadows, and refraction, as well as the effects simulated by conventional shaders. Anti-aliasing is included as an integral part of the visibility calculations. Surfaces displayed include curved as well as polygonal surfaces.},
-  journal    = {Commun. ACM},
-  month      = {jun},
-  pages      = {343-349},
-  numpages   = {7},
-  keywords   = {visible surface algorithms, shading, raster displays, computer graphics, computer animation}
+  volume     = {20},
+  number     = {4},
+  issn       = {0097-8930},
+  url        = {https://doi.org/10.1145/15886.15902},
+  doi        = {10.1145/15886.15902},
+  abstract   = {We present an integral equation which generalizes a variety of known rendering algorithms. In the course of discussing a monte carlo solution we also present a new form of variance reduction, called Hierarchical sampling and give a number of elaborations shows that it may be an efficient new technique for a wide variety of monte carlo procedures. The resulting rendering algorithm extends the range of optical phenomena which can be effectively simulated.},
+  journal    = {SIGGRAPH Comput. Graph.},
+  month      = {aug},
+  pages      = {143–150},
+  numpages   = {8}
+}
+
+@inproceedings{Katja,
+  author    = {Rogers, Katja and Karaosmanoglu, Sukran and Altmeyer, Maximilian and Suarez, Ally and Nacke, Lennart E.},
+  title     = {Much Realistic, Such Wow! A Systematic Literature Review of Realism in Digital Games},
+  year      = {2022},
+  isbn      = {9781450391573},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/3491102.3501875},
+  doi       = {10.1145/3491102.3501875},
+  abstract  = {Researchers reference realism in digital games without sufficient specificity. Without clarity about the dimensions of realism, we cannot assess how and when to aim for a higher degree of realism, when lower realism suffices, or when purposeful unrealism is ideal for a game and can benefit player experience (PX). To address this conceptual gap, we conducted a systematic review using thematic synthesis to distinguish between types of realism currently found in the digital games literature. We contribute qualitative themes that showcase contradictory design goals of realism/unrealism. From these themes, we created a framework (i.e., a hierarchical taxonomy and mapping) of realism dimensions in digital games as a conceptual foundation. Our themes and framework enable a workable specificity for designing or analyzing types of realism, equip future work to explore effects of specific realism types on PX, and offer a starting point for similar efforts in non-game applications.},
+  booktitle = {Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems},
+  articleno = {190},
+  numpages  = {21},
+  keywords  = {fidelity, realism, systematic literature review, thematic synthesis},
+  location  = {, New Orleans, LA, USA, },
+  series    = {CHI '22}
+}
+
+@inbook{Kleijnen2013,
+  author    = {Kleijnen, Jack P. C.
+               and Ridder, Ad A. N.
+               and Rubinstein, Reuven Y.},
+  editor    = {Gass, Saul I.
+               and Fu, Michael C.},
+  title     = {Variance Reduction Techniques in Monte Carlo Methods},
+  booktitle = {Encyclopedia of Operations Research and Management Science},
+  year      = {2013},
+  publisher = {Springer US},
+  address   = {Boston, MA},
+  pages     = {1598--1610},
+  isbn      = {978-1-4419-1153-7},
+  doi       = {10.1007/978-1-4419-1153-7_638},
+  url       = {https://doi.org/10.1007/978-1-4419-1153-7_638}
 }
 
 @article{Phong,
@@ -38,23 +95,11 @@
   keywords   = {computer graphics, graphic display, hidden surface removal, shading}
 }
 
-@article{Kajiya,
-  author     = {Kajiya, James T.},
-  title      = {The rendering equation},
-  year       = {1986},
-  issue_date = {Aug. 1986},
-  publisher  = {Association for Computing Machinery},
-  address    = {New York, NY, USA},
-  volume     = {20},
-  number     = {4},
-  issn       = {0097-8930},
-  url        = {https://doi.org/10.1145/15886.15902},
-  doi        = {10.1145/15886.15902},
-  abstract   = {We present an integral equation which generalizes a variety of known rendering algorithms. In the course of discussing a monte carlo solution we also present a new form of variance reduction, called Hierarchical sampling and give a number of elaborations shows that it may be an efficient new technique for a wide variety of monte carlo procedures. The resulting rendering algorithm extends the range of optical phenomena which can be effectively simulated.},
-  journal    = {SIGGRAPH Comput. Graph.},
-  month      = {aug},
-  pages      = {143–150},
-  numpages   = {8}
+@inproceedings{StateOfTheArt,
+  title  = {State of the Art in Monte Carlo Ray Tracing for Realistic Image Synthesis},
+  author = {Henrik Wann Jensen},
+  year   = {2001},
+  url    = {https://api.semanticscholar.org/CorpusID:117086592}
 }
 
 @inproceedings{Tondello,
@@ -75,20 +120,47 @@
   series    = {CHI PLAY '19}
 }
 
-@inproceedings{Katja,
-  author    = {Rogers, Katja and Karaosmanoglu, Sukran and Altmeyer, Maximilian and Suarez, Ally and Nacke, Lennart E.},
-  title     = {Much Realistic, Such Wow! A Systematic Literature Review of Realism in Digital Games},
-  year      = {2022},
-  isbn      = {9781450391573},
-  publisher = {Association for Computing Machinery},
-  address   = {New York, NY, USA},
-  url       = {https://doi.org/10.1145/3491102.3501875},
-  doi       = {10.1145/3491102.3501875},
-  abstract  = {Researchers reference realism in digital games without sufficient specificity. Without clarity about the dimensions of realism, we cannot assess how and when to aim for a higher degree of realism, when lower realism suffices, or when purposeful unrealism is ideal for a game and can benefit player experience (PX). To address this conceptual gap, we conducted a systematic review using thematic synthesis to distinguish between types of realism currently found in the digital games literature. We contribute qualitative themes that showcase contradictory design goals of realism/unrealism. From these themes, we created a framework (i.e., a hierarchical taxonomy and mapping) of realism dimensions in digital games as a conceptual foundation. Our themes and framework enable a workable specificity for designing or analyzing types of realism, equip future work to explore effects of specific realism types on PX, and offer a starting point for similar efforts in non-game applications.},
-  booktitle = {Proceedings of the 2022 CHI Conference on Human Factors in Computing Systems},
-  articleno = {190},
-  numpages  = {21},
-  keywords  = {fidelity, realism, systematic literature review, thematic synthesis},
-  location  = {, New Orleans, LA, USA, },
-  series    = {CHI '22}
+@article{Whitted,
+  author     = {Whitted, Turner},
+  title      = {An improved illumination model for shaded display},
+  year       = {1980},
+  issue_date = {June 1980},
+  publisher  = {Association for Computing Machinery},
+  address    = {New York, NY, USA},
+  volume     = {23},
+  number     = {6},
+  issn       = {0001-0782},
+  url        = {https://doi.org/10.1145/358876.358882},
+  doi        = {10.1145/358876.358882},
+  abstract   = {To accurately render a two-dimensional image of a three-dimensional scene, global illumination information that affects the intensity of each pixel of the image must be known at the time the intensity is calculated. In a simplified form, this information is stored in a tree of “rays” extending from the viewer to the first surface encountered and from there to other surfaces and to the light sources. A visible surface algorithm creates this tree for each pixel of the display and passes it to the shader. The shader then traverses the tree to determine the intensity of the light received by the viewer. Consideration of all of these factors allows the shader to accurately simulate true reflection, shadows, and refraction, as well as the effects simulated by conventional shaders. Anti-aliasing is included as an integral part of the visibility calculations. Surfaces displayed include curved as well as polygonal surfaces.},
+  journal    = {Commun. ACM},
+  month      = {jun},
+  pages      = {343-349},
+  numpages   = {7},
+  keywords   = {visible surface algorithms, shading, raster displays, computer graphics, computer animation}
+}
+
+@article{Halton,
+  author     = {Halton, John H.},
+  title      = {A Retrospective and Prospective Survey of the Monte Carlo Method},
+  year       = {1970},
+  issue_date = {1970},
+  publisher  = {Society for Industrial and Applied Mathematics},
+  address    = {USA},
+  volume     = {12},
+  number     = {1},
+  issn       = {0036-1445},
+  url        = {https://doi.org/10.1137/1012001},
+  doi        = {10.1137/1012001},
+  journal    = {SIAM Rev.},
+  month      = {jan},
+  pages      = {1–63},
+  numpages   = {63}
+}
+
+@inproceedings{Hammersley,
+  title  = {Monte Carlo Methods},
+  author = {J. M. Hammersley and David Handscomb},
+  year   = {1964},
+  url    = {https://api.semanticscholar.org/CorpusID:121917613}
 }

@@ -38,6 +38,12 @@
 \setlist{noitemsep}
 
 \usepackage{xurl} % for breaking long URLs
+\usepackage{amsmath}
+\usepackage{amssymb} % for math symbols
+
+% for integrals
+\newcommand*\diff{\mathop{}\!\mathrm{d}}
+\newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
 
 %%% HEADERS & FOOTERS
 \usepackage{fancyhdr}
@@ -209,6 +215,8 @@ how these can be used to improve the system's performance.}
 inspirația și motivația oferită în cadrul cursurilor de Elemente de Grafică pe Calculator.
 De asemenea, mulțumesc familiei și prietenilor pentru susținere și încurajare.}
 
+\numberwithin{equation}{section} % for equation numbering
+
 \begin{document}
 
 \frontPageRO
@@ -347,13 +355,13 @@ pe implementarea unui motor grafic simplu, cu câteva funcționalități de baz�
 	\item Randarea obiectelor definite prin funcții implicite (e.g., sfere, planuri)
 	\item Suport pentru materiale PBR (Physically Based Rendering)
 	\item Suport pentru mai multe scene precum:
-	\begin{itemize}
-		\item Cornell Box\footnote{\url{https://www.graphics.cornell.edu/online/box/}. Accesat 19.06.2024.}
-		\item Demonstrație a suprafețelor implicite
-		\item Scenă de testare a materialelor PBR
-	\end{itemize}
+	      \begin{itemize}
+		      \item Cornell Box\footnote{\url{https://www.graphics.cornell.edu/online/box/}. Accesat 19.06.2024.}
+		      \item Demonstrație a suprafețelor implicite
+		      \item Scenă de testare a materialelor PBR
+	      \end{itemize}
 	\item Meniu de configurare a mai multor parametri (e.g., pentru materiale,
-	configurarea algoritmului etc.),
+	      configurarea algoritmului etc.),
 \end{itemize}
 precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a scenei:
 \begin{itemize}
@@ -364,9 +372,19 @@ precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a
 De asemenea, vom explora și implementa tehnici de optimizare a algoritmului propriu-zis,
 pe care le vom evalua în contextul de performanță și fidelitate obținute.
 
-Într-un final, dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
+În final, dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
 (60 de cadre pe secundă) pentru hardware entry-level cu suport pentru
 DirectX Raytracing (e.g., Nvidia GeForce RTX 2060).
+
+Adresându-mă direct cititorului, această lucrare este scrisă cu scopul de a desemna
+o introducere asupra conceptelor și metodelor prezentate. Nu se adresează experților
+în domeniu, ci mai degrabă celor care se află la primii pași de învățare. Sper
+ca explicațiile să fie intuitive și să ofere o privire de ansamblu, însă destul de
+detaliată pentru a înțelege lucrurile care stau la baza unui algoritm de Ray Tracing
+în timp real. În concluzie, lucrarea de față își propune să servească drept ghid
+pentru cititorii care vor să experimenteze tehnici de randare avansate, insă
+sunt copleșiți de complexitatea teoretică a conceptelor și de complexitatea practică
+a uneltelor precum DirectX 12.
 
 \section{Soluția propusă}
 Soluția propusă este un motor grafic simplu de utilizat. Din perspectiva utilizatorului,
@@ -381,13 +399,13 @@ Phong (1975)~\cite{Phong}. Această implementare a fost adaptată din codul surs
 suport oferit de Microsoft\footnote{\url{https://github.com/microsoft/directx-graphics-samples/blob/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/readme.md}. Accesat 19.06.2024.}.
 A doua implementare este scrisă de la zero și folosește algoritmul de tip Monte Carlo
 Path Tracing pentru a rezolva ecuația de iluminare globală propusă de Kajiya (1986)~\cite{Kajiya}.
-Fără a intra în prea multe detalii tehnice (vezi secțiunea \ref{sec:teorie}),
+Fără a intra în prea multe detalii tehnice (vezi secțiunea \ref{sec:stateoftheart}),
 această ecuație descrie cantitatea de lumină emisă dintr-un punct de pe o suprafață,
 de-a lungul unei direcții de vizualizare, dându-se o funcție de distribuție a luminii
 și un BRDF (Bidirectional Reflectance Distribution Function) pentru materialul de pe
 suprafață. Ecuația conține o integrală de suprafață (peste emisfera unitate), care
 integrează contribuțiile din toate direcțiile. Pentru eficiență, această integrală
-este eșantionată folosind tehnici de Importance Sampling, descrise în secțiunea \ref{sec:teorie}.
+este eșantionată folosind tehnici de Importance Sampling, descrise în secțiunea \ref{sec:stateoftheart}.
 Totuși, numărul de eșantioane per pixel rămâne în continuare foarte limitat, din
 cauza bugetului de calcul (nu depășește 16 eșantioane per pixel). Pentru a reduce
 în continuare varianța (manifestată prin zgomot în imaginea finală), se folosește
@@ -399,14 +417,14 @@ de algoritmul Whitted. Dacă acesta din urmă este limitat de modelul simplu de 
 Phong, Path Tracing folosește un model PBR (Physically Based Rendering) inspirat de
 cel introdus de Burley în 2012~\cite{Disney}, pentru a fi folosit în producția filmelor
 marca Walt Disney Animation Studios. Varianta implementată în această lucrare este
-augmentată cu o componentă de transmisie, descrisă tot de Burley în 2015~\cite{DisneyBSDF}.
+augmentată cu o componentă de transmisie, descrisă într-un curs organizat de Hill et al. la conferința SIGGRAPH din 2015~\cite{DisneyBSDF}.
 Acest model este mult mai complex,
 având la bază un BSDF (Bidirectional Scattering Distribution Function - oferă și
 o componentă de transmisie a luminii prin materiale) care descrie cum un material
 interacționează cu lumina incidentă. Fiind totuși folosit în producția cinematografică,
 modelul se concentrează pe a avea o interfață cât mai intuitivă pentru artistul
 grafic, deviând puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
-PBR sunt descrise în secțiunile \ref{sec:teorie} și \ref{sec:implementare}.
+PBR sunt descrise în secțiunile \ref{sec:stateoftheart} și \ref{sec:implementare}.
 
 Pentru evaluare se folosesc 3 scene distincte. Prima este celebra Cornell Box
 (o variantă se poate vedea în Figura~\ref{fig:cornell-raster}), care este folosită
@@ -431,11 +449,41 @@ Descriere pe scurt a rezultatelor obținute, eventual de ce acestea sunt importa
 
 \section{Structura lucrării}
 
-//TODO
+În secțiunea~\ref{sec:motivatie} este descris contextul actual în care se plasează
+eforturile din domeniu, din perspectiva industriilor de gaming și de cinematografie,
+și se prezintă motivațiile principale pentru a continua avansurile în cercetare.
 
-Un paragraf în care fiecare dintre secțiunile următoare este prezentată în 1-2 fraze, punând accentul pe elementele cele mai semnificative din fiecare secțiune.
+În secțiunea~\ref{sec:stateoftheart} se analizează stadiul curent al cercetărilor
+în domeniul algoritmilor de Path Tracing, cu focus pe optimizări pentru timp real.
+De asemenea, se poziționează lucrarea de față în acest peisaj și se conturează
+aspectul didactic al acesteia.
 
-\chapter{Motivație de cercetare}
+În secțiunea~\ref{sec:solutie} se prezintă bazele teoretice ale algoritmilor
+utilizați (Ray Tracing Whitted și Path Tracing), iar pentru cel din urmă se
+detaliază modelul de materiale PBR folosit și tehnicile de denoising. De asemenea, se descrie arhitectura
+generală a motorului grafic, cu accent pe concepte din API-urile DirectX 12 și
+DXR.
+
+Secțiunea~\ref{sec:implementare} detaliază utilizarea API-urilor DirectX 12 și DXR
+pentru implementarea algoritmilor de Ray Tracing cu accelerare hardware. Accentul
+este pus pe transpunerea aspectelor teoretice în cod și pe deciziile de design luate pentru a obține o implementare
+eficientă și ușor de înțeles. Tot aici se notează și dificultățile întâmpinate
+și compromisurile făcute pentru a obține un echilibru între fidelitate și performanță.
+
+Secțiunea de evaluare (secțiunea~\ref{sec:evaluare}) prezintă rezultatele obținute
+în urma testelor efectuate pe cele trei scene descrise anterior. Se analizează
+performanțele sistemului, fidelitatea imaginilor generate și se fac comparații
+între cei doi algoritmi de Ray Tracing. De asemenea, se analizează impactul pe
+care îl au diferitele optimizări asupra stabilității imaginilor generate.
+
+Ultima secțiune (secțiunea~\ref{sec:concluzii}) conține concluziile trase din
+rezultatele obținute și se analizează calitativ produsul final. De asemenea, se
+discută posibile direcții de dezvoltare viitoare și se oferă o perspectivă asupra
+importanței acestei lucrări în contextul cercetării în domeniul graficii pe calculator.
+
+Extrase de cod și imagini detaliate sunt oferite în \hyperref[anexa]{anexă}.
+
+\chapter{\label{sec:motivatie}Motivație de cercetare}
 
 Proiectul de față cercetează tehnici de randare a imaginilor în timp real. Acest
 domeniu este de mare interes pentru industria jocurilor video, care investesc
@@ -508,55 +556,189 @@ de energie. Aceste avantaje ar reduce costurile de producție și ar accelera
 procesul de dezvoltare a filmelor. Eforturile de cercetare în domeniu sunt
 necesare pentru a face aceste viziuni realitate.
 
-\chapter{Metode Existente}
+\chapter{\label{sec:stateoftheart}Metode Existente}
 
-Criterii pentru calificativul \textit{Bine}:
-\begin{itemize}
-	\item \dezvoltare Proces iterativ pe baza unor interviuri cu mai mulți clienți, dezvoltare MVP, reevaluare cerințe;
-	\item \cercetare analiza literaturii de specialitate din lume, cu poziționarea precisă a lucrării în peisajul actual al domeniului studiat;
-	\item \ambele Sunt descrise tehnologii alternative. Sunt analizate cantitativ și calitativ, folosite benchmarkuri și teste efectuate de student. Analiza este rezumată prin tabele și grafice.
-\end{itemize}
+Literatura de specialitate din domeniul graficii pe calculator este vastă. Există
+multe metode de randare a imaginilor și se dă o luptă constantă între a balansa
+performanța cu fidelitatea. Direcția de cercetare cea mai proeminentă se axează
+în jurul metodelor de tip Monte Carlo, care reprezintă state-of-the-art în
+domeniu. În continuare, vom prezenta fundamentele teoretice ale acestei clase de
+algoritmi și vom analiza cele mai importante metode existente.
+
+\section{Fundamente și Terminologie}
+
+Metodele prezentate în continuare sunt inerent metode care se bazează extensiv
+pe teoria probabilității. Pentru că scopul aceste lucrări nu este de a oferi o
+introducere în teoria probabilității, vom prezenta doar conceptele de bază necesare
+înțelegerii algoritmilor de Path Tracing. Pentru o introducere mai detaliată în
+acest domeniu, cititorul poate consulta lucrări de specialitate precum~\cite{Halton}
+și~\cite{Hammersley}.
+
+\subsection{Metode Monte Carlo}
+
+Metodele de tip Monte Carlo sunt metode
+iterative care folosesc eșantionare aleatoare pentru a aproxima valoarea unei
+integrale sau pentru a simula comportamentul unui sistem complex determinist,
+modelat stocastic. Ele sunt utilizate pentru a găsi soluții aproximative, care
+să conveargă către soluția corectă, pentru probleme intractabile sau care nu pot
+fi rezolvate analitic.
+
+Un exemplu de pași pe care îi urmează un algoritm de tip Monte Carlo este:
+\begin{enumerate}
+	\item Definirea unui domeniu de eșantionare
+	\item Generarea unui număr de eșantioane în domeniu, folosind o distribuție de probabilitate
+	\item Efectuarea calculelor (deterministe) pentru fiecare eșantion, care să aproximeze soluția
+	\item Agregarea rezultatelor.
+\end{enumerate}
+
+\subsection{Integrare Monte Carlo}
+
+Relevant în particular pentru această lucrare este conceptul de integrare Monte Carlo.
+Acesta se referă la aproximarea unei integrale definite folosind metode Monte Carlo
+de eșantionare.
+
+Să luăm un exemplu de problemă. Dându-se o funcție $$f: \mathbb{D} \to \mathbb{R}$$
+și o variabilă aleatoare continuă $X$ cu distribuția de probabilitate $p(x)$, vrem să calculăm
+valoarea medie (expected value)
+\begin{equation}\label{eq:expected_value}
+	\mathbb{E}_p(f(X)) = \int_{\mathbb{D}} f(x) p(x)\diff x.
+\end{equation}
+
+Valoarea medie se poate aproxima prin eșantionare, folosind formula
+\begin{equation}
+	\mathbb{E}_p(f(X)) \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i),
+\end{equation}
+aproximarea devenind mai bună cu creșterea numărului de eșantioane $N$.
+
+Așadar, putem aproxima integrala~(\ref{eq:expected_value}) prin
+\begin{equation}\label{eq:estimator}
+	\int_{\mathbb{D}} f(x) p(x)\diff x \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i).
+\end{equation}
+
+Partea dreaptă a ecuației~(\ref{eq:estimator}) este estimatorul Monte Carlo.
+Teorema limitei centrale afirmă că, pentru un număr suficient de mare de eșantioane,
+distribuția de probabilitate a estimărilor se apropie de o distribuție normală în
+jurul valorii medii estimate. Acest lucru înseamnă că estimatorul Monte
+Carlo este imparțial (unbiased) și are o varianță redusă. Dacă notăm cu $f_p$
+estimatorul, atunci au loc următoarele relații:
+\begin{equation}
+	\begin{aligned}
+		\mathbb{E}_p(f_p) & = \mathbb{E}_p(f(X)),     \\
+		Var_p(f_p)        & = \frac{1}{N}Var_p(f(X)).
+	\end{aligned}
+\end{equation}
+
+\subsection{Importance Sampling}
+
+În practică, distribuția de probabilitate $p(x)$ este adesea greu de eșantionat,
+sau nu produce varianța cea mai mică, ceea ce duce la o convergență lentă a
+estimării.
+Eșantionarea pe baza importanței (importance sampling) este o tehnică prin care
+se eșantionează variabila aleatoare $X$ dintr-o altă distribuție de probabilitate,
+$q(x)$, cu scopul de a reduce varianța și a estima mai bine valoarea medie a funcției
+$f$.
+
+Să introducem această distribuție în ecuația valorii medii~(\ref{eq:expected_value}):
+\begin{equation}
+	\begin{aligned}
+		\mathbb{E}_p(f(X)) & = \int_{\mathbb{D}} f(x) p(x)\diff x                   \\
+		                   & = \int_{\mathbb{D}} f(x) \frac{p(x)}{q(x)} q(x)\diff x \\
+		                   & = \mathbb{E}_q\left(f(X) \frac{p(X)}{q(X)}\right).
+	\end{aligned}
+\end{equation}
+
+Obținem astfel un nou estimator Monte Carlo, notat cu $f_q$, care își păstrează imparțialitatea
+(căci valoarea medie rămâne aceeași) și care folosește distribuția $q(x)$:
+\begin{equation}
+	\mathbb{E}_q(f_q) = \mathbb{E}_p(f(X)) \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i) \frac{p(x_i)}{q(x_i)}.
+\end{equation}
+
+Varianța acestui estimator, este dată de
+\begin{equation}
+	Var_q(f_q) = \frac{1}{N}Var_q\left(f(X) \frac{p(X)}{q(X)}\right).
+\end{equation}
+
+Scopul este de a alege distribuția $q(x)$ astfel încât varianța estimatorului să fie
+mai mică decât varianța inițială, i.e.
+\begin{equation}
+	\frac{1}{N}Var_q\left(f(X) \frac{p(X)}{q(X)}\right) < \frac{1}{N}Var_p(f(X)).
+\end{equation}
+
+Pentru a minimiza varianța noului estimator, în mod ideal, vrem ca funcția
+$f(x) \dfrac{p(x)}{q(x)}$ să fie constantă, pentru orice $x$ eșantionat, ceea
+ce ar duce la o varianță nulă. Acest lucru se întamplă dacă
+\begin{equation}\label{eq:optimal_q}
+	q(x) = c \cdot f(x)p(x),
+\end{equation}
+unde $c$ este o constantă de normalizare. Pentru a păstra imparțialitatea, $c$ trebuie
+să fie egal cu $\dfrac{1}{\mathbb{E}_p(f(X))}$, însă această valoare este necunoscută
+(altfel nu am mai avea nevoie de estimator!). Așadar, nu este fezabilă alegerea
+optimă pentru $q(x)$. Totuși, ecuația~(\ref{eq:optimal_q}) ne arată că distribuția
+optimă este proporțională cu funcția $f(x)p(x)$. Acest produs măsoară fix
+importanța fiecărui eșantion în estimarea mediei, de unde și numele tehnicii.
+
+În Figura~\ref{fig:is} se poate observa efectul eșantionării bazate pe importanță.
+În acest caz, funcția $f$ are o regiune mică de unde vine majoritatea contribuției
+către valoarea medie. Dacă distribuția de probabilitate $p$ nu eșantionează bine
+această regiune (în acest caz, este o distribuție uniformă), varianța estimării
+va fi mare. Distribuția $q$ este aleasă astfel încât să eșantioneze mai mult din
+zonele importante și se poate vedea pe subgraficul din dreapta cum raportul
+$\dfrac{p(x)}{q(x)}$ încearcă să echilibreze contribuția fiecărui eșantion, reducând
+varianța estimării.
+
+\begin{figure}[th]
+	\centering
+	\includegraphics[width=\textwidth]{pics/is.png}
+	\caption{Efectul eșantionării bazate pe importanță. Credite: \url{https://medium.com/}}
+	\label{fig:is}
+\end{figure}
+
+\subsection{Eșantionare Stratificată}
+
+O altă metodă de a reduce varianța estimării este eșantionarea stratificată (Strattified Sampling).
+În această metodă se partiționează domeniul de eșantionare $\mathbb{D}$ în $n$ subdomenii,
+numite straturi, iar evaluarea integralei se face pe fiecare strat în parte:
+\begin{equation}
+	\int_{\mathbb{D}} f(x) p(x)\diff x = \sum_{i=1}^{n} \int_{\mathbb{D}_i} f(x) p(x)\diff x.
+\end{equation}
+
+În acest caz, varianța estimării devine suma varianțelor pe fiecare strat:
+\begin{equation}
+	Var(f_s) = \sum_{i=1}^{n} Var(f_i).
+\end{equation}
+
+Se poate demonstra că, în cazul în care toate straturile au aceeași măsură, i.e.
+\begin{equation}
+	\int_{\mathbb{D}_i} p(x)\diff x = \frac{1}{n}\int_{\mathbb{D}} p(x)\diff x, \quad \forall i \in \{1, 2, \ldots, n\},
+\end{equation}
+atunci varianța estimării nu va fi mai mare decât fără eșantionare stratificată.
+Pentru mai multe informații se poate consulta cartea de specialitate a lui Kleijnen et al.~\cite{Kleijnen2013}.
+
+Un exemplu de eșantionare stratificată este ilustrat sub tehnica de jittering
+în eșantionarea pixelilor, detaliată în secțiunea~\ref{sec:implementare}.
+
+\section{Ecuația transportului luminii}
 
 
 
-
-\chapter{Soluția Propusă}
+\chapter{\label{sec:solutie}Soluția Propusă}
 
 //TODO
 
 Capitolul conține o privire de ansamblu a soluției ce rezolvă problema, prin prezentarea structurii / arhitecturii acesteia. În funcție de tipul lucrării acest capitol poate conține diagrame (clase, distribuție, workflow, entitate-relație), demonstrații de corectitudine pentru algoritmii propuși de autor, abordări teoretice (modelare matematică), structura hardware, arhitectura aplicației.
-
-
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item	Descriere în limbaj natural.
-\end{itemize}
-
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item	Descriere + diagrame de baze de date, workflow, clase, algoritmi.
-\end{itemize}
 
 Criterii pentru calificativul \textit{Bine}:
 \begin{itemize}
 	\item 	Descriere + diagrame de baze de date, workflow, clase, algoritmi + descrierea unui proces prin care s-a realizat arhitectura/structura soluției.
 \end{itemize}
 
-\chapter{Detalii de implementare}
+\chapter{\label{sec:implementare}Detalii de implementare}
 
 //TODO
 
 În plus fata de capitolul precedent acesta conține elemente specifice ale rezolvării problemei care au presupus dificultăți deosebite din punct de vedere tehnic. Pot fi incluse configurații, secvențe de cod, pseudo-cod, implementări ale unor algoritmi, analize ale unor date, scripturi de testare. De asemenea, poate fi detaliat modul în care au fost utilizate tehnologiile introduse in capitolul 3.
 
 
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item	Sunt prezentate pe scurt scheme și pseudo-cod.
-\end{itemize}
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item	Descriere sumara a implementării, prezentarea unor secvențe nerelevante de cod, scheme, etc.
-\end{itemize}
 Criterii pentru calificativul \textit{Bine}:
 \begin{itemize}
 	\item	Descrierea detaliată a algoritmilor/structurilor utilizați; Prezentarea etapizată a dezvoltării, inclusiv cu dificultăți de implementare întâmpinate, soluții descoperite; (dacă este cazul) demonstrarea corectitudinii algoritmilor utilizați.
@@ -580,7 +762,7 @@ Orice tabel prezent în teză va fi referit în text; exemplu: a se vedea Tabel~
 \end{table}
 
 
-\chapter{Evaluare}
+\chapter{\label{sec:evaluare}Evaluare}
 
 //TODO
 
@@ -595,19 +777,6 @@ Acest capitol trebuie să răspundă, în principiu, la 2 întrebări și să se
 
 În realizarea discuției, se vor utiliza tabele cu procente, rezultate numerice și grafice. În mod obișnuit, aici se fac comparații și teste comparative cu alte proiecte similare (dacă există) și se extrag puncte tari și puncte slabe. Se ține cont de avantajele menționate și se demonstrează viabilitatea abordării / aplicației, de dorit prin comparație cu alte abordări (dacă acest lucru este posibil). Cuvântul cheie la evaluare este ``metrică'': trebuie să aveți noțiuni măsurabile și cuantificabile. În cadrul procesului de evaluare, explicați datele, tabelele și graficele pe care le prezentați și insistați pe relevanța lor, în următorul stil: ``este de preferat ... deoarece …''; explicați cititorului nu doar datele ci și semnificația lor și cum sunt acestea interpretate. Din această interpretare trebuie să rezulte poziționarea proiectului vostru printre alternativele existente, precum și cum poate fi acesta îmbunătățit în continuare.
 
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item Aplicația este testată dar rulează pe calculatorul studentului, nu există posibilități de testare, nu a fost validată cu clienți / utilizatori;
-	\item Nu au fost realizate comparații cu alte sisteme similare.
-\end{itemize}
-
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item \dezvoltare  Există teste unitare și de integrare, există o strategie de punere în funcțiune (deployment), există validare minimală cu clienții / utilizatorii.
-	\item \cercetare Principalele componente și soluția în ansamblu au fost evaluate din punct de vedere al performanței, însă nu sunt folosite seturi de date standard, există unele erori de interpretare a datelor.
-	\item \ambele Discuție minimală asupra relevanței rezultatelor prezentate, comparație minimală cu alte sisteme similare.
-\end{itemize}
-
 Criterii pentru calificativul \textit{Bine}:
 \begin{itemize}
 	\item \dezvoltare Teste unitare și de integrare, instrumente de punere in funcțiune (deployment) utilizate și care arată lucru constant de-a lungul semestrului, lucrare validată cu clienții / utilizatorii, produs în producție.
@@ -615,43 +784,16 @@ Criterii pentru calificativul \textit{Bine}:
 	\item \ambele Discuție cu prezentarea calitativă și cantitativă a rezultatelor, precum și a relevanței acestor rezultate printr-o comparație complexă cu alte sisteme similare.
 \end{itemize}
 
-\chapter{Concluzii}
+\chapter{\label{sec:concluzii}Concluzii}
 
 //TODO
 
 În acest capitol este sumarizat întreg proiectul, de la obiective, la implementare, si la relevanta rezultatelor obținute. În finalul capitolului poate exista o subsecțiune de ``Dezvoltări ulterioare''.
 
-Criterii pentru calificativul \textit{Ne\textit{Satisfăcător}}:
-\begin{itemize}
-	\item	Concluziile nu sunt corelate cu conținutul lucrării;
-\end{itemize}
-
-Criterii pentru calificativul \textit{Satisfăcător}:
-\begin{itemize}
-	\item	Concluziile sunt corelate cu conținutul lucrării, însă nu se oferă o imagine asupra calității și relevantei rezultatelor obținute;
-\end{itemize}
-
 Criterii pentru calificativul \textit{Bine}:
 \begin{itemize}
 	\item	Concluziile sunt corelate cu conținutul lucrării, și se oferă o imagine precisa asupra relevantei și calității rezultatelor obținute în cadrul proiectului.
 \end{itemize}
-
-
-În Latex este foarte ușor să folosiți referințe într-un mod corect și unitar, fie prin adăugarea unei secțiuni
-\verb!\begin{thebibliography}!
-(vezi la sfârșitul acestei secțiuni), fie printr-un fișier separat de tip bib, folosind comanda
-\verb!\bibliography{}!,
-așa cum procedăm mai jos prin folosirea fișierului ``bibliography.bib''. În orice caz, în Latex va trebui să folosiți comanda
-\verb!\cite{}!
-pentru a adăuga referințe, iar această comandă trebuie folosită direct în text, acolo unde vreți sa apară citația, ca în exemplele următoare:
-\begin{itemize}
-	\item Articol jurnal: ~\cite{article};
-	\item Articol conferință:~\cite{proc};
-	\item Carte: ~\cite{book};
-	\item Weblink: ~\cite{silva};
-\end{itemize}
-
-\textbf{Important}: în această secțiune de obicei apar doar intrările bibliografice (adică doar listarea referințelor). Citarea lor prin comanda cite și explicații legate de ele trebuie facute în secțiunile anterioare. Citarea de mai sus a fost facută aici doar pentru exemplificare.
 
 % Asa se specifica folosirea unui fisier cu referinte bibliografice:
 \bibliographystyle{plain}
@@ -689,7 +831,7 @@ Ce poate intra în anexe:
 \end{itemize}
 
 \begin{appendices}
-
+	\label{anexa}
 	\chapter{Extrase de cod} % Introduce o nouă anexă
 	\ldots
 
