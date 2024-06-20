@@ -380,6 +380,8 @@ pe care le vom evalua în contextul de performanță și fidelitate obținute.
 (60 de cadre pe secundă) la o rezoluție Full HD (1920x1080), pentru hardware entry-level cu suport pentru
 DirectX Raytracing (e.g., Nvidia GeForce RTX 2060).
 
+\subsubsection*{}
+
 \section{Soluția propusă}
 Soluția propusă este un motor grafic simplu de utilizat. Din perspectiva utilizatorului,
 acesta are un meniu din care poate configura diverși parametri ai algoritmului
@@ -388,7 +390,7 @@ de Ray Tracing, precum și ai scenei. Utilizatorul poate încărca scene predefi
 
 La nivel de bază, motorul grafic conține două implementări din clasa algoritmilor
 de Ray Tracing. Prima este o versiune simplă a algoritmului original descris de
-Whitted (1980)~\cite{Whitted}, peste care se aplică modelul clasic de iluminare
+Whitted (1979)~\cite{Whitted}, peste care se aplică modelul clasic de iluminare
 Phong (1975)~\cite{Phong}. Această implementare a fost adaptată din codul sursă
 suport oferit de Microsoft\footnote{\url{https://github.com/microsoft/directx-graphics-samples/blob/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/readme.md}. Accesat 19.06.2024.}.
 A doua implementare este scrisă de la zero și folosește algoritmul de tip Monte Carlo
@@ -575,26 +577,205 @@ Literatura de specialitate din domeniul graficii pe calculator este vastă. Exis
 multe metode de randare a imaginilor și se dă o luptă constantă între a balansa
 performanța cu fidelitatea. Direcția de cercetare cea mai proeminentă se axează
 în jurul metodelor de tip Monte Carlo, care reprezintă state-of-the-art în
-domeniu. În continuare, vom prezenta fundamentele teoretice ale acestei clase de
-algoritmi și vom analiza cele mai importante metode existente.
+domeniu. Deși conceptele care vor fi prezentate nu sunt noi (metode de rezolvare
+a ecuației de randare există de aproape 40 ani), apar întotdeauna noi tehnici
+de optimizare și de îmbunătățire a performanțelor de convergență și de stabilitate
+a algoritmilor. Pentru o privire mai detaliată asupra avansurilor curente și asupra
+viitorului cercetării în domeniu, notițele de curs din 2019 ale lui Keller et al.~\cite{Keller}
+sunt o resursă excelentă. De asemenea, pentru o privire de ansamblu și de actualitate asupra tehnologiilor
+de accelerare în timp real folosite în industria jocurilor video (mai ales cele de la Nvidia - RTXDI, RTXGI, NRD, DLSS), recomand prezentarea
+de la GTC și GDC 2022 a lui Clarberg et al.~\cite{Clarberg2022}, din partea Nvidia Corporation.
 
-\section{Fundamente și Terminologie}
+În continuare, vom prezenta fundamentele teoretice ale clasei de
+algoritmi Ray Tracing și vom analiza cele mai importante metode existente.
 
-Metodele prezentate în continuare sunt inerent metode care se bazează extensiv
-pe teoria probabilității. Pentru că scopul aceste lucrări nu este de a oferi o
+\section{Rasterizare}
+
+Pentru a avea un punct de plecare, vom vorbi puțin și despre rasterizare.
+Aceasta este metoda de bază folosită în majoritatea jocurilor video din trecut și
+de astăzi. Ea este reprezentată ca un stagiu fix (neprogramabil) din pipeline-ul
+de randare al GPU-ului (vezi Figura~\ref{fig:pipeline}), care transformă primitivele definite vectorial (triunghiuri,
+linii, puncte) în pixeli pe ecran. Acest proces este foarte eficient, deoarece
+folosește hardware specializat pentru a face calculele necesare.
+
+Etapele principale ale rasterizatorului sunt\footnote{\url{https://learn.microsoft.com/en-us/windows/uwp/graphics-concepts/rasterizer-stage--rs-}. Accesat 19.06.2024.}:
+\begin{enumerate}
+	\item \textit{Clipping} - eliminarea primitivelor care nu se află în câmpul vizual (view frustum)
+	\item \textit{Perspective division} - împărțirea coordonatelor omogene pentru a obține coordonatele normalizate (NDC)
+	\item \textit{Transformarea viewport} - transformarea coordonatelor normalizate în coordonate ecran
+	\item \textit{Rasterizarea} - determinarea pixelilor acoperiți de primitivă.
+\end{enumerate}
+După rasterizare urmează etapa programabilă de pixel shader, unde se calculează de
+obicei efecte de iluminare, umbre, texturi etc.
+Un exemplu de imagine randată cu rasterizare se poate vedea în Figura~\ref{fig:rasterization}.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/rasterization.png}
+	\caption{Exemplu de imagine randată folosind rasterizare\protect\footnotemark}
+	\label{fig:rasterization}
+\end{figure}
+\footnotetext{\copyright\url{https://www.scratchapixel.com/}. Accesat 19.06.2024.}
+
+Deși rasterizarea este foarte eficientă, ea are multe limitări. Efectele de iluminare
+pot fi doar aproximate, iar umbrele și reflexiile/refracțiile sunt greu de realizat. Motoarele
+grafice folosesc metode de baking\footnote{\url{https://www.flipcode.com/archives/Light_Mapping_Theory_and_Implementation.shtml}. Accesat 20.06.2024.} pentru a precalcula iluminarea statică în scenă
+la o calitate bună (folosind alte metode, e.g., radiosity~(\ref{sec:radiosity})), dar iluminarea dinamică și umbrele dinamice sunt randate la
+calitate scăzută. Printre tehnicile folosite pentru a îmbunătăți aspectul vizual
+al jocurilor se numără ocluzia ambientală, shadow mapping, screen-space reflections,
+cubemap reflections, light probes, lightmaps, etc.
+
+\section{Ray Tracing}
+
+În sens general, Ray Tracing reprezintă o clasă de algoritmi și tehnici de randare
+a imaginilor care au la bază simularea transportului luminii într-o scenă.
+Spre deosebire de rasterizare, care proiectează obiectele 3D pe un plan 2D, Ray
+Tracing rezolvă problema vizibilității trasând raze din ochiul camerei în scenă
+și calculând intersecțiile cu geometria 3D. Vom prezenta în continuare diferite
+variațiuni ale acestui algoritm.
+
+\subsection*{Ray Casting}
+
+Prima aplicație a algoritmului în
+grafica pe calculator a fost făcută de Appel în 1968~\cite{Appel} - în acest
+context algoritmul era nerecursiv. Razele primare calculau intersecțiile cu obiectele
+din scenă, iar razele secundare erau folosite pentru a calcula umbre. Această
+variantă nerecursivă a algoritmului este cunoscută sub numele de Ray Casting.
+Figura~\ref{fig:raycasting} prezintă vizualizarea algoritmului.
+
+Datorită simplității sale, Ray Casting este un algoritm foarte eficient (fiind ușor
+paralelizabil), însă nu oferă în sine niciun efect de iluminare - este un algoritm
+de vizibilitate.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/appel.png}
+	\caption{Algoritmul Ray Casting. Cu roșu sunt reprezentate razele primare, iar cu albastru razele secundare\protect\footnotemark}
+	\label{fig:raycasting}
+\end{figure}
+\footnotetext{\label{fn:wiki}\copyright\url{https://en.wikipedia.org/}. Accesat 20.06.2024.}
+
+\subsection*{Ray Tracing Recursiv}
+
+Algoritmul inițial de Ray Casting nu putea calcula efecte precum reflexii și refracții.
+Pentru acestea, era nevoie de o variantă recursivă a algoritmului, care să calculeze
+traiectoria razei de-a lungul mai multor puncte din scenă și să țină cont de
+contribuțiile tuturor suprafețelor intersectate. Această variantă a fost prezentată
+în practică pentru prima dată de Whitted (1979)~\cite{Whitted}. Astfel, fiecare
+intersecție, se pot genera 3 noi raze: o rază de reflexie, o rază de refracție și
+o rază de umbrit. Adâncimea recursivității este, evident, limitată, căci complexitatea
+crește exponențial. Este de remarcat faptul că efectele de reflexie, refracție, umbrire,
+precum și alte efecte specifice (e.g., blur, depth of field) pot fi modelate foarte
+ușor folosind Ray Tracing recursiv, prin opoziție cu rasterizarea. O ilustrare
+a algoritmului este prezentată în Figura~\ref{fig:whitted}.
+
+Turner Whitted a oferit
+într-un blog post\footnote{\label{fn:whitted}\copyright\url{https://blogs.nvidia.com/blog/ray-tracing-global-illumination-turner-whitted/}. Accesat 20.06.2024.}
+pe site-ul de la Nvidia o mică retrospectivă a algoritmului său și a deciziilor
+pe care a trebuit să le facă la momentul respectiv - este o lectură scurtă dar
+interesantă.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/whitted.jpg}
+	\caption{Algoritmul Ray Tracing recursiv, ilustrat de Turner Whitted\protect\footref{fn:whitted}}
+	\label{fig:whitted}
+\end{figure}
+
+\subsection*{Ray Marching}
+
+Un algoritm foarte drag mie, datorită eleganței matematice, este Ray Marching.
+Dacă celelalte metode de Ray Tracing calculează intersecții cu obiecte definite
+prin primitive geometrice (e.g., triunghiuri), această variantă ia în considerare
+doar suprafețe definite prin câmpuri de distanță (SDF). Un câmp de distanță este
+o funcție asociată unei mulțimi care întoarce distanța ortogonală de la un punct
+din spațiu la frontiera mulțimii. Un SDF are valori pozitive pentru puncte aflate
+în afara mulțimii și valori negative pentru puncte aflate în interiorul mulțimii.
+Principala caracteristică a acestui algoritm
+care îl diferențiază de celelalte este faptul că nu calculează intersecții.
+În schimb, fiecare rază mărșăluiește treptat în spațiu, apropiindu-se din ce în ce mai mult
+de suprafețele definite, dar fără a le intersecta.
+La fiecare pas, algoritmul se folosește de aceste câmpuri de distanță pentru a
+calcula o rază minimă în jurul punctului curent, care reprezinte sfera de dimensiune
+maximă care nu intersectează cu certitudine nicio suprafață. Această rază este
+numită pas de marșăluire (marching step) și este folosită pentru a avansa
+în spațiu. Algoritmul se oprește când distanța minimă calculată este mai mică
+decât o anumită toleranță (indicând faptul că o intersecție este foarte aproape),
+sau când un număr maxim de pași prestabilit este atins (caz în care nu se înregistrează nicio intersecție).
+Datorită utilizării sferelor pentru mărșăluire, algoritmul mai este cunoscut și
+sub numele de Sphere Tracing.
+O ilustrație a funcționării acestuia se poate vedea în Figura~\ref{fig:raymarching}.
+
+O aplicație naturală a acestui algoritm este randarea suprafețelor implicite.
+Acestea sunt suprafețe în spațiul Euclidian definite prin ecuații de forma
+\begin{equation}
+	f(x, y, z) = 0.
+\end{equation}
+Funcția $f$ definește câmpul de distanță al suprafeței. De asemenea, se pot
+calcula foarte ușor și vectorii normali la suprafață (gradientul funcției $f$),
+ceea ce face posibilă randarea efectelor de iluminare a suprafețelor.
+Exemple de randări ale unor suprafețe implicite se pot vedea în Figurile~\ref{fig:diffraction}
+și~\ref{fig:fractal}.
+
+Deși acest algoritm a fost studiat în literatura de specialitate încă din 1996 de către Hart~\cite{hart1996sphere},
+el a devenit popular în cadrul demoscene-ului\footnote{\url{https://en.wikipedia.org/wiki/Demoscene}. Accesat 20.06.2024.}
+și a comunității de programatori de shadere. Inigo Quilez a fost printre primii
+care a adus algoritmul în atenția publicului larg, prin intermediul platformei
+Shadertoy\footnote{\url{https://www.shadertoy.com/}. Accesat 20.06.2024.}
+și a blogului personal\footnote{\url{https://iquilezles.org/}. Accesat 20.06.2024.}.
+
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/raymarching.png}
+	\caption{Algoritmul Sphere Tracing - reprezentare 2D. Se pot observa și câmpurile de distanță ale obiectelor\protect\footnotemark}
+	\label{fig:raymarching}
+\end{figure}
+\footnotetext{\copyright\url{https://www.youtube.com/@simondev758}. Accesat 20.06.2024.}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/diffraction.png}
+	\caption{Shader scris în GLSL care demonstrează soft shadows bazate pe difracție\protect\footnotemark}
+	\label{fig:diffraction}
+\end{figure}
+\footnotetext{Shader scris de mine, disponibil la adresa: \url{https://www.shadertoy.com/view/tscSRS}. Accesat 20.06.2024.}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/fractal.png}
+	\caption{Randare 3D a unui fractal de tip Apollonian\protect\footnotemark}
+	\label{fig:fractal}
+\end{figure}
+\footnotetext{\copyright Inigo Quilez: \url{https://www.shadertoy.com/view/4ds3zn}. Accesat 20.06.2024.}
+
+\section{Metode Monte Carlo}
+
+Algoritmii prezentați mai sus au pus bazele teoretice și practice pentru metode
+mai avansate de randare, care se concentrează pe realism. Un dezavantaj major al
+metodelor prezentate până acum este faptul că acestea nu sunt fotorealiste - ele
+nu iau în considerare toate fenomenele interacțiunii luminii cu materialele. Deși
+Ray Tracing recursiv poate calcula reflexii și refracții perfecte, acesta nu poate simula
+din punct de vedere fizic efecte precum difuzia, dispersia, radianța, etc. Spre exemplu,
+un obiect care nu este perfect reflectant sau refractant va difuza lumina în toate
+direcțiile, nu doar în cea de reflexie sau refracție geometrică. De asemenea,
+algoritmul de Ray Tracing recursiv consideră că lumina este o sursă punctiformă,
+când de fapt aceasta are o distribuție finită în spațiu. Astfel, umbrele generate
+de acest algoritm sunt "dure" și nu iau în considerare umbrele penumbrale. Este
+adevărat că se pot aproxima aceste efecte folosind diferite modele de iluminare
+care se aplică și în rasterizare (e.g., modelul Phong~\cite{Phong}),
+dar acestea sunt doar aproximații și nu oferă realismul dorit.
+
+Este nevoie așadar de modele mai avansate ale transportului luminii, care să
+simuleze fenomenele fizice cu o acuratețe cât mai mare. Vom prezenta în continuare
+metode care au la bază soluționarea ecuației de transport a luminii~\cite{Kajiya}
+(folosind extensiv concepte din teoria probabilității), metode
+care oferă o fidelitate net superioară celor prezentate anterior.
+Pentru că scopul acestei lucrări nu este de a oferi o
 introducere în teoria probabilității, vom prezenta doar conceptele de bază necesare
-înțelegerii algoritmilor de Path Tracing. Pentru o introducere mai detaliată în
+înțelegerii algoritmilor de tip Monte Carlo. Pentru o introducere mai detaliată în
 acest domeniu, cititorul poate consulta lucrări de specialitate precum~\cite{Halton}
 și~\cite{Hammersley}.
-
-% Câteva definiții care vor fi folosite în continuare sunt:
-% \begin{definition}
-% 	Radianța $L$ este raportul dintre fluxul luminos 
-% \end{definition}
-% \begin{definition}
-
-
-\subsection{Metode Monte Carlo}
 
 Metodele de tip Monte Carlo sunt metode
 iterative care folosesc eșantionare aleatoare pentru a aproxima valoarea unei
@@ -738,7 +919,7 @@ Pentru mai multe informații se poate consulta cartea de specialitate a lui Klei
 Un exemplu de eșantionare stratificată este ilustrat sub tehnica de jittering
 în eșantionarea pixelilor, detaliată în secțiunea~\ref{sec:implementare}.
 
-\section{Ecuația transportului luminii}
+\subsection{Ecuația transportului luminii}
 
 Introdusă simultan de Kajiya~\cite{Kajiya} și Immel et al.~\cite{Immel} în 1986,
 ecuația transportului luminii (sau ecuația de randare) este cea mai importantă ecuație din domeniul
@@ -785,10 +966,9 @@ bazate pe fizică, se pot găsi în secțiunea~\ref{sec:pbr}.
 \begin{figure}[ht]
 	\centering
 	\includegraphics[width=0.5\textwidth]{pics/rendering_eq2.png}
-	\caption{Ilustrație a componentelor din ecuația de randare\protect\footnotemark}
+	\caption{Ilustrație a componentelor din ecuația de randare\protect\footref{fn:wiki}}
 	\label{fig:light_transport2}
 \end{figure}
-\footnotetext{\label{fn:wiki}\copyright\url{https://en.wikipedia.org/}. Accesat 20.06.2024.}
 
 \begin{figure}[ht]
 	\centering
@@ -805,7 +985,7 @@ este provocarea primară în algoritmii de randare realistică. Vom enumera cât
 metodele de rezolvare a acestei ecuații, însă ne vom concentra asupra algoritmului
 de Path Tracing.
 
-\subsubsection*{Radiosity}
+\subsubsection*{Radiosity}\label{sec:radiosity}
 Radiosity este o tehnică de iluminare globală bazată pe metoda elementului finit.
 Aceasta presupune împărțirea scenei în elemente mici, numite petice, și calcularea
 energiei luminoase reflectată de fiecare dintre acestea. Algoritmul în sine consideră
@@ -953,20 +1133,15 @@ Criterii pentru calificativul \textit{Bine}:
 
 \chapter*{Anexe}\addcontentsline{toc}{chapter}{Anexe}
 
-Anexele sunt opționale.
-Ce poate intra în anexe:
-\begin{itemize}
-	\item	Exemplu de fișier de configurare sau compilare;
-	\item	Un tabel mai mare de o jumătate pagină;
-	\item	O figura mai mare mai mare de jumătate pagină;
-	\item	O secvență de cod sursa mai mare de jumătate pagină;
-	\item	Un set de capturi de ecran (``screenshot''-uri);
-	\item	Un exemplu de rulare a unor comenzi plus rezultatul (``output''-ul) acestora;
-	\item 	În anexe intră lucruri care ocupă mai mult de o pagină ce ar întrerupe firul natural de parcurgere al textului.
-\end{itemize}
-
 \begin{appendices}
 	\label{anexa}
+	\chapter{Figuri}
+	\begin{figure}[ht]
+		\centering
+		\includegraphics[width=0.8\textwidth]{pics/pipeline.jpg}
+		\caption{Pipeline-ul de randare Direct3D 11. \copyright~Microsoft, \url{https://learn.microsoft.com/}. Accesat 19.06.2024.}
+		\label{fig:pipeline}
+	\end{figure}
 	\chapter{Extrase de cod} % Introduce o nouă anexă
 	\ldots
 
