@@ -95,12 +95,12 @@ void DieXaR::ResetCamera()
 
 void DieXaR::Reload()
 {
-	// Used when changing settings that need a full reset.
 	OnDestroy();
 	OnInit();
+	m_shouldReload = false;
 }
 
-void DieXaR::ResetSettings()
+void DieXaR::ResetSettingsCB()
 {
 	m_sceneCB->raytracingType = m_raytracingType;
 	m_sceneCB->maxRecursionDepth = m_maxRecursionDepth;
@@ -144,7 +144,8 @@ void DieXaR::OnInit()
 	m_deviceResources->CreateDeviceResources();
 	m_deviceResources->CreateWindowSizeDependentResources();
 
-	InitializeScene();
+	if (!m_shouldReload)
+		InitializeScene();
 
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
@@ -158,6 +159,8 @@ void DieXaR::OnInit()
 	ImGui_ImplWin32_Init(Win32Application::GetHwnd());
 	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
 	UINT descriptorHeapIndex = AllocateDescriptor(&cpuHandle);
+
+	ImGui_ImplDX12_Shutdown();
 	ImGui_ImplDX12_Init(m_deviceResources->GetD3DDevice(),
 		FrameCount,
 		DXGI_FORMAT_R8G8B8A8_UNORM,
@@ -359,7 +362,7 @@ void DieXaR::InitializeScene()
 	}
 
 	// Initialize application settings.
-	ResetSettings();
+	ResetSettingsCB();
 }
 
 // Create constant buffers.
@@ -1187,14 +1190,15 @@ void DieXaR::OnKeyDown(UINT8 key)
 		PostQuitMessage(0);
 		break;
 	case VK_F1:
-		// Reloads everything.
-		Reload();
+		m_shouldReload = true;
 		break;
 	case 'C':
+		if (m_cameraLocked)
+			break;
 		m_cameraFly = !m_cameraFly;
 		if (!m_cameraFly)
 			ResetCamera();
-		else {
+		else if (!m_cameraLocked) {
 			// Move the focus point very close to the camera to make camera rotation more intuitive.
 			m_at = m_eye + XMVector3Normalize(m_at - m_eye) * 0.01f;
 			m_cameraSpeed = m_cameraBaseMoveSpeed;
@@ -1207,33 +1211,46 @@ void DieXaR::OnKeyDown(UINT8 key)
 		m_animateLight = !m_animateLight;
 		break;
 	case 'R':
-		m_cameraSpeed = 0.0f;
+		m_cameraLocked = !m_cameraLocked;
+		m_cameraMovingLeft = m_cameraMovingRight = m_cameraMovingForward = m_cameraMovingBackward = m_cameraMovingUp = m_cameraMovingDown = false;
 		break;
 	case 'A':
+		if (m_cameraLocked)
+			break;
 		if (!m_cameraFly)
 			m_cameraSpeed -= m_cameraBaseRotateSpeed;
 		else
 			m_cameraMovingLeft = true;
 		break;
 	case 'D':
+		if (m_cameraLocked)
+			break;
 		if (!m_cameraFly)
 			m_cameraSpeed += m_cameraBaseRotateSpeed;
 		else
 			m_cameraMovingRight = true;
 		break;
 	case 'W':
+		if (m_cameraLocked)
+			break;
 		if (m_cameraFly)
 			m_cameraMovingForward = true;
 		break;
 	case 'S':
+		if (m_cameraLocked)
+			break;
 		if (m_cameraFly)
 			m_cameraMovingBackward = true;
 		break;
 	case 'E':
+		if (m_cameraLocked)
+			break;
 		if (m_cameraFly)
 			m_cameraMovingUp = true;
 		break;
 	case 'Q':
+		if (m_cameraLocked)
+			break;
 		if (m_cameraFly)
 			m_cameraMovingDown = true;
 		break;
@@ -1267,6 +1284,8 @@ void DieXaR::OnKeyUp(UINT8 key)
 		m_cameraMovingDown = false;
 		break;
 	case VK_SHIFT:
+		if (m_cameraLocked)
+			break;
 		if (m_cameraFly)
 			m_cameraSpeed = m_cameraBaseMoveSpeed;
 		break;
@@ -1279,7 +1298,7 @@ void DieXaR::OnMouseMove(UINT x, UINT y)
 	float dx = XMConvertToRadians(0.25f * static_cast<float>((LONG)x - lastMousePos.x));
 	float dy = -XMConvertToRadians(0.25f * static_cast<float>((LONG)y - lastMousePos.y));
 
-	if (m_cameraFly) {
+	if (!m_cameraLocked && m_cameraFly) {
 		// rotate camera
 		XMMATRIX R = XMMatrixRotationY(dx);
 		XMVECTOR eye = m_eye - m_at;
@@ -1312,11 +1331,14 @@ void DieXaR::OnUpdate()
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 	auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
 
+	// Write settings to CB
+	ResetSettingsCB();
+
 	// Show ImGui.
 	ImGui_ImplDX12_NewFrame();
 	ImGui_ImplWin32_NewFrame();
 	ImGui::NewFrame();
-	ImGui::ShowDemoWindow();
+	ShowUI();
 
 	// Rotate the camera around Y axis.
 	if (!m_cameraFly)
@@ -1435,6 +1457,133 @@ void DieXaR::DoRaytracing()
 	if (m_raytracingType == RaytracingType::PathTracingTemporal && m_pathFrameCacheIndex < m_pathSqrtSamplesPerPixel * m_pathSqrtSamplesPerPixel)
 	{
 		AdvancePathTracing();
+	}
+}
+
+void DieXaR::ShowUI()
+{
+	IM_ASSERT(ImGui::GetCurrentContext() != NULL && "No ImGui context.");
+
+	if (!ImGui::Begin("Settings")) {
+		// Don't draw if the window is collapsed.
+		ImGui::End();
+		return;
+	}
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+	ImGui::Spacing();
+
+	if (ImGui::CollapsingHeader("Controls"))
+	{
+		ImGui::Spacing();
+
+		ImGui::SeparatorText("Keyboard");
+		ImGui::BulletText("F1 - Reload graphics");
+		ImGui::BulletText("ESC - Exit application");
+		ImGui::BulletText("L - Toggle primary light animation");
+		ImGui::BulletText("C - Toggle camera fly/revolution mode");
+		ImGui::BulletText("WASD - Move camera (fly mode)");
+		ImGui::BulletText("EQ - Move camera up/down (fly mode)");
+		ImGui::BulletText("Shift - Move camera slower (fly mode)");
+		ImGui::BulletText("AD - Modify camera speed (revolution mode)");
+		ImGui::BulletText("R - Stop camera (revolution mode)");
+
+		ImGui::SeparatorText("Mouse");
+		ImGui::BulletText("Camera movement available only in fly mode");
+
+		ImGui::Spacing();
+	}
+
+	if (ImGui::CollapsingHeader("Renderer"))
+	{
+		ImGui::Spacing();
+
+		// Jitter
+		ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
+		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
+
+		// Ray Tracing Type
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		const char* options[] = { "Whitted", "Path Tracing", "Progressive Path Tracing" };
+		RaytracingType::Enum prevRaytracingType = m_raytracingType;
+		if (ImGui::BeginCombo("Raytracing Type", options[m_raytracingType], ImGuiComboFlags_WidthFitPreview))
+		{
+			bool selected = m_raytracingType == RaytracingType::Whitted;
+			if (ImGui::Selectable("Whitted", selected))
+				m_raytracingType = RaytracingType::Whitted;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_raytracingType == RaytracingType::PathTracing;
+			if (ImGui::Selectable("Path Tracing", selected))
+				m_raytracingType = RaytracingType::PathTracing;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_raytracingType == RaytracingType::PathTracingTemporal;
+			if (ImGui::Selectable("Progressive Path Tracing", selected))
+				m_raytracingType = RaytracingType::PathTracingTemporal;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine(); HelpMarker("Select the raytracing type to use");
+
+		// Trigger a graphics reload if the raytracing type has changed.
+		if (prevRaytracingType != m_raytracingType)
+			m_shouldReload = true;
+
+		// Sqrt Samples per pixel
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
+		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, 4);
+		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
+		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
+			ResetPathTracing();
+
+		// Max recursion
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Max Recursion Depth", reinterpret_cast<int*>(&m_maxRecursionDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Maximum recursion depth for path tracing");
+
+		// Max shadow recursion depth
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Max Shadow Recursion Depth", reinterpret_cast<int*>(&m_maxShadowRecursionDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Maximum recursion depth for shooting shadow rays");
+
+		ImGui::Spacing();
+	}
+
+	if (ImGui::CollapsingHeader("Scene"))
+	{
+		ImGui::Spacing();
+
+		// Secondary light
+		ImGui::Checkbox("Secondary Light", &m_secondaryLight);
+		ImGui::SameLine(); HelpMarker("Enable secondary light");
+
+		// Directional light
+		ImGui::Checkbox("Directional Light", &m_directionalLight);
+		ImGui::SameLine(); HelpMarker("Enable directional light");
+
+		ImGui::Spacing();
+	}
+
+	ImGui::End();
+}
+
+void DieXaR::HelpMarker(const char* desc)
+{
+	ImGui::TextDisabled("(?)");
+	if (ImGui::BeginItemTooltip())
+	{
+		ImGui::PushTextWrapPos(ImGui::GetFontSize() * 35.0f);
+		ImGui::TextUnformatted(desc);
+		ImGui::PopTextWrapPos();
+		ImGui::EndTooltip();
 	}
 }
 
@@ -1580,14 +1729,12 @@ void DieXaR::OnRender()
 
 void DieXaR::OnDestroy()
 {
+	// ImGui cleanup.
+	if (m_shouldReload)
+		ImGui_ImplWin32_Shutdown();
+
 	// Let GPU finish before releasing D3D resources.
 	m_deviceResources->WaitForGpu();
-
-	// ImGui cleanup.
-	// COMMENTED OUT BECAUSE OF CRASHES
-	//ImGui_ImplDX12_Shutdown();
-	//ImGui_ImplWin32_Shutdown();
-	//ImGui::DestroyContext();
 
 	OnDeviceLost();
 }

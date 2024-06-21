@@ -26,11 +26,12 @@ public:
 	virtual void ResetCamera();
 
 	// Reloads D3D resources and reinitializes them (also rebuilds the scene)
-	virtual void Reload();
+	// This should be called from outside the application loop
+	virtual void Reload() override;
 
 	// Resets the settings stored in the CB to the ones stored in the application settings
 	// Already called in Reload() so no need to call it again after Reload()
-	virtual void ResetSettings();
+	virtual void ResetSettingsCB();
 
 	// Advances the frame index for temporal path tracing
 	virtual void AdvancePathTracing();
@@ -53,6 +54,7 @@ public:
 	virtual void OnDestroy();
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
+	bool ShouldReload() const { return m_shouldReload; }
 private:
 	static const UINT FrameCount = 3;
 
@@ -126,6 +128,7 @@ private:
 	bool m_cameraMovingUp{};
 	bool m_cameraMovingDown{};
 	bool m_cameraMovingSlow{};
+	bool m_cameraLocked{};
 	float m_cameraSpeed{};
 	const float m_cameraBaseRotateSpeed{ 1.0f };
 	const float m_cameraBaseMoveSpeed{ 20.0f };
@@ -150,6 +153,8 @@ private:
 	void InitializeScene();
 	void RecreateD3D();
 	void DoRaytracing();
+	void ShowUI();
+	void HelpMarker(const char* desc);
 	void CreateConstantBuffers();
 	void CreateAABBPrimitiveAttributesBuffers();
 	void CreateDeviceDependentResources();

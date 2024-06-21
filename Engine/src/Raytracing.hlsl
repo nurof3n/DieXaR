@@ -336,7 +336,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2(((g_sceneCB.pathFrameCacheIndex - 1) % g_sceneCB.pathSqrtSamplesPerPixel + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (floor((g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathSqrtSamplesPerPixel) + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
     // Apply jittering if enabled.
-    float2 jitter = select(float2(0.5f, 0.5f), float2(random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex), random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex + numSamples)), g_sceneCB.applyJitter); // in [0, 1)
+    float2 jitter = select(g_sceneCB.applyJitter, float2(random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex), random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex + numSamples)), float2(0.5f, 0.5f)); // in [0, 1)
     offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -347,7 +347,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     float4 color = TraceRadianceRay(ray, currentRecursionDepth);
 
     // Accumulate the color.
-    const float lerpFactor = g_sceneCB.pathFrameCacheIndex / (g_sceneCB.pathFrameCacheIndex + 1.0f);
+    const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
     g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(color.xyz, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
 }
 
@@ -364,7 +364,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
             float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2((i + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (j + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
             // Apply jittering if enabled.
-            float2 jitter = select(float2(0.5f, 0.5f), float2(random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j), random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j + numSamples)), g_sceneCB.applyJitter); // in [0, 1)
+            float2 jitter = select(g_sceneCB.applyJitter, float2(random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j), random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j + numSamples)), float2(0.5f, 0.5f)); // in [0, 1)
             offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
             // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.

@@ -71,6 +71,12 @@ int Win32Application::Run(DXSample* pSample, HINSTANCE hInstance, int nCmdShow)
 				TranslateMessage(&msg);
 				DispatchMessage(&msg);
 			}
+
+			// Reload graphics if needed
+			if (pSample->ShouldReload())
+			{
+				pSample->Reload();
+			}
 		}
 
 		pSample->OnDestroy();
