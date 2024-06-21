@@ -13,40 +13,46 @@
 #include "DieXaR.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 
+// imgui
+#include "imgui.h"
+#include "imgui_impl_win32.h"
+#include "imgui_impl_dx12.h"
+
 using namespace std;
 using namespace DX;
 
 // Shader entry points.
 const wchar_t* DieXaR::c_raygenShaderNames[] =
 {
-	L"MyRaygenShader",
-	L"MyRaygenShader_PathTracing",
+	L"RaygenShader",
+	L"RaygenShader_PathTracing",
+	L"RaygenShader_PathTracingTemporal",
 };
 const wchar_t* DieXaR::c_intersectionShaderNames[] =
 {
-	L"MyIntersectionShader_AnalyticPrimitive",
-	L"MyIntersectionShader_VolumetricPrimitive",
-	L"MyIntersectionShader_SignedDistancePrimitive",
+	L"IntersectionShader_AnalyticPrimitive",
+	L"IntersectionShader_VolumetricPrimitive",
+	L"IntersectionShader_SignedDistancePrimitive",
 };
 const wchar_t* DieXaR::c_closestHitShaderNames[] =
 {
-	L"MyClosestHitShader_Triangle",
-	L"MyClosestHitShader_AABB",
+	L"ClosestHitShader_Triangle",
+	L"ClosestHitShader_AABB",
 };
 const wchar_t* DieXaR::c_missShaderNames[] =
 {
-	L"MyMissShader", L"MyMissShader_ShadowRay"
+	L"MissShader", L"MissShader_ShadowRay"
 };
 // Hit groups.
 const wchar_t* DieXaR::c_hitGroupNames_TriangleGeometry[] =
 {
-	L"MyHitGroup_Triangle", L"MyHitGroup_Triangle_ShadowRay"
+	L"HitGroup_Triangle", L"HitGroup_Triangle_ShadowRay"
 };
 const wchar_t* DieXaR::c_hitGroupNames_AABBGeometry[][RayType::Count] =
 {
-	{ L"MyHitGroup_AABB_AnalyticPrimitive", L"MyHitGroup_AABB_AnalyticPrimitive_ShadowRay" },
-	{ L"MyHitGroup_AABB_VolumetricPrimitive", L"MyHitGroup_AABB_VolumetricPrimitive_ShadowRay" },
-	{ L"MyHitGroup_AABB_SignedDistancePrimitive", L"MyHitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
+	{ L"HitGroup_AABB_AnalyticPrimitive", L"HitGroup_AABB_AnalyticPrimitive_ShadowRay" },
+	{ L"HitGroup_AABB_VolumetricPrimitive", L"HitGroup_AABB_VolumetricPrimitive_ShadowRay" },
+	{ L"HitGroup_AABB_SignedDistancePrimitive", L"HitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
 };
 
 DieXaR::DieXaR(UINT width, UINT height, std::wstring name) :
@@ -101,7 +107,8 @@ void DieXaR::ResetSettings()
 	m_sceneCB->maxShadowRecursionDepth = m_maxShadowRecursionDepth;
 	m_sceneCB->pathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 	m_sceneCB->applyJitter = m_applyJitter;
-	m_sceneCB->pathTemporal = m_pathTemporal;
+	m_sceneCB->secondaryLight = m_secondaryLight;
+	m_sceneCB->directionalLight = m_directionalLight;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -141,6 +148,24 @@ void DieXaR::OnInit()
 
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
+
+	// Initialize imgui.
+	IMGUI_CHECKVERSION();
+	ImGui::CreateContext();
+	ImGuiIO& io = ImGui::GetIO();
+	io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+	ImGui_ImplWin32_Init(Win32Application::GetHwnd());
+	D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+	UINT descriptorHeapIndex = AllocateDescriptor(&cpuHandle);
+	ImGui_ImplDX12_Init(m_deviceResources->GetD3DDevice(),
+		FrameCount,
+		DXGI_FORMAT_R8G8B8A8_UNORM,
+		m_descriptorHeap.Get(),
+		cpuHandle,
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorHeapIndex, m_descriptorSize));
+
+	ImGui::StyleColorsDark();
 }
 
 // Update camera matrices passed into the shader.
@@ -240,15 +265,28 @@ void DieXaR::InitializeScene()
 				attributes.stepScale = stepScale;
 			};
 
-
-		m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1 };
-
 		// Albedos
 		XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
 		XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
 		XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
 		XMFLOAT4 violet = XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f);
 		XMFLOAT4 orange = XMFLOAT4(1.0f, 0.5f, 0.0f, 1.0f);
+
+		m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1 };
+
+		m_pbrMaterialCB.stepScale = 1.0f;
+		m_pbrMaterialCB.albedo = XMFLOAT4(0.9f, 0.67f, 0.9f, 1.0f);
+		m_pbrMaterialCB.sheen = 0.0f;
+		m_pbrMaterialCB.sheenTint = 0.0f;
+		m_pbrMaterialCB.clearcoat = 1.0f;
+		m_pbrMaterialCB.clearcoatGloss = 0.5f;
+		m_pbrMaterialCB.roughness = 0.2f;
+		m_pbrMaterialCB.anisotropic = 0.5f;
+		m_pbrMaterialCB.metallic = 0.0f;
+		m_pbrMaterialCB.specular = 0.5f;
+		m_pbrMaterialCB.specularTint = 0.1f;
+		m_pbrMaterialCB.specularTransmission = 0.0f;
+		m_pbrMaterialCB.eta = 1.4f;
 
 		UINT offset = 0;
 		// Analytic primitives.
@@ -289,6 +327,7 @@ void DieXaR::InitializeScene()
 		XMFLOAT4 lightAmbientColor;
 		XMFLOAT4 lightDiffuseColor;
 
+		// First light
 		lightPosition = XMFLOAT4(0.0f, 18.0f, -20.0f, 0.0f);
 		m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
 
@@ -297,6 +336,26 @@ void DieXaR::InitializeScene()
 
 		lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.65f, 1.0f);
 		m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
+
+		m_sceneCB->lightSize = 3.0f;
+		m_sceneCB->lightIntensity = 2.0f;
+
+		// Second light
+		lightPosition = XMFLOAT4(-15.0f, 10.0f, 5.0f, 0.0f);
+		m_sceneCB->light2Position = XMLoadFloat4(&lightPosition);
+
+		lightDiffuseColor = XMFLOAT4(0.65f, 0.6f, 0.9f, 1.0f);
+		m_sceneCB->light2DiffuseColor = XMLoadFloat4(&lightDiffuseColor);
+
+		m_sceneCB->light2Size = 0.2f;
+		m_sceneCB->light2Intensity = 1.8f;
+
+		// Directional light
+		lightPosition = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);	// as direction here
+		m_sceneCB->directionalLightDirection = XMLoadFloat4(&lightPosition);
+
+		lightDiffuseColor = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
+		m_sceneCB->directionalLightColor = XMLoadFloat4(&lightDiffuseColor);
 	}
 
 	// Initialize application settings.
@@ -397,6 +456,7 @@ void DieXaR::CreateRootSignatures()
 			namespace RootSignatureSlots = LocalRootSignature::Triangle::Slot;
 			CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
 			rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
+			rootParameters[RootSignatureSlots::PbrConstant].InitAsConstants(SizeOfInUint32(PBRPrimitiveConstantBuffer), 3);
 
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -409,6 +469,7 @@ void DieXaR::CreateRootSignatures()
 			CD3DX12_ROOT_PARAMETER rootParameters[RootSignatureSlots::Count];
 			rootParameters[RootSignatureSlots::MaterialConstant].InitAsConstants(SizeOfInUint32(PrimitiveConstantBuffer), 1);
 			rootParameters[RootSignatureSlots::GeometryIndex].InitAsConstants(SizeOfInUint32(PrimitiveInstanceConstantBuffer), 2);
+			rootParameters[RootSignatureSlots::PbrConstant].InitAsConstants(SizeOfInUint32(PBRPrimitiveConstantBuffer), 3);
 
 			CD3DX12_ROOT_SIGNATURE_DESC localRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
 			localRootSignatureDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_LOCAL_ROOT_SIGNATURE;
@@ -598,10 +659,11 @@ void DieXaR::CreateDescriptorHeap()
 	auto device = m_deviceResources->GetD3DDevice();
 
 	D3D12_DESCRIPTOR_HEAP_DESC descriptorHeapDesc = {};
-	// Allocate a heap for 6 descriptors:
+	// Allocate a heap for 4 descriptors:
 	// 2 - vertex and index  buffer SRVs
 	// 1 - raytracing output texture SRV
-	descriptorHeapDesc.NumDescriptors = 3;
+	// 1 - ImGui font texture SRV
+	descriptorHeapDesc.NumDescriptors = 4;
 	descriptorHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
 	descriptorHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
 	descriptorHeapDesc.NodeMask = 0;
@@ -781,7 +843,7 @@ AccelerationStructureBuffers DieXaR::BuildBottomLevelAS(const vector<D3D12_RAYTR
 
 	// Allocate resources for acceleration structures.
 	// Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-	// Default heap is OK since the application doesn’t need CPU read/write access to them. 
+	// Default heap is OK since the application doesnï¿½t need CPU read/write access to them. 
 	// The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
 	// and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
 	//  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
@@ -885,7 +947,7 @@ AccelerationStructureBuffers DieXaR::BuildTopLevelAS(AccelerationStructureBuffer
 
 	// Allocate resources for acceleration structures.
 	// Acceleration structures can only be placed in resources that are created in the default heap (or custom heap equivalent). 
-	// Default heap is OK since the application doesn’t need CPU read/write access to them. 
+	// Default heap is OK since the application doesnï¿½t need CPU read/write access to them. 
 	// The resources that will contain acceleration structures must be created in the state D3D12_RESOURCE_STATE_RAYTRACING_ACCELERATION_STRUCTURE, 
 	// and must have resource flag D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS. The ALLOW_UNORDERED_ACCESS requirement simply acknowledges both: 
 	//  - the system will be doing this type of access in its implementation of acceleration structure builds behind the scenes.
@@ -1074,6 +1136,7 @@ void DieXaR::BuildShaderTables()
 		{
 			LocalRootSignature::Triangle::RootArguments rootArgs;
 			rootArgs.materialCb = m_planeMaterialCB;
+			rootArgs.pbrCb = m_pbrMaterialCB;
 
 			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
 			{
@@ -1095,6 +1158,7 @@ void DieXaR::BuildShaderTables()
 				for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, instanceIndex++)
 				{
 					rootArgs.materialCb = m_aabbMaterialCB[instanceIndex];
+					rootArgs.pbrCb = m_pbrMaterialCB;
 					rootArgs.aabbCB.instanceIndex = instanceIndex;
 					rootArgs.aabbCB.primitiveType = primitiveIndex;
 
@@ -1244,8 +1308,15 @@ void DieXaR::OnUpdate()
 	m_timer.Tick();
 	CalculateFrameStats();
 	float elapsedTime = static_cast<float>(m_timer.GetElapsedSeconds());
+	unsigned int ticks = static_cast<unsigned int>(m_timer.GetTotalTicks());
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 	auto prevFrameIndex = m_deviceResources->GetPreviousFrameIndex();
+
+	// Show ImGui.
+	ImGui_ImplDX12_NewFrame();
+	ImGui_ImplWin32_NewFrame();
+	ImGui::NewFrame();
+	ImGui::ShowDemoWindow();
 
 	// Rotate the camera around Y axis.
 	if (!m_cameraFly)
@@ -1308,6 +1379,7 @@ void DieXaR::OnUpdate()
 	}
 	UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
 	m_sceneCB->elapsedTime = m_animateGeometryTime;
+	m_sceneCB->elapsedTicks = ticks;
 }
 
 void DieXaR::DoRaytracing()
@@ -1360,7 +1432,7 @@ void DieXaR::DoRaytracing()
 	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS->GetGPUVirtualAddress());
 	DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
 
-	if (m_raytracingType == RaytracingType::PathTracing && m_pathFrameCacheIndex < m_pathSqrtSamplesPerPixel * m_pathSqrtSamplesPerPixel)
+	if (m_raytracingType == RaytracingType::PathTracingTemporal && m_pathFrameCacheIndex < m_pathSqrtSamplesPerPixel * m_pathSqrtSamplesPerPixel)
 	{
 		AdvancePathTracing();
 	}
@@ -1476,6 +1548,27 @@ void DieXaR::OnRender()
 	DoRaytracing();
 	CopyRaytracingOutputToBackbuffer();
 
+	// Render ImGui.
+	ImGui::Render();
+
+	// Transition the render target to the render target state.
+	D3D12_RESOURCE_BARRIER barrier{};
+	barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+	barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+	barrier.Transition.pResource = m_deviceResources->GetRenderTarget();
+	barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
+	barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
+	barrier.Transition.StateAfter = D3D12_RESOURCE_STATE_RENDER_TARGET;
+	commandList->ResourceBarrier(1, &barrier);
+
+	// Render the ImGui draw data.
+	commandList->OMSetRenderTargets(1, &m_deviceResources->GetRenderTargetView(), FALSE, nullptr);
+	ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_deviceResources->GetCommandList());
+
+	// Transition the render target to the present state.
+	barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
+	commandList->ResourceBarrier(1, &barrier);
+
 	// End frame.
 	for (auto& gpuTimer : m_gpuTimers)
 	{
@@ -1489,6 +1582,13 @@ void DieXaR::OnDestroy()
 {
 	// Let GPU finish before releasing D3D resources.
 	m_deviceResources->WaitForGpu();
+
+	// ImGui cleanup.
+	// COMMENTED OUT BECAUSE OF CRASHES
+	//ImGui_ImplDX12_Shutdown();
+	//ImGui_ImplWin32_Shutdown();
+	//ImGui::DestroyContext();
+
 	OnDeviceLost();
 }
 

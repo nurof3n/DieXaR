@@ -16,7 +16,7 @@
 //
 // RaytracingHLSLCompat.h
 //
-// A header with shared definitions for C++ and HLSL source files. 
+// A header with shared definitions for C++ and HLSL source files.
 //
 //**********************************************************************************************
 
@@ -30,23 +30,22 @@ typedef UINT16 Index;
 #endif
 
 // Number of metaballs to use within an AABB.
-#define N_METABALLS 3    // = {3, 5}
+#define N_METABALLS 3 // = {3, 5}
 
 // Limiting calculations only to metaballs a ray intersects can speed up raytracing
-// dramatically particularly when there is a higher number of metaballs used. 
+// dramatically particularly when there is a higher number of metaballs used.
 // Use of dynamic loops can have detrimental effects to performance for low iteration counts
 // and outweighing any potential gains from avoiding redundant calculations.
 // Requires: USE_DYNAMIC_LOOPS set to 1 to take effect.
 #if N_METABALLS >= 5
 #define USE_DYNAMIC_LOOPS 1
 #define LIMIT_TO_ACTIVE_METABALLS 1
-#else 
+#else
 #define USE_DYNAMIC_LOOPS 0
 #define LIMIT_TO_ACTIVE_METABALLS 0
 #endif
 
-#define N_FRACTAL_ITERATIONS 4      // = <1,...>
-
+#define N_FRACTAL_ITERATIONS 4 // = <1,...>
 
 struct ProceduralPrimitiveAttributes
 {
@@ -56,7 +55,7 @@ struct ProceduralPrimitiveAttributes
 struct RayPayload
 {
 	XMFLOAT4 color;
-	UINT   recursionDepth;
+	UINT recursionDepth;
 };
 
 struct ShadowRayPayload
@@ -68,18 +67,32 @@ struct SceneConstantBuffer
 {
 	XMMATRIX projectionToWorld;
 	XMVECTOR cameraPosition;
+
 	XMVECTOR lightPosition;
-	XMVECTOR lightAmbientColor;
+	XMVECTOR lightAmbientColor;   // Not used in Path Tracing.
 	XMVECTOR lightDiffuseColor;
-	float    reflectance;
-	float    elapsedTime;                 // Elapsed application time.
-	UINT     raytracingType;              // Raytracing type to use.
-	bool	 applyJitter;				  // Apply jitter to the ray sampling (useful in path tracing only).	
-	UINT	 maxRecursionDepth;           // Max recursion depth for the raytracing.
-	UINT	 maxShadowRecursionDepth;     // Max recursion depth for casting shadow rays
-	UINT	 pathSqrtSamplesPerPixel;     // Number of samples per pixel for path tracing.
-	bool	 pathTemporal;				  // Whether to use temporal path tracing.
-	UINT	 pathFrameCacheIndex;         // Current frame index for temporal path tracing.
+
+	XMVECTOR light2Position;
+	XMVECTOR light2DiffuseColor;
+
+	XMVECTOR directionalLightDirection;
+	XMVECTOR directionalLightColor;
+
+	float	 lightSize;           // In path tracing, the light is a square area light.
+	float	 light2Size;          // In path tracing, the light is a square area light.
+	float    lightIntensity;
+	float    light2Intensity;
+
+	float elapsedTime;			  // Elapsed application time.
+	UINT elapsedTicks;			  // Elapsed application time in ticks.
+	UINT raytracingType;		  // Raytracing type to use.
+	UINT maxRecursionDepth;		  // Max recursion depth for the raytracing.
+	UINT maxShadowRecursionDepth; // Max recursion depth for casting shadow rays
+	UINT pathSqrtSamplesPerPixel; // Number of samples per pixel for path tracing.
+	UINT pathFrameCacheIndex;	  // Current frame index for temporal path tracing.
+	UINT secondaryLight;		  // Use a secondary light source.
+	UINT applyJitter;			  // Apply jitter to the ray sampling (useful in path tracing only).
+	UINT directionalLight;		  // Use a directional light source.
 };
 
 // Attributes per primitive type.
@@ -90,10 +103,30 @@ struct PrimitiveConstantBuffer
 	float diffuseCoef;
 	float specularCoef;
 	float specularPower;
-	float stepScale;                      // Step scale for ray marching of signed distance primitives. 
-	// - Some object transformations don't preserve the distances and 
+	float stepScale; // Step scale for ray marching of signed distance primitives.
+	// - Some object transformations don't preserve the distances and
 	//   thus require shorter steps.
 	XMFLOAT3 padding;
+};
+
+// Attributes per primitive type, but physically based rendering version.
+struct PBRPrimitiveConstantBuffer
+{
+	XMFLOAT4 albedo;
+	float stepScale; // Step scale for ray marching of signed distance primitives.
+
+	// All the following values are in the range [0, 1].
+	float sheen;				// Standalone specular lobe (used for cloth materials)
+	float sheenTint;			// Sheen tint factor (0 = white, 1 = color influence)
+	float clearcoat;			// Clearcoat layer intensity
+	float clearcoatGloss;		// Clearcoat layer glossiness
+	float roughness;			// Microfacet roughness
+	float anisotropic;			// Anisotropic factor
+	float metallic;				// Metallic factor
+	float specular;				// Specular factor
+	float specularTint;			// Specular tint factor
+	float specularTransmission; // Specular transmission factor
+	float eta;					// Fresnel eta factor: internal / external IOR (assumes 1.0 for air)
 };
 
 // Attributes per primitive instance.
@@ -106,8 +139,8 @@ struct PrimitiveInstanceConstantBuffer
 // Dynamic attributes per primitive instance.
 struct PrimitiveInstancePerFrameBuffer
 {
-	XMMATRIX localSpaceToBottomLevelAS;   // Matrix from local primitive space to bottom-level object space.
-	XMMATRIX bottomLevelASToLocalSpace;   // Matrix from bottom-level object space to local primitive space.
+	XMMATRIX localSpaceToBottomLevelAS; // Matrix from local primitive space to bottom-level object space.
+	XMMATRIX bottomLevelASToLocalSpace; // Matrix from bottom-level object space to local primitive space.
 };
 
 struct Vertex
@@ -117,27 +150,33 @@ struct Vertex
 };
 
 // Ray tracing types.
-namespace RaytracingType {
-	enum Enum {
+namespace RaytracingType
+{
+	enum Enum
+	{
 		Whitted = 0,
 		PathTracing,
+		PathTracingTemporal,
 		Count
 	};
 }
 
 // Ray types traced in this sample.
-namespace RayType {
-	enum Enum {
-		Radiance = 0,   // ~ Primary, reflected camera/view rays calculating color for each hit.
-		Shadow,         // ~ Shadow/visibility rays, only testing for occlusion
+namespace RayType
+{
+	enum Enum
+	{
+		Radiance = 0, // ~ Primary, reflected camera/view rays calculating color for each hit.
+		Shadow,		  // ~ Shadow/visibility rays, only testing for occlusion
 		Count
 	};
 }
 
 namespace TraceRayParameters
 {
-	static const UINT InstanceMask = ~0;   // Everything is visible.
-	namespace HitGroup {
+	static const UINT InstanceMask = ~0; // Everything is visible.
+	namespace HitGroup
+	{
 		static const UINT Offset[RayType::Count] =
 		{
 			0, // Radiance ray
@@ -145,7 +184,8 @@ namespace TraceRayParameters
 		};
 		static const UINT GeometryStride = RayType::Count;
 	}
-	namespace MissShader {
+	namespace MissShader
+	{
 		static const UINT Offset[RayType::Count] =
 		{
 			0, // Radiance ray
@@ -160,23 +200,29 @@ static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0
 static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.8f, 0.9f, 1.0f, 1.0f);
 static const float InShadowRadiance = 0.35f;
 
-namespace AnalyticPrimitive {
-	enum Enum {
+namespace AnalyticPrimitive
+{
+	enum Enum
+	{
 		AABB = 0,
 		Spheres,
 		Count
 	};
 }
 
-namespace VolumetricPrimitive {
-	enum Enum {
+namespace VolumetricPrimitive
+{
+	enum Enum
+	{
 		Metaballs = 0,
 		Count
 	};
 }
 
-namespace SignedDistancePrimitive {
-	enum Enum {
+namespace SignedDistancePrimitive
+{
+	enum Enum
+	{
 		MiniSpheres = 0,
 		IntersectedRoundCube,
 		SquareTorus,

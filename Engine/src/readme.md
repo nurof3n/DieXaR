@@ -41,7 +41,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 }
 
 [shader("intersection")]
-void MyIntersectionShader_AnalyticPrimitive()
+void IntersectionShader_AnalyticPrimitive()
 {
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum) l_aabbCB.primitiveType;
@@ -121,7 +121,7 @@ TraceRay(g_scene,
 Then if the ray doesn't hit any geometry, the miss shader updates the hit Boolean value to false.
 ```c
 [shader("miss")]
-void MyMissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }

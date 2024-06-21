@@ -83,6 +83,7 @@ private:
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB;
 	PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
+	PBRPrimitiveConstantBuffer m_pbrMaterialCB;
 
 	// Geometry
 	D3DBuffer m_indexBuffer;
@@ -137,11 +138,12 @@ private:
 	// Most of these have correspondents in the scene constant buffer
 	RaytracingType::Enum m_raytracingType{ RaytracingType::PathTracing };
 	bool m_applyJitter{ true };
-	UINT m_maxRecursionDepth{ 8 };
+	UINT m_maxRecursionDepth{ 4 };
 	UINT m_maxShadowRecursionDepth{ 3 };	// one shadow pass in first reflection/refraction
-	UINT m_pathSqrtSamplesPerPixel{ 2 };	// CAUTION: increasing this value will increase the number of rays per pixel exponentially
+	UINT m_pathSqrtSamplesPerPixel{ 1 };	// CAUTION: increasing this value will increase the number of rays per pixel exponentially
 	UINT m_pathFrameCacheIndex{ 1 };		// current frame index for temporal path tracing (ALWAYS >= 1)
-	bool m_pathTemporal{ true };
+	bool m_secondaryLight{ true };
+	bool m_directionalLight{ true };
 
 	void UpdateCameraMatrices();
 	void UpdateAABBPrimitiveAttributes(float animationTime);
