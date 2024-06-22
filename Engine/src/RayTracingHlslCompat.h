@@ -55,6 +55,7 @@ struct ProceduralPrimitiveAttributes
 struct RayPayload
 {
 	XMFLOAT4 color;
+	XMFLOAT4 throughput;
 	UINT recursionDepth;
 };
 
@@ -68,6 +69,7 @@ struct SceneConstantBuffer
 	XMMATRIX projectionToWorld;
 	XMVECTOR cameraPosition;
 
+	// light position is centered at the origin of the square
 	XMVECTOR lightPosition;
 	XMVECTOR lightAmbientColor;   // Not used in Path Tracing.
 	XMVECTOR lightDiffuseColor;
@@ -86,6 +88,7 @@ struct SceneConstantBuffer
 	float elapsedTime;			  // Elapsed application time.
 	UINT elapsedTicks;			  // Elapsed application time in ticks.
 	UINT raytracingType;		  // Raytracing type to use.
+	UINT importanceSamplingType;  // Importance sampling type to use.
 	UINT maxRecursionDepth;		  // Max recursion depth for the raytracing.
 	UINT maxShadowRecursionDepth; // Max recursion depth for casting shadow rays
 	UINT pathSqrtSamplesPerPixel; // Number of samples per pixel for path tracing.
@@ -93,6 +96,7 @@ struct SceneConstantBuffer
 	UINT secondaryLight;		  // Use a secondary light source.
 	UINT applyJitter;			  // Apply jitter to the ray sampling (useful in path tracing only).
 	UINT directionalLight;		  // Use a directional light source.
+	UINT onlyOneLightSample;	  // Use only one light sample at a time.
 };
 
 // Attributes per primitive type.
@@ -134,6 +138,7 @@ struct PrimitiveInstanceConstantBuffer
 {
 	UINT instanceIndex;
 	UINT primitiveType; // Procedural primitive type
+	XMFLOAT2 padding;
 };
 
 // Dynamic attributes per primitive instance.
@@ -157,6 +162,18 @@ namespace RaytracingType
 		Whitted = 0,
 		PathTracing,
 		PathTracingTemporal,
+		Count
+	};
+}
+
+// Sampling types.
+namespace ImportanceSamplingType
+{
+	enum Enum
+	{
+		Uniform = 0,
+		Cosine,
+		BSDF,
 		Count
 	};
 }

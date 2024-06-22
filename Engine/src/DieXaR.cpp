@@ -103,12 +103,14 @@ void DieXaR::Reload()
 void DieXaR::ResetSettingsCB()
 {
 	m_sceneCB->raytracingType = m_raytracingType;
+	m_sceneCB->importanceSamplingType = m_importanceSamplingType;
 	m_sceneCB->maxRecursionDepth = m_maxRecursionDepth;
 	m_sceneCB->maxShadowRecursionDepth = m_maxShadowRecursionDepth;
 	m_sceneCB->pathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 	m_sceneCB->applyJitter = m_applyJitter;
 	m_sceneCB->secondaryLight = m_secondaryLight;
 	m_sceneCB->directionalLight = m_directionalLight;
+	m_sceneCB->onlyOneLightSample = m_onlyOneLightSample;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -281,13 +283,13 @@ void DieXaR::InitializeScene()
 		m_pbrMaterialCB.albedo = XMFLOAT4(0.9f, 0.67f, 0.9f, 1.0f);
 		m_pbrMaterialCB.sheen = 0.0f;
 		m_pbrMaterialCB.sheenTint = 0.0f;
-		m_pbrMaterialCB.clearcoat = 1.0f;
-		m_pbrMaterialCB.clearcoatGloss = 0.5f;
-		m_pbrMaterialCB.roughness = 0.2f;
-		m_pbrMaterialCB.anisotropic = 0.5f;
+		m_pbrMaterialCB.clearcoat = 0.0f;
+		m_pbrMaterialCB.clearcoatGloss = 0.0f;
+		m_pbrMaterialCB.roughness = 0.0f;
+		m_pbrMaterialCB.anisotropic = 0.0f;
 		m_pbrMaterialCB.metallic = 0.0f;
-		m_pbrMaterialCB.specular = 0.5f;
-		m_pbrMaterialCB.specularTint = 0.1f;
+		m_pbrMaterialCB.specular = 0.0f;
+		m_pbrMaterialCB.specularTint = 0.0f;
 		m_pbrMaterialCB.specularTransmission = 0.0f;
 		m_pbrMaterialCB.eta = 1.4f;
 
@@ -340,8 +342,8 @@ void DieXaR::InitializeScene()
 		lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.65f, 1.0f);
 		m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
 
-		m_sceneCB->lightSize = 3.0f;
-		m_sceneCB->lightIntensity = 2.0f;
+		m_sceneCB->lightSize = 1.0f;
+		m_sceneCB->lightIntensity = 0.5f;
 
 		// Second light
 		lightPosition = XMFLOAT4(-15.0f, 10.0f, 5.0f, 0.0f);
@@ -350,8 +352,8 @@ void DieXaR::InitializeScene()
 		lightDiffuseColor = XMFLOAT4(0.65f, 0.6f, 0.9f, 1.0f);
 		m_sceneCB->light2DiffuseColor = XMLoadFloat4(&lightDiffuseColor);
 
-		m_sceneCB->light2Size = 0.2f;
-		m_sceneCB->light2Intensity = 1.8f;
+		m_sceneCB->light2Size = 2.0f;
+		m_sceneCB->light2Intensity = 0.2f;
 
 		// Directional light
 		lightPosition = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);	// as direction here
@@ -615,8 +617,7 @@ void DieXaR::CreateRaytracingPipelineStateObject()
 	auto pipelineConfig = raytracingPipeline.CreateSubobject<CD3DX12_RAYTRACING_PIPELINE_CONFIG_SUBOBJECT>();
 	// PERFOMANCE TIP: Set max recursion depth as low as needed
 	// as drivers may apply optimization strategies for low recursion depths.
-	UINT maxRecursionDepth = m_sceneCB->maxRecursionDepth;
-	pipelineConfig->Config(maxRecursionDepth);
+	pipelineConfig->Config(m_maxRecursionDepth);
 
 	PrintStateObjectDesc(raytracingPipeline);
 
@@ -1473,6 +1474,8 @@ void DieXaR::ShowUI()
 	ImGuiIO& io = ImGui::GetIO();
 
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+	ImGui::Text("Elapsed time: %.2f (s)", m_sceneCB->elapsedTime);
+	ImGui::Text("Elapsed ticks: %u", m_sceneCB->elapsedTicks);
 	ImGui::Spacing();
 
 	if (ImGui::CollapsingHeader("Controls"))
@@ -1503,6 +1506,10 @@ void DieXaR::ShowUI()
 		// Jitter
 		ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
 		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
+
+		// Only one light sample
+		ImGui::Checkbox("Single Light Sample", &m_onlyOneLightSample);
+		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
 
 		// Ray Tracing Type
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
@@ -1536,18 +1543,49 @@ void DieXaR::ShowUI()
 		if (prevRaytracingType != m_raytracingType)
 			m_shouldReload = true;
 
-		// Sqrt Samples per pixel
+		// Importance Sampling type
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
+		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType], ImGuiComboFlags_WidthFitPreview))
+		{
+			bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
+			if (ImGui::Selectable("Uniform", selected))
+				m_importanceSamplingType = ImportanceSamplingType::Uniform;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_importanceSamplingType == ImportanceSamplingType::Cosine;
+			if (ImGui::Selectable("Cosine", selected))
+				m_importanceSamplingType = ImportanceSamplingType::Cosine;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_importanceSamplingType == ImportanceSamplingType::BSDF;
+			if (ImGui::Selectable("BSDF", selected))
+				m_importanceSamplingType = ImportanceSamplingType::BSDF;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine(); HelpMarker("Select the importance sampling type to use");
+
+		// Sqrt Samples per pixel
 		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, 4);
 		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
 		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
 			ResetPathTracing();
 
 		// Max recursion
+		UINT oldMaxRecursionDepth = m_maxRecursionDepth;
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 		ImGui::SliderInt("Max Recursion Depth", reinterpret_cast<int*>(&m_maxRecursionDepth), 1, 10);
 		ImGui::SameLine(); HelpMarker("Maximum recursion depth for path tracing");
+		// we need to reload graphics if this changed (because it was set in stone for optimization purposes)
+		if (oldMaxRecursionDepth != m_maxRecursionDepth)
+			m_shouldReload = true;
 
 		// Max shadow recursion depth
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);

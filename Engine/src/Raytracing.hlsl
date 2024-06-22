@@ -46,13 +46,13 @@ ConstantBuffer<PBRPrimitiveConstantBuffer> l_pbrCB : register(b3); // PBR materi
 float3 ComputeSheen(in float dotLH, in float dotNL)
 {
     // compute the luminance of albedo
-    float luminance = dot(l_pbrCB.albedo.xyz, float3(0.3f, 0.6f, 0.1f));
+    float luminance = dot(l_pbrCB.albedo.xyz, float3(0.3f, 0.6f, 1.0f));
 
     // sheen lobe is tinted by the albedo hue and saturation
-    float3 tint = lerp(float3(1.0f, 1.0f, 1.0f), l_pbrCB.albedo.xyz / luminance, l_pbrCB.sheenTint);
+    float3 tint = luminance > 0.0f ? lerp(float3(1.0f, 1.0f, 1.0f), l_pbrCB.albedo.xyz / luminance, l_pbrCB.sheenTint) : float3(1.0f, 1.0f, 1.0f);
 
     // sheen lobe is using the Schlick-Fresnel shape
-    return l_pbrCB.sheen * tint * pow(1.0f - dotLH, 5) * dotNL;
+    return l_pbrCB.sheen * tint * pow(saturate(1.0f - dotLH), 5) * dotNL;
 }
 
 // Computes the intensity of the clearcoat lobe.
@@ -66,19 +66,73 @@ float ComputeClearCoat(in float dotHL, in float dotNH,
     float D = DGTR1(dotNH, a);
 
     // compute F term with Schlick approximation with IOR = 1.5 (F0 = 0.04)
-    float F = FresnelReflectanceSchlick(dotHL, 0.04f);
+    float F = FresnelReflectanceSchlick(abs(dotHL), 0.04f);
 
     // compute geometric shadowing term G as product of two G1 terms
-    float G = SmithG1Anisotropic(dotLX, dotLY, dotLN, a, a) * SmithG1Anisotropic(dotVX, dotVY, dotVN, a, a);
+    float G = SmithG1Anisotropic(dotLX, dotLY, dotLN, 0.25f, 0.25f) * SmithG1Anisotropic(dotVX, dotVY, dotVN, 0.25f, 0.25f);
 
-    return D * F * G / (4.0f * abs(dotVN));
+    return 0.25f * D * F * G / abs(dotVN);
 }
+
+// Samples the clear coat lobe.
+float3 SampleClearcoat(in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, out float pdf, out float3 reflectance)
+{
+    // We use again the roughness as 0.25.
+    float a = 0.25f;
+
+    // Sample a micronormal in the local shading frame.
+    float cosTheta = sqrt((1.0f - pow(sq(a), 1.0f - eps0)) / (1.0f - sq(a)));
+    float phi = 2.0f * PI * eps1;
+    float3 H = float3(cos(phi) * cosTheta, cosTheta, sin(phi) * sqrt(1.0f - sq(cosTheta)));
+
+    // Do not go below the surface.
+    if (dot(H, N) < 0.0f)
+        H = -H;
+    
+    // Reflect the view vector.
+    float3 direction = reflect(V, H);
+    
+    // Compute the reflectance.
+    float dotLH = dot(direction, H);
+    float dotNH = dot(N, H);
+    float dotLX = dot(direction, X);
+    float dotLY = dot(direction, Y);
+    float dotLN = dot(direction, N);
+    float dotVX = dot(V, X);
+    float dotVY = dot(V, Y);
+    float dotVN = dot(V, N);
+    float clearcoat = ComputeClearCoat(dotLH, dotNH, dotLX, dotLY, dotLN, dotVX, dotVY, dotVN);
+    reflectance = float3(clearcoat, clearcoat, clearcoat);
+    
+    // Compute the pdf.
+    float D = DGTR1(dotNH, a);
+    pdf = 0.25f * D / abs(dotLH);
+
+    return direction;
+}
+
 
 // Disney Diffuse model.
 float3 ComputeDiffuse(in float dotHL, in float dotNV, in float dotNL)
 {
     float fd90 = FD90(l_pbrCB.roughness, dotHL);
-    return l_pbrCB.albedo.xyz * INV_PI * FD(fd90, dotNV) * FD(fd90, dotNL) * dotNL;
+    return l_pbrCB.albedo.xyz * INV_PI * FD(fd90, dotNV) * FD(fd90, dotNL) * abs(dotNL);
+}
+
+// Samples the diffuse lobe.
+float3 SampleDiffuse(in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, out float pdf, out float3 reflectance)
+{
+    // Sample the hemisphere with cosine-weighted distribution.
+    float3 direction = CosineSampleHemisphere(eps0, eps1, N, X, Y, pdf);
+
+    // Compute the reflectance.
+    float3 H = normalize(V + direction);
+    reflectance = ComputeDiffuse(dot(direction, H), dot(N, V), dot(N, direction));
+    reflectance += ComputeSheen(dot(direction, H), dot(N, direction));
+
+    // The pdf is taken care of by the cosine-weighted sampling.
+
+    return direction;
 }
 
 // Disney Metallic BRDF - standard Cook-Torrance microfacet BRDF.
@@ -93,19 +147,33 @@ float3 ComputeMetallicBRDF(in float dotHX, in float dotHY, in float dotHN, in fl
     // compute distribution term D
     float D = DGTR2Anisotropic(dotHX, dotHY, dotHN, ax, ay);
 
-    // compute Fresnel achromatic component
-    // C0 can be tinted to the base color
-    float luminance = dot(l_pbrCB.albedo.xyz, float3(0.3f, 0.6f, 0.1f));
-    float3 Ks = lerp(float3(1.0f, 1.0f, 1.0f), l_pbrCB.albedo.xyz / luminance, l_pbrCB.specularTint); // same as sheen but different tint parameter
-    float3 C0 = lerp(Ks * l_pbrCB.specular * R0FromIOR(l_pbrCB.eta), l_pbrCB.albedo.xyz, l_pbrCB.metallic);
-
-    // compute Fresnel term
-    float3 F = FresnelReflectanceSchlick(dotLH, C0);
+    // compute Fresnel achromatic component (to account for dielectric specular reflection)
+    float3 F = DisneyFresnel(dotLH, l_pbrCB.albedo.xyz, l_pbrCB.specularTint, l_pbrCB.specular, l_pbrCB.eta, l_pbrCB.metallic);
 
     // compute geometric shadowing term G as product of two G1 terms
     float G = SmithG1Anisotropic(dotLX, dotLY, dotLN, ax, ay) * SmithG1Anisotropic(dotVX, dotVY, dotVN, ax, ay);
 
-    return D * F * G / (4.0f * abs(dotVN));
+    return 0.25f * D * F * G / abs(dotVN);
+}
+
+// Samples the metallic lobe.
+float3 SampleMetallic(in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, in float ax, in float ay, out float pdf, out float3 reflectance)
+{
+    // Sample the visible normals of the Smith GGX model.
+    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V, pdf);
+
+    // Reflect the view vector.
+    float3 direction = reflect(V, H);
+
+    // Since we are sampling the visible normals, we're left with only a few terms.
+    float3 F = DisneyFresnel(dot(H, direction), l_pbrCB.albedo.xyz, l_pbrCB.specularTint, l_pbrCB.specular, l_pbrCB.eta, l_pbrCB.metallic);
+    float Gv = SmithG1Anisotropic(dot(V, X), dot(V, Y), dot(V, N), ax, ay);
+    reflectance = F * Gv;
+
+    // Compute the pdf.
+    pdf = 0.25f / dot(H, V);
+
+    return direction;
 }
 
 float3 ComputeGlassBSDF(in bool inside, in float dotHX, in float dotHY, in float dotHN, in float dotLH, in float dotHV,
@@ -122,20 +190,27 @@ float3 ComputeGlassBSDF(in bool inside, in float dotHX, in float dotHY, in float
 
     float common = D * G / abs(dotVN);
     if (!inside)
-        return common * F / 4.0f * l_pbrCB.albedo.xyz;
+        return 0.25f * common * F * l_pbrCB.albedo.xyz;
     else // take square root to account for the fact that the light is coming from the other side
-        return common * (1.0f - F) * abs(dotLH * dotHV) / (abs(dotVN) * sq(dotHV + l_pbrCB.eta * dotLH)) * sqrt(l_pbrCB.albedo.xyz);
+        return common * (1.0f - F) * abs(dotLH * dotHV) / sq(dotHV + l_pbrCB.eta * dotLH) * sqrt(l_pbrCB.albedo.xyz);
+}
+
+// Samples the glass lobe.
+float3 SampleGlass(in bool inside, in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, in float ax, in float ay, out float pdf, out float3 reflectance)
+{
+    // Sample the visible normals of the Smith GGX model.
+    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V, pdf);
+
+    // Compute IOR fraction.
+    float eta = inside ? l_pbrCB.eta : 1.0f / l_pbrCB.eta;
+
+    return float3(0.0f, 0.0f, 0.0f);
 }
 
 // Computes the Disney BSDF as an aggregate of all the defined lobes.
 float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in float3 Y)
 {
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
-
-    // compute pdfs
-    float pDiffuse, pMetal, pClearcoat, pGlass, wDiffuse, wMetal, wClearcoat, wGlass;
-    ComputePdfs(l_pbrCB.metallic, l_pbrCB.specularTransmission, l_pbrCB.clearcoat,
-                pMetal, pDiffuse, pClearcoat, pGlass, wMetal, wDiffuse, wClearcoat, wGlass);
 
     // compute dot products
     float3 H = normalize(L + V);
@@ -151,20 +226,26 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
     float dotVX = dot(V, X);
     float dotVY = dot(V, Y);
 
+    // check if we are inside the surface
+    bool inside = dotNV < 0.0f;
+
+    // compute pdfs
+    float pDiffuse, pMetal, pClearcoat, pGlass, wDiffuse, wMetal, wClearcoat, wGlass;
+    ComputePdfs(inside, l_pbrCB.metallic, l_pbrCB.specularTransmission, l_pbrCB.clearcoat,
+                pMetal, pDiffuse, pClearcoat, pGlass, wMetal, wDiffuse, wClearcoat, wGlass);
+
     bool specularVisible = dotNL > 0.0f && dotNV > 0.0f; // true if both L and V are on the outer side of the surface
 
     // apply diffuse and sheen
     if (wDiffuse > 0.0f)
     {
         float3 diffuse = ComputeDiffuse(dotLH, dotNV, dotNL);
+
         float3 sheen = float3(0.0f, 0.0f, 0.0f);
-
         if (l_pbrCB.sheen > 0.0f)
-        {
             sheen = ComputeSheen(dotLH, dotNL);
-        }
 
-        reflectance += wDiffuse * (diffuse * l_pbrCB.albedo.xyz + sheen);
+        reflectance += wDiffuse * (diffuse + (1.0f - l_pbrCB.metallic) * sheen);
     }
 
     // apply metallic
@@ -184,7 +265,6 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
     // apply transmission
     if (wGlass > 0.0f)
     {
-        // TODO: scale the roughness of the glass by the IOR
         float ax, ay;
         ComputeAnisotropicAlphas(l_pbrCB.roughness, l_pbrCB.anisotropic, ax, ay);
 
@@ -194,6 +274,59 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
 
     return reflectance;
 }
+
+float3 SampleDisney(inout uint rng_state, in float3 V, in float3 N, in float3 X, in float3 Y, out float pdf, out float3 reflectance)
+{
+    bool inside = dot(N, V) < 0.0f;
+
+    // Compute the lobe weights.
+    float pDiffuse, pMetal, pClearcoat, pGlass, wDiffuse, wMetal, wClearcoat, wGlass;
+    ComputePdfs(inside, l_pbrCB.metallic, l_pbrCB.specularTransmission, l_pbrCB.clearcoat,
+                pMetal, pDiffuse, pClearcoat, pGlass, wMetal, wDiffuse, wClearcoat, wGlass);
+
+    float pdfLobe;
+    float3 direction;
+
+    // Generate two random numbers.
+    float eps0 = random(rng_state);
+    float eps1 = random(rng_state);
+
+    // Pick one of the lobes to sample.
+    float r = random(rng_state);
+    if (r < pDiffuse)
+    {
+        // Sample the diffuse lobe.
+        pdfLobe = pDiffuse;
+        direction = SampleDiffuse(eps0, eps1, V, N, X, Y, pdf, reflectance);
+    }
+    else if (r < pDiffuse + pMetal)
+    {
+        // Sample the metallic lobe.
+        float ax, ay;
+        ComputeAnisotropicAlphas(l_pbrCB.roughness, l_pbrCB.anisotropic, ax, ay);
+        pdfLobe = pMetal;
+        direction = SampleMetallic(eps0, eps1, V, N, X, Y, ax, ay, pdf, reflectance);
+    }
+    else if (r < pDiffuse + pMetal + pClearcoat)
+    {
+        // Sample the clearcoat lobe.
+        pdfLobe = pClearcoat;
+        direction = SampleClearcoat(eps0, eps1, V, N, X, Y, pdf, reflectance);
+    }
+    else
+    {
+        // Sample the clearcoat lobe.
+        pdfLobe = pClearcoat;
+        direction = SampleClearcoat(eps0, eps1, V, N, X, Y, pdf, reflectance);
+    }
+
+    // Weigh both the final pdf and the reflectance by the lobe's pdf.
+    pdf *= pdfLobe;
+    reflectance *= pdfLobe;
+
+    return direction;
+}
+
 
 //***************************************************************************
 //*****************------ Phong functions -------****************************
@@ -251,7 +384,7 @@ float4 CalculatePhongLighting(in float4 albedo, in float3 normal, in bool isInSh
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
+float4 TraceRadianceRay(in Ray ray, in float4 throughput, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth)
     {
@@ -264,9 +397,9 @@ float4 TraceRadianceRay(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
-    rayDesc.TMax = 10000;
-    RayPayload rayPayload = {float4(0, 0, 0, 0), currentRayRecursionDepth + 1};
+    rayDesc.TMin = 0.0f;
+    rayDesc.TMax = 10000.0f;
+    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, currentRayRecursionDepth + 1};
     TraceRay(g_scene,
              RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
              TraceRayParameters::InstanceMask,
@@ -322,7 +455,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, currentRecursionDepth);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), currentRecursionDepth);
 
     // Write the raytraced color to the output texture.
     g_renderTarget[DispatchRaysIndex().xy] = color;
@@ -330,13 +463,16 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
 [shader("raygeneration")] void RaygenShader_PathTracingTemporal()
 {
+    // Initialize the random number generator.
+    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
 
     // Compute the ray offset inside the pixel (for stratified sampling), between 0 and 1.
     float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2(((g_sceneCB.pathFrameCacheIndex - 1) % g_sceneCB.pathSqrtSamplesPerPixel + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (floor((g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathSqrtSamplesPerPixel) + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
     // Apply jittering if enabled.
-    float2 jitter = select(g_sceneCB.applyJitter, float2(random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex), random(DispatchRaysIndex().xy, g_sceneCB.pathFrameCacheIndex + numSamples)), float2(0.5f, 0.5f)); // in [0, 1)
+    float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
     offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -344,7 +480,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, currentRecursionDepth);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), currentRecursionDepth);
 
     // Accumulate the color.
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
@@ -353,7 +489,10 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
 [shader("raygeneration")] void RaygenShader_PathTracing()
 {
-    float3 finalColor = float3(0, 0, 0);
+    // Initialize the random number generator.
+    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+
+    float3 finalColor = float3(0.0f, 0.0f, 0.0f);
 
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
 
@@ -364,7 +503,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
             float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2((i + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (j + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
             // Apply jittering if enabled.
-            float2 jitter = select(g_sceneCB.applyJitter, float2(random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j), random(DispatchRaysIndex().xy, i * g_sceneCB.pathSqrtSamplesPerPixel + j + numSamples)), float2(0.5f, 0.5f)); // in [0, 1)
+            float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
             offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
             // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -372,15 +511,15 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
             // Cast a ray into the scene and retrieve a shaded color.
             UINT currentRecursionDepth = 0;
-            float4 color = TraceRadianceRay(ray, currentRecursionDepth);
+            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), currentRecursionDepth);
 
             // Accumulate the color.
             finalColor += color.xyz;
         }
 
     // Average the accumulated color.
-        g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
-    }
+    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
+}
 
 //***************************************************************************
 //******************------ Closest hit shaders -------***********************
@@ -389,46 +528,109 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 // Performs next event estimation importance sampling for a point light source.
 // lightDir must be normalized.
 bool NextEventEstimation(in uint recursionDepth, in float3 hitPosition, in float lightDist,
-                         in float3 lightDir, in float3 lightDiffuse, in float lightIntensity, in float lightSize, out float3 lightContrib)
+                         in float3 lightDir, in float3 lightDiffuse, in float lightIntensity, in float lightSize,
+                         out float3 lightContrib, out float lightPdf)
 {
+    lightContrib = float3(0.0f, 0.0f, 0.0f);
+    lightPdf = 0.0f;
+
     // The light is pointing downwards on the Y axis.
     float angle = dot(lightDir, float3(0.0f, 1.0f, 0.0f));
     if (angle <= 0.0f)
-    {
-        lightContrib = float3(0, 0, 0);
         return false;
-    }
 
     // Create a shadow ray towards the light.
-    Ray shadowRay = {HitWorldPosition(), lightDir};
+    Ray shadowRay = {hitPosition, lightDir};
     bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, recursionDepth);
     if (!shadowRayHit)
     {
-        // Calculate the light contribution.
-        lightContrib = lightIntensity * lightDiffuse * angle / (1.0f + 0.001f * lightDist * lightDist);
+        // Calculate the light contribution and the pdf.
+        lightPdf = 1.0f / (lightSize * lightSize);
+        lightContrib = lightIntensity * lightDiffuse * angle / ((1.0f + 0.001f * lightDist * lightDist));
         return true;
     }
-    lightContrib = float3(0, 0, 0);
     return false;
 }
 
-float3 ShadePathTracing(in RayPayload rayPayload, in float3 normal, in float3 hitPosition)
+float3 MIS(inout uint rng_state, in float3 hitPosition, in float3 lightPosition, in float3 lightColor, in float lightIntensity, in float lightSize,
+    in float3 N, in float3 X, in float3 Y, in UINT recursionDepth, out float3 newDirection, out float3 throughput)
 {
+    float3 reflectanceLightSampling = float3(0.0f, 0.0f, 0.0f);
+
+    float2 lightSample = float2(random(rng_state), random(rng_state)) * lightSize - lightSize * 0.5f;
+    lightPosition += float3(lightSample.x, 0, lightSample.y);
+    float lightDist = distance(hitPosition, lightPosition);
+    float3 lightDirection = normalize(lightPosition - hitPosition);
+
+    // Sample light with MIS.
+    float3 lightContrib;
+    float lightPdf;
+    if (NextEventEstimation(recursionDepth, hitPosition, lightDist, lightDirection, lightColor, lightIntensity, lightSize, lightContrib, lightPdf))
+    {
+        reflectanceLightSampling = lightContrib / lightPdf;
+    }
+
+    // Sample the BSDF
+    // float samplePdf;
+    // if (g_sceneCB.importanceSamplingType == 0)
+    // {
+    //     newDirection = UniformSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
+    //     throughput = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y);
+    // }
+    // else if (g_sceneCB.importanceSamplingType == 1)
+    // {
+    //     newDirection = CosineSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
+    //     throughput = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y);
+    // }
+    // else
+    // {
+    //     newDirection = SampleDisney(rng_state, -WorldRayDirection(), N, X, Y, samplePdf, throughput);
+    // }
+
+    return reflectanceLightSampling;
+}
+
+float3 DoPathTracing(in RayPayload rayPayload, in float3 normal, in float3 hitPosition)
+{
+    // Initialize the random number generator.
+    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + rayPayload.recursionDepth * 1337 + hash(hitPosition));
+
     float3 lightPosition = g_sceneCB.lightPosition.xyz;
     float3 lightColor = g_sceneCB.lightDiffuseColor.xyz;
     float lightSize = g_sceneCB.lightSize;
     float lightIntensity = g_sceneCB.lightIntensity;
-    float pdf = 1.0f; // Probability density function used to compensate for only sampling one light.
+    float pdf = 1.0f;
+
+    float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
+    float3 newDirection;
+    float3 throughput;
+
+    // Get the local space basis.
+    float3 X, Y;
+    ComputeLocalSpace(normal, X, Y);
 
     // Choose light
     if (g_sceneCB.secondaryLight)
     {
-        pdf = 0.5f;
+        if (g_sceneCB.onlyOneLightSample) {
+            // If one light at a time, choose randomly and adjust pdf
+            pdf = 0.5f;
 
-        // Sample random number
-        float r = random(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
-        if (r > 0.5f)
-        {
+            // Sample random number
+            float r = random(rng_state);
+            if (r > 0.5f)
+            {
+                lightPosition = g_sceneCB.light2Position.xyz;
+                lightColor = g_sceneCB.light2DiffuseColor.xyz;
+                lightSize = g_sceneCB.light2Size;
+                lightIntensity = g_sceneCB.light2Intensity;
+            }
+        }
+        else {
+            // If both lights at the same time, sample both and average
+            color += rayPayload.throughput.xyz * MIS(rng_state, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, normal, X, Y, rayPayload.recursionDepth, newDirection, throughput) / pdf;
+
+            // Pick the second light
             lightPosition = g_sceneCB.light2Position.xyz;
             lightColor = g_sceneCB.light2DiffuseColor.xyz;
             lightSize = g_sceneCB.light2Size;
@@ -436,40 +638,26 @@ float3 ShadePathTracing(in RayPayload rayPayload, in float3 normal, in float3 hi
         }
     }
 
-    // Sample a point on the area light.
-    float2 lightSample = float2(random(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + 1), random(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + 2))
-                            * lightSize - lightSize * 0.5f;
-    lightPosition += float3(lightSample.x, 0, lightSample.y);
+    color += MIS(rng_state, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, normal, X, Y, rayPayload.recursionDepth, newDirection, throughput) / pdf;
 
-    float lightDist = distance(hitPosition, lightPosition);
-    float3 lightDirection = normalize(lightPosition - hitPosition);
+    // Shoot the next ray and accumulate the color.
+    //Ray newRay = {hitPosition, newDirection};
+    //color += TraceRadianceRay(newRay, float4(throughput, 1.0f) * rayPayload.throughput, rayPayload.recursionDepth).xyz;
 
-    // Next event estimation.
-    float3 lightContrib;
-    if (NextEventEstimation(rayPayload.recursionDepth, hitPosition, lightDist, lightDirection, lightColor, lightIntensity, lightSize, lightContrib))
-    {
-        // Get the local space basis.
-        float3 X, Y;
-        ComputeLocalSpace(normal, X, Y);
-
-        // Compute the BSDF.
-        return lightContrib * ComputeDisneyBSDF(lightDirection, -WorldRayDirection(), normal, X, Y) / pdf;
-    }
-
-    return float3(0, 0, 0);
+    return color;
 }
 
 void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition)
 {
-    float4 color = float4(0, 0, 0, 0);
+    float4 color = float4(0, 0, 0, 1);
 
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
-    if (g_sceneCB.raytracingType > 0)
+    if (g_sceneCB.raytracingType > 0)   // path tracing
     {
-        color.xyz = ShadePathTracing(rayPayload, normal, hitPosition);
+        color.xyz = DoPathTracing(rayPayload, normal, hitPosition);
     }
-    else
+    else    // Whitted-style ray tracing
     {
         // Shadow component.
         // Trace a shadow ray only if recursion depth allows it.
@@ -482,7 +670,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
         {
             // Trace a reflection ray.
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
-            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.recursionDepth);
+            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.recursionDepth);
 
             float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, l_materialCB.albedo.xyz);
             reflectedColor = l_materialCB.reflectanceCoef * float4(fresnelR, 1) * reflectionColor;
@@ -517,7 +705,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition());
 }
 
-    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
@@ -535,7 +723,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     rayPayload.color = backgroundColor;
 }
 
-    [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+[shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }
@@ -598,7 +786,8 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 
     float thit;
     ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
-    if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, l_materialCB.stepScale))
+    float stepScale = l_materialCB.stepScale;
+    if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, stepScale))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);
