@@ -64,27 +64,21 @@ struct ShadowRayPayload
 	bool hit;
 };
 
+struct LightBuffer
+{
+	XMFLOAT3 position;
+	float intensity;
+	XMFLOAT3 emission;
+	float size;			// radius for spheres, side length for squares
+	XMFLOAT3 direction; // for directional light
+	UINT type;			// 0: point light, 1: square area light, 2: directional light
+};
+
 struct SceneConstantBuffer
 {
 	XMMATRIX projectionToWorld;
 	XMVECTOR cameraPosition;
-
-	// light position is centered at the origin of the square
-	XMVECTOR lightPosition;
-	XMVECTOR lightAmbientColor;   // Not used in Path Tracing.
-	XMVECTOR lightDiffuseColor;
-
-	XMVECTOR light2Position;
-	XMVECTOR light2DiffuseColor;
-
-	XMVECTOR directionalLightDirection;
-	XMVECTOR directionalLightColor;
-
-	float	 lightSize;           // In path tracing, the light is a square area light.
-	float	 light2Size;          // In path tracing, the light is a square area light.
-	float    lightIntensity;
-	float    light2Intensity;
-
+	UINT numLights;
 	float elapsedTime;			  // Elapsed application time.
 	UINT elapsedTicks;			  // Elapsed application time in ticks.
 	UINT raytracingType;		  // Raytracing type to use.
@@ -93,9 +87,7 @@ struct SceneConstantBuffer
 	UINT maxShadowRecursionDepth; // Max recursion depth for casting shadow rays
 	UINT pathSqrtSamplesPerPixel; // Number of samples per pixel for path tracing.
 	UINT pathFrameCacheIndex;	  // Current frame index for temporal path tracing.
-	UINT secondaryLight;		  // Use a secondary light source.
 	UINT applyJitter;			  // Apply jitter to the ray sampling (useful in path tracing only).
-	UINT directionalLight;		  // Use a directional light source.
 	UINT onlyOneLightSample;	  // Use only one light sample at a time.
 };
 
@@ -138,7 +130,6 @@ struct PrimitiveInstanceConstantBuffer
 {
 	UINT instanceIndex;
 	UINT primitiveType; // Procedural primitive type
-	XMFLOAT2 padding;
 };
 
 // Dynamic attributes per primitive instance.
@@ -153,6 +144,17 @@ struct Vertex
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
 };
+
+namespace LightType
+{
+	enum Enum
+	{
+		Point = 0,
+		Square,
+		Directional,
+		Count
+	};
+}
 
 // Ray tracing types.
 namespace RaytracingType

@@ -379,8 +379,8 @@ float3 UniformSampleHemisphere(in float eps0, in float eps1, in float3 normal, i
 // y is the up vector.
 float3 CosineSampleHemisphere(in float eps0, in float eps1, in float3 normal, in float3 T, in float3 B, out float pdf)
 {
-    float sinTheta = sqrt(eps0);
-    float cosTheta = sqrt(1.0f - eps0);
+    float cosTheta = sqrt(eps0);
+    float sinTheta = sqrt(1.0f - eps0);
     float phi = 2.0f * PI * eps1;
     float3 direction;
     direction.x = sinTheta * cos(phi);
@@ -388,14 +388,14 @@ float3 CosineSampleHemisphere(in float eps0, in float eps1, in float3 normal, in
     direction.z = sinTheta * sin(phi);
 
     // Compute the pdf.
-    pdf = INV_PI * cosTheta * sinTheta;
+    pdf = INV_PI * cosTheta;
 
     // Transform the direction to the hemisphere's normal.
     return normalize(direction.x * T + direction.y * normal + direction.z * B);
 }
 
 // https://hal.science/hal-01509746/document
-float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in float ay, in float3 V, out float pdf)
+float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in float ay, in float3 V)
 {
     // Stretch the view vector to match the roughness 1.
     float3 stretchedV = normalize(float3(ax * V.x, V.y, ay * V.z));
@@ -411,12 +411,17 @@ float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in floa
     float p1 = r * cos(phi);
     float p2 = r * sin(phi) * (eps1 < a ? 1.0f : stretchedV.y);
 
-    // Compute the pdf.
-    pdf = 1.0f / (PI * (1.0f + (sq(p1) + sq(p2)) / (sq(ax) + sq(ay))));
-
     // Compute the normal in the tangent space.
     float3 normal = normalize(p1 * T + p2 * B + sqrt(max(0.0f, 1.0f - sq(p1) - sq(p2))) * stretchedV);
     return float3(ax * normal.x, normal.y, ay * normal.z);
+}
+
+float VisibleNormalsPdf(in float ax, in float ay, in float dotLH, in float dotVX, in float dotVY, in float dotVN,
+    in float dotHX, in float dotHY, in float dotHN)
+{
+    float G1 = SmithG1Anisotropic(dotVX, dotVY, dotVN, ax, ay);
+    float D = DGTR2Anisotropic(dotHX, dotHY, dotHN, ax, ay);
+    return D * G1 * abs(dotLH);
 }
 
 float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)

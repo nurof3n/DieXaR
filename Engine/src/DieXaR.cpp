@@ -61,7 +61,6 @@ DieXaR::DieXaR(UINT width, UINT height, std::wstring name) :
 	m_animateGeometryTime(0.0f),
 	m_cameraFly(false),
 	m_animateGeometry(true),
-	m_animateLight(false),
 	m_descriptorsAllocated(0),
 	m_descriptorSize(0),
 	m_missShaderTableStrideInBytes(UINT_MAX),
@@ -70,11 +69,11 @@ DieXaR::DieXaR(UINT width, UINT height, std::wstring name) :
 	UpdateForSizeChange(width, height);
 }
 
-void DieXaR::ResetCamera()
+void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 {
 	// Initialize the view and projection inverse matrices.
-	m_eye = { 0.0f, 5.3f, -17.0f, 1.0f };
-	m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+	m_eye = eye;
+	m_at = at;
 	XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
 
 	XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
@@ -102,14 +101,13 @@ void DieXaR::Reload()
 
 void DieXaR::ResetSettingsCB()
 {
+	m_sceneCB->numLights = m_scenes[m_crtScene].GetLightCount();
 	m_sceneCB->raytracingType = m_raytracingType;
 	m_sceneCB->importanceSamplingType = m_importanceSamplingType;
 	m_sceneCB->maxRecursionDepth = m_maxRecursionDepth;
 	m_sceneCB->maxShadowRecursionDepth = m_maxShadowRecursionDepth;
 	m_sceneCB->pathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 	m_sceneCB->applyJitter = m_applyJitter;
-	m_sceneCB->secondaryLight = m_secondaryLight;
-	m_sceneCB->directionalLight = m_directionalLight;
 	m_sceneCB->onlyOneLightSample = m_onlyOneLightSample;
 }
 
@@ -146,6 +144,7 @@ void DieXaR::OnInit()
 	m_deviceResources->CreateDeviceResources();
 	m_deviceResources->CreateWindowSizeDependentResources();
 
+	// Only initialize the scene if we are not reloading the application.
 	if (!m_shouldReload)
 		InitializeScene();
 
@@ -171,6 +170,9 @@ void DieXaR::OnInit()
 		CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorHeapIndex, m_descriptorSize));
 
 	ImGui::StyleColorsDark();
+
+	// Initialize application settings.
+	ResetSettingsCB();
 }
 
 // Update camera matrices passed into the shader.
@@ -248,123 +250,89 @@ void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 // Initialize scene rendering parameters.
 void DieXaR::InitializeScene()
 {
-	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+	// Initialize all scenes ahead of time.
+	InitializeCornellBox();
+	InitializeDemo();
+	InitializePbrShowcase();
+}
 
-	// Setup materials.
+void DieXaR::InitializeCornellBox()
+{
+}
+
+void DieXaR::InitializeDemo()
+{
+	m_scenes[SceneTypes::Demo].m_sceneType = SceneTypes::Demo;
+
+	// Setup Camera
+	m_scenes[SceneTypes::Demo].m_eye = { 0.0f, 5.3f, -17.0f, 1.0f };
+	m_scenes[SceneTypes::Demo].m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+	ResetCamera(m_scenes[SceneTypes::Demo].m_eye, m_scenes[SceneTypes::Demo].m_at);
+
+	// Setup Materials
 	{
-		auto SetAttributes = [&](
-			UINT primitiveIndex,
-			const XMFLOAT4& albedo,
-			float reflectanceCoef = 0.0f,
-			float diffuseCoef = 0.9f,
-			float specularCoef = 0.7f,
-			float specularPower = 20.0f,
-			float stepScale = 1.0f)
-			{
-				auto& attributes = m_aabbMaterialCB[primitiveIndex];
-				attributes.albedo = albedo;
-				attributes.reflectanceCoef = reflectanceCoef;
-				attributes.diffuseCoef = diffuseCoef;
-				attributes.specularCoef = specularCoef;
-				attributes.specularPower = specularPower;
-				attributes.stepScale = stepScale;
-			};
-
-		// Albedos
 		XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
 		XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
 		XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
 		XMFLOAT4 violet = XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f);
 		XMFLOAT4 orange = XMFLOAT4(1.0f, 0.5f, 0.0f, 1.0f);
 
-		m_planeMaterialCB = { XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.4f, 50, 1 };
-
-		m_pbrMaterialCB.stepScale = 1.0f;
-		m_pbrMaterialCB.albedo = XMFLOAT4(0.9f, 0.67f, 0.9f, 1.0f);
-		m_pbrMaterialCB.sheen = 0.0f;
-		m_pbrMaterialCB.sheenTint = 0.0f;
-		m_pbrMaterialCB.clearcoat = 0.0f;
-		m_pbrMaterialCB.clearcoatGloss = 0.0f;
-		m_pbrMaterialCB.roughness = 0.0f;
-		m_pbrMaterialCB.anisotropic = 0.0f;
-		m_pbrMaterialCB.metallic = 0.0f;
-		m_pbrMaterialCB.specular = 0.0f;
-		m_pbrMaterialCB.specularTint = 0.0f;
-		m_pbrMaterialCB.specularTransmission = 0.0f;
-		m_pbrMaterialCB.eta = 1.4f;
+		// Setup plane
+		{
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.75f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f);
+		}
 
 		UINT offset = 0;
-		// Analytic primitives.
+		m_scenes[SceneTypes::Demo].m_aabbMaterialCB.resize(IntersectionShaderType::TotalPrimitiveCount);
+		m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB.resize(IntersectionShaderType::TotalPrimitiveCount);
+
+		// Setup analytic primitives
 		{
 			using namespace AnalyticPrimitive;
-			SetAttributes(offset + AABB, orange, 0.3f, 0.8f, 0.6f);
-			SetAttributes(offset + Spheres, ChromiumReflectance, 1);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
 			offset += AnalyticPrimitive::Count;
 		}
 
-		// Volumetric primitives.
+		// Setup volumetric primitives
 		{
 			using namespace VolumetricPrimitive;
-			SetAttributes(offset + Metaballs, ChromiumReflectance, 1);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Metaballs], ChromiumReflectance, 1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Metaballs], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
 			offset += VolumetricPrimitive::Count;
 		}
 
-		// Signed distance primitives.
+		// Setup signed distance primitives
 		{
 			using namespace SignedDistancePrimitive;
-			SetAttributes(offset + MiniSpheres, violet, 0.1f);
-			SetAttributes(offset + IntersectedRoundCube, green);
-			SetAttributes(offset + SquareTorus, ChromiumReflectance, 1);
-			SetAttributes(offset + TwistedTorus, yellow, 0, 1.0f, 0.7f, 50, 0.5f);
-			SetAttributes(offset + Cog, yellow, 0, 1.0f, 0.1f, 2);
-			SetAttributes(offset + Cylinder, red);
-			SetAttributes(offset + FractalPyramid, green, 0, 1, 0.1f, 4, 0.8f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + MiniSpheres], violet, 0.1f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + IntersectedRoundCube], green);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + TwistedTorus], yellow, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + TwistedTorus], yellow, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + FractalPyramid], green, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + FractalPyramid], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 		}
 	}
 
-	// Setup camera.
-	ResetCamera();
+	// Setup Lights
+	m_scenes[m_crtScene].m_lights.resize(2);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.4f, 0, 1.0f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-15.0f, 10.0f, 5.0f), XMFLOAT3(0.65f, 0.6f, 0.9f), 0.2f, 0, 2.0f);
+}
 
-	// Setup lights.
-	{
-		// Initialize the lighting parameters.
-		XMFLOAT4 lightPosition;
-		XMFLOAT4 lightAmbientColor;
-		XMFLOAT4 lightDiffuseColor;
-
-		// First light
-		lightPosition = XMFLOAT4(0.0f, 18.0f, -20.0f, 0.0f);
-		m_sceneCB->lightPosition = XMLoadFloat4(&lightPosition);
-
-		lightAmbientColor = XMFLOAT4(0.15f, 0.15f, 0.25f, 1.0f);
-		m_sceneCB->lightAmbientColor = XMLoadFloat4(&lightAmbientColor);
-
-		lightDiffuseColor = XMFLOAT4(0.8f, 0.8f, 0.65f, 1.0f);
-		m_sceneCB->lightDiffuseColor = XMLoadFloat4(&lightDiffuseColor);
-
-		m_sceneCB->lightSize = 1.0f;
-		m_sceneCB->lightIntensity = 0.5f;
-
-		// Second light
-		lightPosition = XMFLOAT4(-15.0f, 10.0f, 5.0f, 0.0f);
-		m_sceneCB->light2Position = XMLoadFloat4(&lightPosition);
-
-		lightDiffuseColor = XMFLOAT4(0.65f, 0.6f, 0.9f, 1.0f);
-		m_sceneCB->light2DiffuseColor = XMLoadFloat4(&lightDiffuseColor);
-
-		m_sceneCB->light2Size = 2.0f;
-		m_sceneCB->light2Intensity = 0.2f;
-
-		// Directional light
-		lightPosition = XMFLOAT4(1.0f, 1.0f, 1.0f, 0.0f);	// as direction here
-		m_sceneCB->directionalLightDirection = XMLoadFloat4(&lightPosition);
-
-		lightDiffuseColor = XMFLOAT4(0.2f, 0.2f, 0.2f, 1.0f);
-		m_sceneCB->directionalLightColor = XMLoadFloat4(&lightDiffuseColor);
-	}
-
-	// Initialize application settings.
-	ResetSettingsCB();
+void DieXaR::InitializePbrShowcase()
+{
 }
 
 // Create constant buffers.
@@ -374,6 +342,14 @@ void DieXaR::CreateConstantBuffers()
 	auto frameCount = m_deviceResources->GetBackBufferCount();
 
 	m_sceneCB.Create(device, frameCount, L"Scene Constant Buffer");
+}
+
+void DieXaR::CreateLightBuffer()
+{
+	auto device = m_deviceResources->GetD3DDevice();
+	auto frameCount = m_deviceResources->GetBackBufferCount();
+
+	m_lights.Create(device, m_scenes[m_crtScene].GetLightCount(), frameCount, L"Light Buffer");
 }
 
 // Create AABB primitive attributes buffers.
@@ -412,6 +388,9 @@ void DieXaR::CreateDeviceDependentResources()
 	// Create constant buffers for the geometry and the scene.
 	CreateConstantBuffers();
 
+	// Create light buffer.
+	CreateLightBuffer();
+
 	// Create AABB primitive attribute buffers.
 	CreateAABBPrimitiveAttributesBuffers();
 
@@ -447,6 +426,7 @@ void DieXaR::CreateRootSignatures()
 		rootParameters[GlobalRootSignature::Slot::OutputView].InitAsDescriptorTable(1, &ranges[0]);
 		rootParameters[GlobalRootSignature::Slot::AccelerationStructure].InitAsShaderResourceView(0);
 		rootParameters[GlobalRootSignature::Slot::SceneConstant].InitAsConstantBufferView(0);
+		rootParameters[GlobalRootSignature::Slot::LightBuffer].InitAsShaderResourceView(4);
 		rootParameters[GlobalRootSignature::Slot::AABBattributeBuffer].InitAsShaderResourceView(3);
 		rootParameters[GlobalRootSignature::Slot::VertexBuffers].InitAsDescriptorTable(1, &ranges[1]);
 		CD3DX12_ROOT_SIGNATURE_DESC globalRootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
@@ -1139,8 +1119,8 @@ void DieXaR::BuildShaderTables()
 		// Triangle geometry hit groups.
 		{
 			LocalRootSignature::Triangle::RootArguments rootArgs;
-			rootArgs.materialCb = m_planeMaterialCB;
-			rootArgs.pbrCb = m_pbrMaterialCB;
+			rootArgs.materialCb = m_scenes[m_crtScene].m_planeMaterialCB;
+			rootArgs.pbrCb = m_scenes[m_crtScene].m_pbrPlaneMaterialCB;
 
 			for (auto& hitGroupShaderID : hitGroupShaderIDs_TriangleGeometry)
 			{
@@ -1161,8 +1141,8 @@ void DieXaR::BuildShaderTables()
 				// Primitives for each intersection shader.
 				for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, instanceIndex++)
 				{
-					rootArgs.materialCb = m_aabbMaterialCB[instanceIndex];
-					rootArgs.pbrCb = m_pbrMaterialCB;
+					rootArgs.materialCb = m_scenes[m_crtScene].m_aabbMaterialCB[instanceIndex];
+					rootArgs.pbrCb = m_scenes[m_crtScene].m_pbrAabbMaterialCB[instanceIndex];
 					rootArgs.aabbCB.instanceIndex = instanceIndex;
 					rootArgs.aabbCB.primitiveType = primitiveIndex;
 
@@ -1198,7 +1178,7 @@ void DieXaR::OnKeyDown(UINT8 key)
 			break;
 		m_cameraFly = !m_cameraFly;
 		if (!m_cameraFly)
-			ResetCamera();
+			ResetCamera(m_scenes[m_crtScene].m_eye, m_scenes[m_crtScene].m_at);
 		else if (!m_cameraLocked) {
 			// Move the focus point very close to the camera to make camera rotation more intuitive.
 			m_at = m_eye + XMVector3Normalize(m_at - m_eye) * 0.01f;
@@ -1207,9 +1187,6 @@ void DieXaR::OnKeyDown(UINT8 key)
 		break;
 	case 'G':
 		m_animateGeometry = !m_animateGeometry;
-		break;
-	case 'L':
-		m_animateLight = !m_animateLight;
 		break;
 	case 'R':
 		m_cameraLocked = !m_cameraLocked;
@@ -1385,16 +1362,6 @@ void DieXaR::OnUpdate()
 		UpdateCameraMatrices();
 	}
 
-	// Rotate the second light around Y axis.
-	if (m_animateLight)
-	{
-		float secondsToRotateAround = 8.0f;
-		float angleToRotateBy = -360.0f * (elapsedTime / secondsToRotateAround);
-		XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
-		const XMVECTOR& prevLightPosition = m_sceneCB->lightPosition;
-		m_sceneCB->lightPosition = XMVector3Transform(prevLightPosition, rotate);
-	}
-
 	// Transform the procedural geometry.
 	if (m_animateGeometry)
 	{
@@ -1403,6 +1370,12 @@ void DieXaR::OnUpdate()
 	UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
 	m_sceneCB->elapsedTime = m_animateGeometryTime;
 	m_sceneCB->elapsedTicks = ticks;
+
+	// Update lights buffer
+	for (UINT i = 0; i < m_lights.NumInstances(); ++i)
+	{
+		m_lights[i] = m_scenes[m_crtScene].m_lights[i];
+	}
 }
 
 void DieXaR::DoRaytracing()
@@ -1445,6 +1418,9 @@ void DieXaR::DoRaytracing()
 		m_sceneCB.CopyStagingToGpu(frameIndex);
 		commandList->SetComputeRootConstantBufferView(GlobalRootSignature::Slot::SceneConstant, m_sceneCB.GpuVirtualAddress(frameIndex));
 
+		m_lights.CopyStagingToGpu(frameIndex);
+		commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::LightBuffer, m_lights.GpuVirtualAddress(frameIndex));
+
 		m_aabbPrimitiveAttributeBuffer.CopyStagingToGpu(frameIndex);
 		commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AABBattributeBuffer, m_aabbPrimitiveAttributeBuffer.GpuVirtualAddress(frameIndex));
 	}
@@ -1485,7 +1461,6 @@ void DieXaR::ShowUI()
 		ImGui::SeparatorText("Keyboard");
 		ImGui::BulletText("F1 - Reload graphics");
 		ImGui::BulletText("ESC - Exit application");
-		ImGui::BulletText("L - Toggle primary light animation");
 		ImGui::BulletText("C - Toggle camera fly/revolution mode");
 		ImGui::BulletText("WASD - Move camera (fly mode)");
 		ImGui::BulletText("EQ - Move camera up/down (fly mode)");
@@ -1508,7 +1483,7 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
 
 		// Only one light sample
-		ImGui::Checkbox("Single Light Sample", &m_onlyOneLightSample);
+		ImGui::Checkbox("Single LightBuffer Sample", &m_onlyOneLightSample);
 		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
 
 		// Ray Tracing Type
@@ -1599,13 +1574,44 @@ void DieXaR::ShowUI()
 	{
 		ImGui::Spacing();
 
-		// Secondary light
-		ImGui::Checkbox("Secondary Light", &m_secondaryLight);
-		ImGui::SameLine(); HelpMarker("Enable secondary light");
+		// Lights
+		for (UINT i = 0; i < m_scenes[m_crtScene].GetLightCount(); ++i)
+		{
+			ImGui::PushID(i);
+			ImGui::Text("Light %u", i);
+			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
+			ImGui::ColorPicker3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
+			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 4.0f);
 
-		// Directional light
-		ImGui::Checkbox("Directional Light", &m_directionalLight);
-		ImGui::SameLine(); HelpMarker("Enable directional light");
+			// Light type
+			const char* lightTypeOptions[] = { "Point", "Area", "Directional" };
+			if (ImGui::BeginCombo("Type", lightTypeOptions[m_scenes[m_crtScene].m_lights[i].type], ImGuiComboFlags_WidthFitPreview))
+			{
+				for (UINT j = 0; j < LightType::Count; ++j)
+				{
+					bool selected = m_scenes[m_crtScene].m_lights[i].type == j;
+					if (ImGui::Selectable(lightTypeOptions[j], selected))
+						m_scenes[m_crtScene].m_lights[i].type = j;
+					if (selected)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+
+			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+			{
+				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+			}
+			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
+			{
+				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
+			}
+
+			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
+				ImGui::Separator();
+			ImGui::Spacing();
+			ImGui::PopID();
+		}
 
 		ImGui::Spacing();
 	}
@@ -1685,6 +1691,7 @@ void DieXaR::ReleaseDeviceDependentResources()
 	m_descriptorHeap.Reset();
 	m_descriptorsAllocated = 0;
 	m_sceneCB.Release();
+	m_lights.Release();
 	m_aabbPrimitiveAttributeBuffer.Release();
 	m_indexBuffer.resource.Reset();
 	m_vertexBuffer.resource.Reset();
@@ -1767,9 +1774,10 @@ void DieXaR::OnRender()
 
 void DieXaR::OnDestroy()
 {
-	// ImGui cleanup.
-	if (m_shouldReload)
+	if (m_shouldReload) {
+		// Restart ImGui. 
 		ImGui_ImplWin32_Shutdown();
+	}
 
 	// Let GPU finish before releasing D3D resources.
 	m_deviceResources->WaitForGpu();

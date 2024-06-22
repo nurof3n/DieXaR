@@ -16,6 +16,7 @@
 #include "RaytracingSceneDefines.h"
 #include "DirectXRaytracingHelper.h"
 #include "PerformanceTimers.h"
+#include "Scene.h"
 
 class DieXaR : public DXSample
 {
@@ -23,7 +24,7 @@ public:
 	DieXaR(UINT width, UINT height, std::wstring name);
 
 	// Resets the camera location
-	virtual void ResetCamera();
+	virtual void ResetCamera(XMVECTOR eye, XMVECTOR at);
 
 	// Reloads D3D resources and reinitializes them (also rebuilds the scene)
 	// This should be called from outside the application loop
@@ -62,6 +63,7 @@ private:
 	const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
 	const float c_aabbWidth = 2;      // AABB width.
 	const float c_aabbDistance = 2;   // Distance between AABBs.
+	const UINT NUM_SCENES = 3;		  // Number of scenes available.
 
 	// DirectX Raytracing (DXR) attributes
 	ComPtr<ID3D12Device5> m_dxrDevice;
@@ -79,13 +81,13 @@ private:
 
 	// Raytracing scene
 	ConstantBuffer<SceneConstantBuffer> m_sceneCB;
+	StructuredBuffer<LightBuffer> m_lights;
 	StructuredBuffer<PrimitiveInstancePerFrameBuffer> m_aabbPrimitiveAttributeBuffer;
 	std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
-	// Root constants
-	PrimitiveConstantBuffer m_planeMaterialCB;
-	PrimitiveConstantBuffer m_aabbMaterialCB[IntersectionShaderType::TotalPrimitiveCount];
-	PBRPrimitiveConstantBuffer m_pbrMaterialCB;
+	// Scene description
+	UINT m_crtScene{ SceneTypes::Demo };
+	Scene m_scenes[SceneTypes::Count];
 
 	// Geometry
 	D3DBuffer m_indexBuffer;
@@ -132,7 +134,6 @@ private:
 	float m_cameraSpeed{};
 	const float m_cameraBaseRotateSpeed{ 1.0f };
 	const float m_cameraBaseMoveSpeed{ 20.0f };
-	bool m_animateLight;
 	XMVECTOR m_eye;
 	XMVECTOR m_at;
 	XMVECTOR m_up;
@@ -142,7 +143,7 @@ private:
 	RaytracingType::Enum m_raytracingType{ RaytracingType::PathTracing };
 	ImportanceSamplingType::Enum m_importanceSamplingType{ ImportanceSamplingType::Uniform };
 	bool m_applyJitter{ true };
-	UINT m_maxRecursionDepth{ 4 };
+	UINT m_maxRecursionDepth{ 2 };
 	UINT m_maxShadowRecursionDepth{ 3 };	// one shadow pass in first reflection/refraction
 	UINT m_pathSqrtSamplesPerPixel{ 1 };	// CAUTION: increasing this value will increase the number of rays per pixel exponentially
 	UINT m_pathFrameCacheIndex{ 1 };		// current frame index for temporal path tracing (ALWAYS >= 1)
@@ -153,11 +154,15 @@ private:
 	void UpdateCameraMatrices();
 	void UpdateAABBPrimitiveAttributes(float animationTime);
 	void InitializeScene();
+	void InitializeCornellBox();
+	void InitializeDemo();
+	void InitializePbrShowcase();
 	void RecreateD3D();
 	void DoRaytracing();
 	void ShowUI();
 	void HelpMarker(const char* desc);
 	void CreateConstantBuffers();
+	void CreateLightBuffer();
 	void CreateAABBPrimitiveAttributesBuffers();
 	void CreateDeviceDependentResources();
 	void CreateWindowSizeDependentResources();

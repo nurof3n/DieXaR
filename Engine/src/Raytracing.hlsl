@@ -27,6 +27,7 @@
 RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
+StructuredBuffer<LightBuffer> g_lights : register(t4, space0);
 
 // Triangle resources
 ByteAddressBuffer g_indices : register(t1, space0);
@@ -57,7 +58,7 @@ float3 ComputeSheen(in float dotLH, in float dotNL)
 
 // Computes the intensity of the clearcoat lobe.
 float ComputeClearCoat(in float dotHL, in float dotNH,
-                       in float dotLX, in float dotLY, in float dotLN, in float dotVX, in float dotVY, in float dotVN)
+                       in float dotLX, in float dotLY, in float dotLN, in float dotVX, in float dotVY, in float dotVN, out float pdf)
 {
     // compute anisotropic roughness
     float a = lerp(0.1f, 0.001f, l_pbrCB.clearcoatGloss);
@@ -70,6 +71,9 @@ float ComputeClearCoat(in float dotHL, in float dotNH,
 
     // compute geometric shadowing term G as product of two G1 terms
     float G = SmithG1Anisotropic(dotLX, dotLY, dotLN, 0.25f, 0.25f) * SmithG1Anisotropic(dotVX, dotVY, dotVN, 0.25f, 0.25f);
+
+    // compute pdf for sampling
+    pdf = 0.25f * D / abs(dotLN);
 
     return 0.25f * D * F * G / abs(dotVN);
 }
@@ -88,10 +92,10 @@ float3 SampleClearcoat(in float eps0, in float eps1, in float3 V, in float3 N, i
     // Do not go below the surface.
     if (dot(H, N) < 0.0f)
         H = -H;
-    
+
     // Reflect the view vector.
     float3 direction = reflect(V, H);
-    
+
     // Compute the reflectance.
     float dotLH = dot(direction, H);
     float dotNH = dot(N, H);
@@ -101,16 +105,15 @@ float3 SampleClearcoat(in float eps0, in float eps1, in float3 V, in float3 N, i
     float dotVX = dot(V, X);
     float dotVY = dot(V, Y);
     float dotVN = dot(V, N);
-    float clearcoat = ComputeClearCoat(dotLH, dotNH, dotLX, dotLY, dotLN, dotVX, dotVY, dotVN);
+    float clearcoat = ComputeClearCoat(dotLH, dotNH, dotLX, dotLY, dotLN, dotVX, dotVY, dotVN, pdf);
     reflectance = float3(clearcoat, clearcoat, clearcoat);
-    
+
     // Compute the pdf.
     float D = DGTR1(dotNH, a);
     pdf = 0.25f * D / abs(dotLH);
 
     return direction;
 }
-
 
 // Disney Diffuse model.
 float3 ComputeDiffuse(in float dotHL, in float dotNV, in float dotNL)
@@ -129,8 +132,6 @@ float3 SampleDiffuse(in float eps0, in float eps1, in float3 V, in float3 N, in 
     float3 H = normalize(V + direction);
     reflectance = ComputeDiffuse(dot(direction, H), dot(N, V), dot(N, direction));
     reflectance += ComputeSheen(dot(direction, H), dot(N, direction));
-
-    // The pdf is taken care of by the cosine-weighted sampling.
 
     return direction;
 }
@@ -157,10 +158,11 @@ float3 ComputeMetallicBRDF(in float dotHX, in float dotHY, in float dotHN, in fl
 }
 
 // Samples the metallic lobe.
-float3 SampleMetallic(in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, in float ax, in float ay, out float pdf, out float3 reflectance)
+float3 SampleMetallic(in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y,
+    in float ax, in float ay, out float pdf, out float3 reflectance)
 {
     // Sample the visible normals of the Smith GGX model.
-    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V, pdf);
+    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V);
 
     // Reflect the view vector.
     float3 direction = reflect(V, H);
@@ -171,7 +173,7 @@ float3 SampleMetallic(in float eps0, in float eps1, in float3 V, in float3 N, in
     reflectance = F * Gv;
 
     // Compute the pdf.
-    pdf = 0.25f / dot(H, V);
+    pdf = VisibleNormalsPdf(ax, ay, dot(direction, H), dot(V, X), dot(V, Y), dot(V, N), dot(H, X), dot(H, Y), dot(H, N)) * 0.25f / abs(dot(H, V));
 
     return direction;
 }
@@ -196,10 +198,14 @@ float3 ComputeGlassBSDF(in bool inside, in float dotHX, in float dotHY, in float
 }
 
 // Samples the glass lobe.
-float3 SampleGlass(in bool inside, in float eps0, in float eps1, in float3 V, in float3 N, in float3 X, in float3 Y, in float ax, in float ay, out float pdf, out float3 reflectance)
+float3 SampleGlass(in bool inside, in float eps0, in float eps1, in float3 V, in float dotVX, in float dotVY, in float dotVN, in float dotLH,
+                   in float dotHX, in float dotHY, in float dotHN, in float dotHV, in float ax, in float ay, out float pdf, out float3 reflectance)
 {
     // Sample the visible normals of the Smith GGX model.
-    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V, pdf);
+    float3 H = VisibleNormalsSampling(eps0, eps1, ax, ay, V);
+
+    // Compute pdf for sampling.
+    pdf = VisibleNormalsPdf(ax, ay, dotLH, dotVX, dotVY, dotVN, dotHX, dotHY, dotHN) * 0.25f / abs(dotHV);
 
     // Compute IOR fraction.
     float eta = inside ? l_pbrCB.eta : 1.0f / l_pbrCB.eta;
@@ -208,7 +214,7 @@ float3 SampleGlass(in bool inside, in float eps0, in float eps1, in float3 V, in
 }
 
 // Computes the Disney BSDF as an aggregate of all the defined lobes.
-float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in float3 Y)
+float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in float3 Y, out float pdf)
 {
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
 
@@ -229,17 +235,24 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
     // check if we are inside the surface
     bool inside = dotNV < 0.0f;
 
+    // compute anisotropic parameters
+    float ax, ay;
+    ComputeAnisotropicAlphas(l_pbrCB.roughness, l_pbrCB.anisotropic, ax, ay);
+
     // compute pdfs
     float pDiffuse, pMetal, pClearcoat, pGlass, wDiffuse, wMetal, wClearcoat, wGlass;
     ComputePdfs(inside, l_pbrCB.metallic, l_pbrCB.specularTransmission, l_pbrCB.clearcoat,
                 pMetal, pDiffuse, pClearcoat, pGlass, wMetal, wDiffuse, wClearcoat, wGlass);
 
     bool specularVisible = dotNL > 0.0f && dotNV > 0.0f; // true if both L and V are on the outer side of the surface
+    float lobePdf;
+    pdf = 0.0f;
 
     // apply diffuse and sheen
     if (wDiffuse > 0.0f)
     {
         float3 diffuse = ComputeDiffuse(dotLH, dotNV, dotNL);
+        pdf += pDiffuse * dotNL * INV_PI;
 
         float3 sheen = float3(0.0f, 0.0f, 0.0f);
         if (l_pbrCB.sheen > 0.0f)
@@ -252,13 +265,16 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
     if (wMetal > 0.0f && specularVisible)
     {
         float3 metallic = ComputeMetallicBRDF(dotHX, dotHY, dotNH, dotLH, dotLX, dotLY, dotNL, dotVX, dotVY, dotNV);
+        // compute pdf for sampling
+        pdf += pMetal * VisibleNormalsPdf(ax, ay, dotLH, dotVX, dotVY, dotNV, dotHX, dotHY, dotNH) * 0.25f / abs(dot(H, V));
         reflectance += wMetal * metallic;
     }
 
     // apply clearcoat
     if (wClearcoat > 0.0f && l_pbrCB.clearcoat > 0.0f && specularVisible)
     {
-        float clearcoat = ComputeClearCoat(dotLH, dotNH, dotLX, dotLY, dotNL, dotVX, dotVY, dotNV);
+        float clearcoat = ComputeClearCoat(dotLH, dotNH, dotLX, dotLY, dotNL, dotVX, dotVY, dotNV, lobePdf);
+        pdf += pClearcoat * lobePdf;
         reflectance += wClearcoat * float3(clearcoat, clearcoat, clearcoat);
     }
 
@@ -269,6 +285,7 @@ float3 ComputeDisneyBSDF(in float3 L, in float3 V, in float3 N, in float3 X, in 
         ComputeAnisotropicAlphas(l_pbrCB.roughness, l_pbrCB.anisotropic, ax, ay);
 
         float3 transmission = ComputeGlassBSDF(dotNV * dotNV <= 0.0f, dotHX, dotHY, dotNH, dotLH, dotVH, dotLX, dotLY, dotNL, dotVX, dotVY, dotNV, ax, ay);
+        pdf += pGlass * lobePdf;
         reflectance += wGlass * transmission;
     }
 
@@ -320,13 +337,11 @@ float3 SampleDisney(inout uint rng_state, in float3 V, in float3 N, in float3 X,
         direction = SampleClearcoat(eps0, eps1, V, N, X, Y, pdf, reflectance);
     }
 
-    // Weigh both the final pdf and the reflectance by the lobe's pdf.
+    // Weigh the pdf
     pdf *= pdfLobe;
-    reflectance *= pdfLobe;
 
     return direction;
 }
-
 
 //***************************************************************************
 //*****************------ Phong functions -------****************************
@@ -346,18 +361,17 @@ float4 CalculateSpecularCoefficient(in float3 hitPosition, in float3 incidentLig
     return pow(saturate(dot(reflectedLightRay, normalize(-WorldRayDirection()))), specularPower);
 }
 
-// Phong lighting model = ambient + diffuse + specular components.
-float4 CalculatePhongLighting(in float4 albedo, in float3 normal, in bool isInShadow, in float diffuseCoef = 1.0, in float specularCoef = 1.0, in float specularPower = 50)
+// Phong lighting model = diffuse + specular components.
+float4 CalculatePhongLighting(in float3 lightPosition, in float3 lightColor, in float4 albedo, in float3 normal,
+    in bool isInShadow, in float diffuseCoef = 1.0, in float specularCoef = 1.0, in float specularPower = 50)
 {
     float3 hitPosition = HitWorldPosition();
-    float3 lightPosition = g_sceneCB.lightPosition.xyz;
     float shadowFactor = isInShadow ? InShadowRadiance : 1.0;
     float3 incidentLightRay = normalize(hitPosition - lightPosition);
 
     // Diffuse component.
-    float4 lightDiffuseColor = g_sceneCB.lightDiffuseColor;
     float Kd = CalculateDiffuseCoefficient(hitPosition, incidentLightRay, normal);
-    float4 diffuseColor = shadowFactor * diffuseCoef * Kd * lightDiffuseColor * albedo;
+    float4 diffuseColor = shadowFactor * diffuseCoef * Kd * float4(lightColor, 1.0f) * albedo;
 
     // Specular component.
     float4 specularColor = float4(0, 0, 0, 0);
@@ -368,15 +382,7 @@ float4 CalculatePhongLighting(in float4 albedo, in float3 normal, in bool isInSh
         specularColor = specularCoef * Ks * lightSpecularColor;
     }
 
-    // Ambient component.
-    // Fake AO: Darken faces with normal facing downwards/away from the sky a little bit.
-    float4 ambientColor = g_sceneCB.lightAmbientColor;
-    float4 ambientColorMin = g_sceneCB.lightAmbientColor - 0.1;
-    float4 ambientColorMax = g_sceneCB.lightAmbientColor;
-    float a = 1 - saturate(dot(normal, float3(0, -1, 0)));
-    ambientColor = albedo * lerp(ambientColorMin, ambientColorMax, a);
-
-    return ambientColor + diffuseColor + specularColor;
+    return diffuseColor + specularColor;
 }
 
 //***************************************************************************
@@ -461,7 +467,7 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     g_renderTarget[DispatchRaysIndex().xy] = color;
 }
 
-[shader("raygeneration")] void RaygenShader_PathTracingTemporal()
+    [shader("raygeneration")] void RaygenShader_PathTracingTemporal()
 {
     // Initialize the random number generator.
     uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
@@ -527,14 +533,14 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
 
 // Performs next event estimation importance sampling for a point light source.
 // lightDir must be normalized.
-bool NextEventEstimation(in uint recursionDepth, in float3 hitPosition, in float lightDist,
-                         in float3 lightDir, in float3 lightDiffuse, in float lightIntensity, in float lightSize,
-                         out float3 lightContrib, out float lightPdf)
+bool NextEventEstimation(in uint recursionDepth, in float3 hitPosition, in float3 lightPosition, in float3 lightDiffuse, in float lightIntensity, in float lightSize,
+    out float3 lightContrib, out float lightPdf)
 {
     lightContrib = float3(0.0f, 0.0f, 0.0f);
     lightPdf = 0.0f;
 
     // The light is pointing downwards on the Y axis.
+    float3 lightDir = normalize(lightPosition - hitPosition);
     float angle = dot(lightDir, float3(0.0f, 1.0f, 0.0f));
     if (angle <= 0.0f)
         return false;
@@ -546,105 +552,114 @@ bool NextEventEstimation(in uint recursionDepth, in float3 hitPosition, in float
     {
         // Calculate the light contribution and the pdf.
         lightPdf = 1.0f / (lightSize * lightSize);
-        lightContrib = lightIntensity * lightDiffuse * angle / ((1.0f + 0.001f * lightDist * lightDist));
+        lightContrib = lightIntensity * lightDiffuse * angle / ((1.0f + 0.001f * length_toPow2(hitPosition - lightPosition)));
         return true;
     }
     return false;
 }
 
 float3 MIS(inout uint rng_state, in float3 hitPosition, in float3 lightPosition, in float3 lightColor, in float lightIntensity, in float lightSize,
-    in float3 N, in float3 X, in float3 Y, in UINT recursionDepth, out float3 newDirection, out float3 throughput)
+    in float3 N, in float3 X, in float3 Y, in UINT recursionDepth)
 {
     float3 reflectanceLightSampling = float3(0.0f, 0.0f, 0.0f);
+    float3 reflectanceBSDFSampling = float3(0.0f, 0.0f, 0.0f);
 
     float2 lightSample = float2(random(rng_state), random(rng_state)) * lightSize - lightSize * 0.5f;
     lightPosition += float3(lightSample.x, 0, lightSample.y);
-    float lightDist = distance(hitPosition, lightPosition);
     float3 lightDirection = normalize(lightPosition - hitPosition);
+
+    float bsdfPdf;
 
     // Sample light with MIS.
     float3 lightContrib;
     float lightPdf;
-    if (NextEventEstimation(recursionDepth, hitPosition, lightDist, lightDirection, lightColor, lightIntensity, lightSize, lightContrib, lightPdf))
+    if (NextEventEstimation(recursionDepth, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, lightContrib, lightPdf))
     {
-        reflectanceLightSampling = lightContrib / lightPdf;
+        reflectanceLightSampling = lightContrib * ComputeDisneyBSDF(lightDirection, -WorldRayDirection(), N, X, Y, bsdfPdf);
+        reflectanceLightSampling *= PowerHeuristic(1.0f, lightPdf, 1.0f, bsdfPdf) / lightPdf;
     }
 
     // Sample the BSDF
-    // float samplePdf;
-    // if (g_sceneCB.importanceSamplingType == 0)
-    // {
-    //     newDirection = UniformSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
-    //     throughput = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y);
-    // }
-    // else if (g_sceneCB.importanceSamplingType == 1)
-    // {
-    //     newDirection = CosineSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
-    //     throughput = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y);
-    // }
-    // else
-    // {
-    //     newDirection = SampleDisney(rng_state, -WorldRayDirection(), N, X, Y, samplePdf, throughput);
-    // }
+    float samplePdf;
+    float3 newDirection;
+    if (g_sceneCB.importanceSamplingType == 0)
+    {
+        newDirection = UniformSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
+        reflectanceBSDFSampling = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y, bsdfPdf) / samplePdf;
+    }
+    else if (g_sceneCB.importanceSamplingType == 1)
+    {
+        newDirection = CosineSampleHemisphere(random(rng_state), random(rng_state), N, X, Y, samplePdf);
+        reflectanceBSDFSampling = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), N, X, Y, bsdfPdf) / samplePdf;
+    }
+    else
+    {
+        newDirection = SampleDisney(rng_state, -WorldRayDirection(), N, X, Y, samplePdf, reflectanceBSDFSampling);
+        reflectanceBSDFSampling /= samplePdf;
+    }
 
-    return reflectanceLightSampling;
+    if (NextEventEstimation(recursionDepth, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, lightContrib, lightPdf))
+    {
+        reflectanceBSDFSampling = lightContrib * reflectanceBSDFSampling;
+        reflectanceBSDFSampling *= PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightPdf) / bsdfPdf;
+    }
+
+    return reflectanceLightSampling + reflectanceBSDFSampling;
 }
 
 float3 DoPathTracing(in RayPayload rayPayload, in float3 normal, in float3 hitPosition)
 {
     // Initialize the random number generator.
     uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + rayPayload.recursionDepth * 1337 + hash(hitPosition));
-
-    float3 lightPosition = g_sceneCB.lightPosition.xyz;
-    float3 lightColor = g_sceneCB.lightDiffuseColor.xyz;
-    float lightSize = g_sceneCB.lightSize;
-    float lightIntensity = g_sceneCB.lightIntensity;
-    float pdf = 1.0f;
-
     float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
-    float3 newDirection;
-    float3 throughput;
 
     // Get the local space basis.
     float3 X, Y;
     ComputeLocalSpace(normal, X, Y);
 
-    // Choose light
-    if (g_sceneCB.secondaryLight)
+    if (g_sceneCB.onlyOneLightSample)
     {
-        if (g_sceneCB.onlyOneLightSample) {
-            // If one light at a time, choose randomly and adjust pdf
-            pdf = 0.5f;
-
-            // Sample random number
-            float r = random(rng_state);
-            if (r > 0.5f)
-            {
-                lightPosition = g_sceneCB.light2Position.xyz;
-                lightColor = g_sceneCB.light2DiffuseColor.xyz;
-                lightSize = g_sceneCB.light2Size;
-                lightIntensity = g_sceneCB.light2Intensity;
-            }
-        }
-        else {
-            // If both lights at the same time, sample both and average
-            color += rayPayload.throughput.xyz * MIS(rng_state, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, normal, X, Y, rayPayload.recursionDepth, newDirection, throughput) / pdf;
-
-            // Pick the second light
-            lightPosition = g_sceneCB.light2Position.xyz;
-            lightColor = g_sceneCB.light2DiffuseColor.xyz;
-            lightSize = g_sceneCB.light2Size;
-            lightIntensity = g_sceneCB.light2Intensity;
+        // If one light at a time, choose randomly and adjust pdf
+        uint lightIndex = random(rng_state) * g_sceneCB.numLights;
+        color += rayPayload.throughput.xyz * MIS(rng_state, hitPosition, g_lights[lightIndex].position, g_lights[lightIndex].emission,
+            g_lights[lightIndex].intensity, g_lights[lightIndex].size, normal, X, Y, rayPayload.recursionDepth) * g_sceneCB.numLights;
+    }
+    else
+    {
+        // Sample all lights
+        for (uint i = 0; i < g_sceneCB.numLights; i++)
+        {
+            color += rayPayload.throughput.xyz * MIS(rng_state, hitPosition, g_lights[i].position, g_lights[i].emission,
+                g_lights[i].intensity, g_lights[i].size, normal, X, Y, rayPayload.recursionDepth);
         }
     }
 
-    color += MIS(rng_state, hitPosition, lightPosition, lightColor, lightIntensity, lightSize, normal, X, Y, rayPayload.recursionDepth, newDirection, throughput) / pdf;
+    // Sample new direction
+    float3 reflectance;
+    float3 newDirection;
+    float samplePdf, bsdfPdf;
+
+    if (g_sceneCB.importanceSamplingType == 0)
+    {
+        newDirection = UniformSampleHemisphere(random(rng_state), random(rng_state), normal, X, Y, samplePdf);
+        reflectance = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), normal, X, Y, bsdfPdf) / samplePdf;
+    }
+    else if (g_sceneCB.importanceSamplingType == 1)
+    {
+        newDirection = CosineSampleHemisphere(random(rng_state), random(rng_state), normal, X, Y, samplePdf);
+        reflectance = ComputeDisneyBSDF(newDirection, -WorldRayDirection(), normal, X, Y, bsdfPdf) / samplePdf;
+    }
+    else
+    {
+        newDirection = SampleDisney(rng_state, -WorldRayDirection(), normal, X, Y, samplePdf, reflectance);
+        reflectance /= samplePdf;
+    }
 
     // Shoot the next ray and accumulate the color.
-    //Ray newRay = {hitPosition, newDirection};
-    //color += TraceRadianceRay(newRay, float4(throughput, 1.0f) * rayPayload.throughput, rayPayload.recursionDepth).xyz;
+    Ray newRay = {hitPosition, newDirection};
+    color += TraceRadianceRay(newRay, float4(reflectance, 1.0f) * rayPayload.throughput, rayPayload.recursionDepth).xyz;
 
-    return color;
+    return color * rayPayload.throughput.xyz;
 }
 
 void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition)
@@ -653,17 +668,12 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
-    if (g_sceneCB.raytracingType > 0)   // path tracing
+    if (g_sceneCB.raytracingType > 0) // path tracing
     {
         color.xyz = DoPathTracing(rayPayload, normal, hitPosition);
     }
-    else    // Whitted-style ray tracing
+    else // Whitted-style ray tracing
     {
-        // Shadow component.
-        // Trace a shadow ray only if recursion depth allows it.
-        Ray shadowRay = {hitPosition, normalize(g_sceneCB.lightPosition.xyz - hitPosition)};
-        bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
-
         // Reflected component.
         float4 reflectedColor = float4(0, 0, 0, 0);
         if (l_materialCB.reflectanceCoef > 0.001)
@@ -676,9 +686,20 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             reflectedColor = l_materialCB.reflectanceCoef * float4(fresnelR, 1) * reflectionColor;
         }
 
-        // Calculate final color.
-        float4 phongColor = CalculatePhongLighting(l_materialCB.albedo, normal, shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
-        color = phongColor + reflectedColor;
+        color.xyz += reflectedColor.xyz;
+        for (uint i = 0; i < g_sceneCB.numLights; i++)
+        {
+            // Shadow component.
+            // Trace a shadow ray only if recursion depth allows it.
+            Ray shadowRay = { hitPosition, normalize(g_lights[i].position - hitPosition) };
+            bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
+                                    
+            // Calculate final color.
+            float4 phongColor = CalculatePhongLighting(g_lights[i].position, g_lights[i].emission * g_lights[i].intensity, l_materialCB.albedo, normal,
+                                                       shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower) /
+                                (1.0f + 0.001f * length_toPow2(g_lights[i].position - hitPosition));
+            color.xyz += phongColor.xyz;
+        }
     }
 
     // Apply visibility falloff.
@@ -705,7 +726,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition());
 }
 
-[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
@@ -723,7 +744,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     rayPayload.color = backgroundColor;
 }
 
-[shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+    [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }
@@ -762,7 +783,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     }
 }
 
-[shader("intersection")] void IntersectionShader_VolumetricPrimitive()
+    [shader("intersection")] void IntersectionShader_VolumetricPrimitive()
 {
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     VolumetricPrimitive::Enum primitiveType = (VolumetricPrimitive::Enum)l_aabbCB.primitiveType;

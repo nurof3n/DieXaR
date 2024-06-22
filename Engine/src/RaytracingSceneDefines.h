@@ -21,6 +21,7 @@ namespace GlobalRootSignature {
             SceneConstant,
             AABBattributeBuffer,
             VertexBuffers,
+            LightBuffer,
             Count
         };
     }
