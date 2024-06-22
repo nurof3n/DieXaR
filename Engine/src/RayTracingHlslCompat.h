@@ -89,6 +89,7 @@ struct SceneConstantBuffer
 	UINT pathFrameCacheIndex;	  // Current frame index for temporal path tracing.
 	UINT applyJitter;			  // Apply jitter to the ray sampling (useful in path tracing only).
 	UINT onlyOneLightSample;	  // Use only one light sample at a time.
+	UINT padding;
 };
 
 // Attributes per primitive type.
@@ -130,6 +131,7 @@ struct PrimitiveInstanceConstantBuffer
 {
 	UINT instanceIndex;
 	UINT primitiveType; // Procedural primitive type
+	XMFLOAT2 padding;
 };
 
 // Dynamic attributes per primitive instance.
@@ -245,10 +247,9 @@ namespace SignedDistancePrimitive
 		MiniSpheres = 0,
 		IntersectedRoundCube,
 		SquareTorus,
-		TwistedTorus,
 		Cog,
 		Cylinder,
-		FractalPyramid,
+		SolidAngle,
 		Count
 	};
 }

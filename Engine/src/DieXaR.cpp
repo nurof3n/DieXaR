@@ -240,10 +240,9 @@ void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 		SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
 		SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
 		SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
-		SetTransformForAABB(offset + TwistedTorus, mIdentity, mRotation);
 		SetTransformForAABB(offset + Cog, mIdentity, mRotation);
 		SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
-		SetTransformForAABB(offset + FractalPyramid, mScale3, mIdentity);
+		SetTransformForAABB(offset + SolidAngle, mScale3, mIdentity);
 	}
 }
 
@@ -314,14 +313,12 @@ void DieXaR::InitializeDemo()
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + TwistedTorus], yellow, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + TwistedTorus], yellow, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + FractalPyramid], green, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + FractalPyramid], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], green, 0.1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 		}
 	}
 
@@ -706,12 +703,11 @@ void DieXaR::BuildProceduralGeometryAABBs()
 		{
 			using namespace SignedDistancePrimitive;
 			m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
-			m_aabbs[offset + TwistedTorus] = InitializeAABB(XMINT3(0, 0, 1), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
 			m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
-			m_aabbs[offset + FractalPyramid] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
+			m_aabbs[offset + SolidAngle] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
 		}
 		AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size() * sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
 	}

@@ -377,7 +377,7 @@ float4 CalculatePhongLighting(in float3 lightPosition, in float3 lightColor, in 
     float4 specularColor = float4(0, 0, 0, 0);
     if (!isInShadow)
     {
-        float4 lightSpecularColor = float4(1, 1, 1, 1);
+        float4 lightSpecularColor = float4(lightColor, 1.0f);
         float4 Ks = CalculateSpecularCoefficient(hitPosition, incidentLightRay, normal, specularPower);
         specularColor = specularCoef * Ks * lightSpecularColor;
     }
@@ -726,7 +726,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition());
 }
 
-    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.

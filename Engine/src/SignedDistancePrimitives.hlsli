@@ -241,6 +241,14 @@ float sdPyramid(float3 p, float3 h) // h = { sin a, cos a, height }
     return opS(octa, p.y);
 }
 
+// c is the sin/cos of the desired cone angle
+float sdSolidAngle(float3 pos, float2 c, float ra)
+{
+    float2 p = float2(length(pos.xz), pos.y);
+    float l = length(p) - ra;
+    float m = length(p - c * clamp(dot(p, c), 0.0f, ra));
+    return max(l, m * sign(c.y * p.x - c.x * p.y));
+}
 
 float length_toPowNegative6(float2 p)
 {
