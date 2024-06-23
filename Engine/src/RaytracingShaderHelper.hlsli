@@ -16,6 +16,7 @@
 
 #define INFINITY (1.0 / 0.0)
 #define PI 3.14159265359f
+#define TWO_PI 6.28318530718f
 #define INV_PI 0.31830988618f
 
 struct Ray
@@ -183,252 +184,28 @@ float2 TexCoords(in float3 position)
     return position.xz;
 }
 
-void ComputeLocalSpace(in float3 normal, out float3 tangent, out float3 bitangent)
+void ComputeLocalSpace(in float3 N, out float3 T, out float3 B)
 {
-    if (abs(normal.y) < 0.999f)
-    {
-        tangent = normalize(cross(float3(0.0f, 1.0f, 0.0f), normal));
-        bitangent = cross(normal, tangent);
-    }
+    if (abs(N.y) < 0.999f)
+        T = normalize(cross(float3(0.0f, 1.0f, 0.0f), N));
     else
-    {
-        tangent = normalize(cross(float3(1.0f, 0.0f, 0.0f), normal));
-        bitangent = cross(normal, tangent);
-    }
+        T = normalize(cross(float3(1.0f, 0.0f, 0.0f), N));
+    B = cross(N, T);
 }
 
-float R0FromIOR(float ior)
+float3 GetTangentToWorld(in float3 N, in float3 T, in float3 B, in float3 V)
 {
-    return sq((1.0f - ior) / (1.0f + ior));
+    return V.x * T + V.y * N + V.z * B;
 }
 
-// The Fresnel reflectance for a dielectric material.
-float FresnelDielectric(in float dotHL, in float dotHV, float eta)
+float3 GetWorldToTangent(in float3 N, in float3 T, in float3 B, in float3 V)
 {
-    float Rs = (dotHV - eta * dotHL) / (dotHV + eta * dotHL);
-    float Rp = (eta * dotHV - dotHL) / (eta * dotHV + dotHL);
-    return 0.5f * (sq(Rs) + sq(Rp));
+    return float3(dot(V, T), dot(V, N), dot(V, B));
 }
 
-// Fresnel reflectance - schlick approximation.
-float3 FresnelReflectanceSchlick(in float3 I, in float3 N, in float3 f0)
+float GetLuminance(in float3 color)
 {
-    float cosi = saturate(dot(-I, N));
-    return f0 + (1 - f0) * pow(saturate(1.0f - cosi), 5);
-}
-
-// Fresnel reflectance - schlick approximation.
-float FresnelReflectanceSchlick(in float3 I, in float3 N, in float f0)
-{
-    float cosi = saturate(dot(-I, N));
-    return f0 + (1 - f0) * pow(saturate(1.0f - cosi), 5);
-}
-
-// Fresnel reflectance - schlick approximation (but with dot product given).
-float3 FresnelReflectanceSchlick(in float dotNL, in float3 f0)
-{
-    return f0 + (1 - f0) * pow(saturate(1.0f - dotNL), 5);
-}
-
-// Fresnel reflectance - schlick approximation (but with dot product given).
-float FresnelReflectanceSchlick(in float dotNL, in float f0)
-{
-    return f0 + (1.0f - f0) * pow(saturate(1.0f - dotNL), 5);
-}
-
-float3 DisneyFresnel(in float dotLH, in float3 albedo, in float specularTint, in float specular, in float eta, in float metallic)
-{
-    // compute Fresnel achromatic component (to account for dielectric specular reflection)
-    // C0 can be tinted to the base color
-    float luminance = dot(albedo, float3(0.3f, 0.6f, 1.0f));
-    float3 Ks = luminance > 0.0f ? lerp(float3(1.0f, 1.0f, 1.0f), albedo / luminance, specularTint) : float3(1.0f, 1.0f, 1.0f); // same as sheen but different tint parameter
-    float3 C0 = lerp(Ks * specular * R0FromIOR(eta), albedo, metallic);
-
-    // compute Fresnel term
-    return FresnelReflectanceSchlick(dotLH, C0);
-}
-
-// Used to influence the grazing angle reflectance.
-float FD90(in float roughness, in float dotWH)
-{
-    return 0.5f + 2.0f * roughness * sq(dotWH);
-}
-
-// Modified Fresnel equation for the diffuse model.
-float FD(in float fd90, in float dotWN)
-{
-    return 1.0f + (fd90 - 1.0f) * pow(1.0f - abs(dotWN), 5);
-}
-
-// Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
-//
-// This represents the microfacet distribution function used for the clear coat layer.
-// This is an outdated version (GTR2 comes with improvements) but the clear coat
-// is an artistic effect anyway, so it's fine to use this.
-//
-// The alpha term is a roughness parameter that controls the distribution.
-// A value of 0 produces a smooth distribution (a Dirac delta function),
-// while a value of 1 produces a perfectly uniform (rough) distribution.
-//
-// Note: gamma is set to 1.
-// Note: this distribution is normalized.
-float DGTR1(in float dotNH, in float a)
-{
-    // clamp the roughness
-    if (abs(a) >= 1.0f)
-        return INV_PI;
-
-    float a2 = a * a;
-    return INV_PI * (a2 - 1.0f) / (log(a2) * (1.0f + (a2 - 1.0f) * sq(dotNH)));
-}
-
-// Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
-//
-// This computes the alpha x and y values for the anisotropic distribution of GTR2.
-// (the variations of the roughness in the x and y directions in tangent space).
-void ComputeAnisotropicAlphas(in float roughness, in float anisotropic, out float ax, out float ay)
-{
-    float aspect = sqrt(1.0f - 0.9f * anisotropic); // limits the aspect ratio to 10:1
-    float roughness2 = roughness * roughness;
-    ax = max(0.0001f, roughness2 / aspect);
-    ay = max(0.0001f, roughness2 * aspect);
-}
-
-// Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
-//
-// This computes the GTR2 distribution function for anisotropic materials.
-// The alpha x and y values are used to control the roughness in the x and y directions (tangent space).
-// Note: gamma is set to 2.
-// Note: this distribution is normalized.
-float DGTR2Anisotropic(in float dotHX, in float dotHY, in float dotHN, in float ax, in float ay)
-{
-    return INV_PI / (ax * ay * sq(sq(dotHX / ax * ax) + sq(dotHY / ay) + sq(dotHN)));
-}
-
-// Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
-//      and https://www.jcgt.org/published/0003/02/03/paper.pdf
-//      and https://sayan1an.github.io/pdfs/references/disneyBrdf.pdf
-//
-// This computes the unidirectional (separable) G1 masking function for anisotropic materials.
-// The alpha x and y values are the aniostropic roughness parameters.
-// This function is used to account for shadowing and masking effects in the microfacet model,
-// to prevent energy conservation issues.
-float SmithG1Anisotropic(in float dotWX, in float dotWY, in float dotWN, float ax, float ay)
-{
-    float inv_a2 = (sq(dotWX * ax) + sq(dotWY * ay)) / sq(dotWN);
-    float lambda = -0.5f + 0.5f * sqrt(1.0f + inv_a2);
-    return 1.0f / (1.0f + lambda);
-}
-
-// Computes the lobes' probability distribution functions for the microfacet model.
-// Ignores the sheen lobe because its influence is minimal.
-void ComputePdfs(bool inside, in float metallic, in float specularTransmission, in float clearcoat,
-                 out float pMetal, out float pDiffuse, out float pClearcoat, out float pGlass,
-                 out float wMetal, out float wDiffuse, out float wClearcoat, out float wGlass)
-{
-    if (!inside)
-    {
-        wDiffuse = (1.0f - metallic) * (1.0f - specularTransmission);
-        wMetal = 1.0f - specularTransmission * (1.0f - metallic);
-        wGlass = specularTransmission * (1.0f - metallic);
-        wClearcoat = 0.25f * clearcoat;
-    }
-    else
-    {
-        wDiffuse = 0.0f;
-        wMetal = 0.0f;
-        wGlass = 1.0f;
-        wClearcoat = 0.0f;
-    }
-
-    float totalWeight = wDiffuse + wMetal + wClearcoat + wGlass;
-
-    pMetal = wMetal / totalWeight;
-    pDiffuse = wDiffuse / totalWeight;
-    pClearcoat = wClearcoat / totalWeight;
-    pGlass = wGlass / totalWeight;
-}
-
-// Uniformly samples a hemisphere.
-// eps0 and eps1 are random numbers in [0, 1).
-// phi = 2 * PI * eps1
-// theta = acos(1 - eps0)
-// pdf = 1 / (2 * PI)
-// y is the up vector.
-float3 UniformSampleHemisphere(in float eps0, in float eps1, in float3 normal, in float3 T, float3 B, out float pdf)
-{
-    float sinTheta = sqrt(1.0f - eps0 * eps0);
-    float phi = 2.0f * PI * eps1;
-    float3 direction;
-    direction.x = sinTheta * cos(phi);
-    direction.y = eps0;
-    direction.z = sinTheta * sin(phi);
-
-    // Compute the pdf.
-    pdf = 0.5f * INV_PI;
-
-    // Transform the direction to the hemisphere's normal.
-    return normalize(direction.x * T + direction.y * normal + direction.z * B);
-}
-
-// Cosine-weighted hemisphere sampling.
-// eps0 and eps1 are random numbers in [0, 1).
-// phi = 2 * PI * eps1
-// theta = acos(sqrt(eps0))
-// pdf = cos(theta) / PI
-// y is the up vector.
-float3 CosineSampleHemisphere(in float eps0, in float eps1, in float3 normal, in float3 T, in float3 B, out float pdf)
-{
-    float cosTheta = sqrt(eps0);
-    float sinTheta = sqrt(1.0f - eps0);
-    float phi = 2.0f * PI * eps1;
-    float3 direction;
-    direction.x = sinTheta * cos(phi);
-    direction.y = cosTheta;
-    direction.z = sinTheta * sin(phi);
-
-    // Compute the pdf.
-    pdf = INV_PI * cosTheta;
-
-    // Transform the direction to the hemisphere's normal.
-    return normalize(direction.x * T + direction.y * normal + direction.z * B);
-}
-
-// https://hal.science/hal-01509746/document
-float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in float ay, in float3 V)
-{
-    // Stretch the view vector to match the roughness 1.
-    float3 stretchedV = normalize(float3(ax * V.x, V.y, ay * V.z));
-
-    // Compute an orthonormal basis.
-    float3 T, B;
-    ComputeLocalSpace(stretchedV, T, B);
-
-    // Sample point with polar coordinates (r, phi).
-    float a = 1.0f / (1.0f + stretchedV.y);
-    float r = sqrt(eps0);
-    float phi = eps1 < a ? eps1 / a * PI : PI + (eps1 - a) / (1.0f - a) * PI;
-    float p1 = r * cos(phi);
-    float p2 = r * sin(phi) * (eps1 < a ? 1.0f : stretchedV.y);
-
-    // Compute the normal in the tangent space.
-    float3 normal = normalize(p1 * T + p2 * B + sqrt(max(0.0f, 1.0f - sq(p1) - sq(p2))) * stretchedV);
-    return float3(ax * normal.x, normal.y, ay * normal.z);
-}
-
-float VisibleNormalsPdf(in float ax, in float ay, in float dotLH, in float dotVX, in float dotVY, in float dotVN,
-    in float dotHX, in float dotHY, in float dotHN)
-{
-    float G1 = SmithG1Anisotropic(dotVX, dotVY, dotVN, ax, ay);
-    float D = DGTR2Anisotropic(dotHX, dotHY, dotHN, ax, ay);
-    return D * G1 * abs(dotLH);
-}
-
-float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
-{
-    float f = nf * fPdf;
-    float g = ng * gPdf;
-    return sq(f) / (sq(f) + sq(g));
+    return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
 }
 
 #endif // RAYTRACINGSHADERHELPER_H

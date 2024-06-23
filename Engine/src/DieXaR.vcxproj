@@ -225,6 +225,8 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="..\external\imgui\imgui.natstepfilter" />
+    <None Include="BSDF.hlsli" />
+    <None Include="DisneyBSDF.hlsli" />
     <None Include="packages.config" />
     <None Include="readme.md" />
   </ItemGroup>

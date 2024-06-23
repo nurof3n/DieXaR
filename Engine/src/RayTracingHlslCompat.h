@@ -54,9 +54,10 @@ struct ProceduralPrimitiveAttributes
 
 struct RayPayload
 {
-	XMFLOAT4 color;
-	XMFLOAT4 throughput;
-	UINT recursionDepth;
+	XMFLOAT4 color;			// Accumulated color value of the ray.
+	XMFLOAT4 throughput;	// Accumulated throughput of the ray. Only used in path tracing.
+	XMFLOAT4 absorption;	// Accumulated absorption of the ray. Only used in path tracing.
+	UINT recursionDepth;	// Current recursion depth of the ray.
 };
 
 struct ShadowRayPayload
@@ -71,7 +72,7 @@ struct LightBuffer
 	XMFLOAT3 emission;
 	float size;			// radius for spheres, side length for squares
 	XMFLOAT3 direction; // for directional light
-	UINT type;			// 0: point light, 1: square area light, 2: directional light
+	UINT type;			// 0: square area light, 1: directional light
 };
 
 struct SceneConstantBuffer
@@ -89,7 +90,7 @@ struct SceneConstantBuffer
 	UINT pathFrameCacheIndex;	  // Current frame index for temporal path tracing.
 	UINT applyJitter;			  // Apply jitter to the ray sampling (useful in path tracing only).
 	UINT onlyOneLightSample;	  // Use only one light sample at a time.
-	UINT padding;
+	UINT russianRouletteDepth;	  // Max depth for Russian roulette termination.
 };
 
 // Attributes per primitive type.
@@ -118,12 +119,14 @@ struct PBRPrimitiveConstantBuffer
 	float clearcoat;			// Clearcoat layer intensity
 	float clearcoatGloss;		// Clearcoat layer glossiness
 	float roughness;			// Microfacet roughness
+	float subsurface;			// Subsurface scattering factor
 	float anisotropic;			// Anisotropic factor
 	float metallic;				// Metallic factor
-	float specular;				// Specular factor
 	float specularTint;			// Specular tint factor
 	float specularTransmission; // Specular transmission factor
 	float eta;					// Fresnel eta factor: internal / external IOR (assumes 1.0 for air)
+	float atDistance;			// Distance at which the transmittance is 
+	XMFLOAT3 extinction;		// Extinction color (absorption + scattering)
 };
 
 // Attributes per primitive instance.
@@ -151,8 +154,7 @@ namespace LightType
 {
 	enum Enum
 	{
-		Point = 0,
-		Square,
+		Square = 0,
 		Directional,
 		Count
 	};

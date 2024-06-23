@@ -109,6 +109,7 @@ void DieXaR::ResetSettingsCB()
 	m_sceneCB->pathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 	m_sceneCB->applyJitter = m_applyJitter;
 	m_sceneCB->onlyOneLightSample = m_onlyOneLightSample;
+	m_sceneCB->russianRouletteDepth = m_russianRouletteDepth;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -279,7 +280,7 @@ void DieXaR::InitializeDemo()
 		// Setup plane
 		{
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.75f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.75f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f);
 		}
 
 		UINT offset = 0;
@@ -290,9 +291,9 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace AnalyticPrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
 			offset += AnalyticPrimitive::Count;
 		}
 
@@ -300,7 +301,7 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace VolumetricPrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Metaballs], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Metaballs], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Metaballs], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
 			offset += VolumetricPrimitive::Count;
 		}
 
@@ -308,24 +309,24 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace SignedDistancePrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + MiniSpheres], violet, 0.1f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + IntersectedRoundCube], green);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 0.0f, 1.0f, 0.5f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], green, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], green, 0.9f, 0.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 		}
 	}
 
 	// Setup Lights
 	m_scenes[m_crtScene].m_lights.resize(2);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.4f, 0, 1.0f);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-15.0f, 10.0f, 5.0f), XMFLOAT3(0.65f, 0.6f, 0.9f), 0.2f, 0, 2.0f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.4f, LightType::Square, 1.0f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-15.0f, 10.0f, 5.0f), XMFLOAT3(0.65f, 0.6f, 0.9f), 0.2f, LightType::Square, 2.0f);
 }
 
 void DieXaR::InitializePbrShowcase()
@@ -1448,6 +1449,7 @@ void DieXaR::ShowUI()
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 	ImGui::Text("Elapsed time: %.2f (s)", m_sceneCB->elapsedTime);
 	ImGui::Text("Elapsed ticks: %u", m_sceneCB->elapsedTicks);
+	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", XMVectorGetX(m_eye), XMVectorGetY(m_eye), XMVectorGetZ(m_eye));
 	ImGui::Spacing();
 
 	if (ImGui::CollapsingHeader("Controls"))
@@ -1483,10 +1485,10 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
 
 		// Ray Tracing Type
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 		const char* options[] = { "Whitted", "Path Tracing", "Progressive Path Tracing" };
 		RaytracingType::Enum prevRaytracingType = m_raytracingType;
-		if (ImGui::BeginCombo("Raytracing Type", options[m_raytracingType], ImGuiComboFlags_WidthFitPreview))
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		if (ImGui::BeginCombo("Raytracing Type", options[m_raytracingType]))
 		{
 			bool selected = m_raytracingType == RaytracingType::Whitted;
 			if (ImGui::Selectable("Whitted", selected))
@@ -1517,7 +1519,7 @@ void DieXaR::ShowUI()
 		// Importance Sampling type
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 		const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
-		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType], ImGuiComboFlags_WidthFitPreview))
+		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType]))
 		{
 			bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
 			if (ImGui::Selectable("Uniform", selected))
@@ -1563,6 +1565,11 @@ void DieXaR::ShowUI()
 		ImGui::SliderInt("Max Shadow Recursion Depth", reinterpret_cast<int*>(&m_maxShadowRecursionDepth), 1, 10);
 		ImGui::SameLine(); HelpMarker("Maximum recursion depth for shooting shadow rays");
 
+		// Russian Roulette
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Russian Roulette Depth", reinterpret_cast<int*>(&m_russianRouletteDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Depth at which to start Russian Roulette");
+
 		ImGui::Spacing();
 	}
 
@@ -1574,14 +1581,13 @@ void DieXaR::ShowUI()
 		for (UINT i = 0; i < m_scenes[m_crtScene].GetLightCount(); ++i)
 		{
 			ImGui::PushID(i);
-			ImGui::Text("Light %u", i);
-			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
-			ImGui::ColorPicker3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
-			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 4.0f);
+			ImGui::Text("LIGHT %u", i);
+			ImGui::Spacing();
 
 			// Light type
-			const char* lightTypeOptions[] = { "Point", "Area", "Directional" };
-			if (ImGui::BeginCombo("Type", lightTypeOptions[m_scenes[m_crtScene].m_lights[i].type], ImGuiComboFlags_WidthFitPreview))
+			const char* lightTypeOptions[] = { "Area", "Directional" };
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+			if (ImGui::BeginCombo("Type", lightTypeOptions[m_scenes[m_crtScene].m_lights[i].type]))
 			{
 				for (UINT j = 0; j < LightType::Count; ++j)
 				{
@@ -1596,14 +1602,26 @@ void DieXaR::ShowUI()
 
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
 			{
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
 			}
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 			{
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
 			}
 
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -1.0f, 20.0f);
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 5.0f);
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::ColorPicker3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
+
 			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
+				ImGui::Spacing();
 				ImGui::Separator();
 			ImGui::Spacing();
 			ImGui::PopID();

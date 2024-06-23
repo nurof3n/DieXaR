@@ -30,7 +30,7 @@ public:
 		const XMFLOAT3& position,
 		const XMFLOAT3& color,
 		float intensity = 1.0f,
-		UINT type = 0,
+		UINT type = LightType::Square,
 		float size = 1.0f,
 		const XMFLOAT3& direction = XMFLOAT3(0.0f, -1.0f, 0.0f))
 	{
@@ -64,7 +64,6 @@ public:
 		const XMFLOAT4& albedo,
 		float roughness = 0.0f,
 		float metallic = 0.0f,
-		float specular = 0.0f,
 		float specularTint = 0.0f,
 		float sheen = 0.0f,
 		float sheenTint = 0.0f,
@@ -72,12 +71,13 @@ public:
 		float clearcoatGloss = 0.0f,
 		float anisotropic = 0.0f,
 		float specularTransmission = 0.0f,
-		float eta = 1.5f)
+		float eta = 1.5f,
+		float atDistance = 1.0f,
+		const XMFLOAT3& extinction = XMFLOAT3(1.0f, 1.0f, 1.0f))
 	{
 		attributes.albedo = albedo;
 		attributes.roughness = roughness;
 		attributes.metallic = metallic;
-		attributes.specular = specular;
 		attributes.specularTint = specularTint;
 		attributes.sheen = sheen;
 		attributes.sheenTint = sheenTint;
@@ -86,6 +86,8 @@ public:
 		attributes.anisotropic = anisotropic;
 		attributes.specularTransmission = specularTransmission;
 		attributes.eta = eta;
+		attributes.atDistance = atDistance;
+		attributes.extinction = extinction;
 	};
 
 public:

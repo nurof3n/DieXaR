@@ -31,6 +31,9 @@
     <Filter Include="Source Files\ImGui">
       <UniqueIdentifier>{04ecc67e-1e05-41a5-be50-14d6290e68c8}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Assets\Shaders\PBR">
+      <UniqueIdentifier>{51f889b5-0ae8-4093-a26d-098abea363cd}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
@@ -173,6 +176,12 @@
     <None Include="packages.config" />
     <None Include="..\external\imgui\imgui.natstepfilter">
       <Filter>Header Files\ImGui</Filter>
+    </None>
+    <None Include="DisneyBSDF.hlsli">
+      <Filter>Assets\Shaders\PBR</Filter>
+    </None>
+    <None Include="BSDF.hlsli">
+      <Filter>Assets\Shaders\PBR</Filter>
     </None>
   </ItemGroup>
   <ItemGroup>
