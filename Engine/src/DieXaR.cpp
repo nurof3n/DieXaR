@@ -280,7 +280,7 @@ void DieXaR::InitializeDemo()
 		// Setup plane
 		{
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.75f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.2f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 2.0f);
 		}
 
 		UINT offset = 0;
@@ -1517,18 +1517,18 @@ void DieXaR::ShowUI()
 			m_shouldReload = true;
 
 		// Importance Sampling type
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
 		const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
 		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType]))
 		{
 			bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
-			if (ImGui::Selectable("Uniform", selected))
+			if (ImGui::Selectable("Uniform Sphere", selected))
 				m_importanceSamplingType = ImportanceSamplingType::Uniform;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
 
 			selected = m_importanceSamplingType == ImportanceSamplingType::Cosine;
-			if (ImGui::Selectable("Cosine", selected))
+			if (ImGui::Selectable("Cosine Hemisphere", selected))
 				m_importanceSamplingType = ImportanceSamplingType::Cosine;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
@@ -1544,9 +1544,12 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Select the importance sampling type to use");
 
 		// Sqrt Samples per pixel
+		int maxSqrtSamplesPerPixel = m_raytracingType == RaytracingType::PathTracingTemporal ? 16 : 4;
+		if (m_raytracingType != RaytracingType::PathTracingTemporal)
+			m_pathSqrtSamplesPerPixel = min(m_pathSqrtSamplesPerPixel, 4);
 		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
-		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, 4);
+		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, maxSqrtSamplesPerPixel);
 		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
 		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
 			ResetPathTracing();
@@ -1600,19 +1603,22 @@ void DieXaR::ShowUI()
 				ImGui::EndCombo();
 			}
 
+			float maxIntensity;
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
 			{
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+				maxIntensity = 10.0f;
 			}
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 			{
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
+				maxIntensity = 2.0f;
 			}
 
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -1.0f, 20.0f);
+			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
 
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 5.0f);

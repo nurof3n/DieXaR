@@ -162,13 +162,13 @@ float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in f
 
 // Computes the lobes' probability distribution functions for the microfacet model.
 // Ignores the sheen lobe because its influence is minimal.
-void ComputePdfs(in PBRPrimitiveConstantBuffer material,
+void ComputePdfs(in PBRPrimitiveConstantBuffer material, in float3 specularColor, in float fresnelMix,
                  out float pSpecularReflection, out float pDiffuse, out float pClearcoat, out float pSpecularRefraction)
 {
-    float wDiffuse = (1.0f - material.metallic) * (1.0f - material.specularTransmission);
-    float wSpecularReflection = 1.0f - material.specularTransmission * (1.0f - material.metallic);
-    float wSpecularRefraction = material.specularTransmission * (1.0f - material.metallic);
-    float wClearcoat = 0.25f * material.clearcoat;
+    float wDiffuse = GetLuminance(material.albedo.xyz) * (1.0f - material.metallic) * (1.0f - material.specularTransmission);
+    float wSpecularReflection = GetLuminance(lerp(specularColor, float3(1, 1, 1), fresnelMix));
+    float wSpecularRefraction = GetLuminance(material.albedo.xyz) * (1.0f - fresnelMix) * material.specularTransmission * (1.0f - material.metallic);
+    float wClearcoat = material.clearcoat * (1.0f - material.metallic);
 
     float totalWeight = wDiffuse + wSpecularReflection + wClearcoat + wSpecularRefraction;
 
@@ -209,16 +209,17 @@ float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in float eta, 
     float ax, ay;
     ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
 
-    // Compute lobe pdfs.
-    float pDiffuse, pSpecularReflection, pClearcoat, pSpecularRefraction;
-    ComputePdfs(material, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
-
-    // Evaluate the lobes.
-    float lobePdf;
-
     // Compute specular and sheen color.
     float3 specularColor, sheenColor;
     ComputeSpecularColor(material, eta, specularColor, sheenColor);
+
+    // Compute lobe pdfs.
+    float pDiffuse, pSpecularReflection, pClearcoat, pSpecularRefraction;
+    float fresnelMix = DisneyFresnelMix(dotVH, eta, material.metallic);
+    ComputePdfs(material, specularColor, fresnelMix, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
+
+    // Evaluate the lobes.
+    float lobePdf;
 
     // apply diffuse, sheen and approximate subsurface scattering
     if (pDiffuse > 0.0f && L.y > 0.0f)
@@ -268,7 +269,8 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
 
     // Compute the lobe weights.
     float pDiffuse, pSpecularReflection, pClearcoat, pSpecularRefraction;
-    ComputePdfs(material, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
+    float fresnelMix = DisneyFresnelMix(V.y, eta, material.metallic);
+    ComputePdfs(material, specularColor, fresnelMix, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
 
     // Generate random numbers.
     float eps0 = random(rng_state);
