@@ -200,7 +200,7 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
     {
         // Evaluate the BSDF.
         float bsdfPdf;
-        reflectance = EvaluateDisneyBSDF(material, eta, -WorldRayDirection(), lightSample.L, N, bsdfPdf);
+        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), lightSample.L, N, bsdfPdf);
 
         // Calculate the MIS weight.
         float weight = 1.0f;
@@ -300,17 +300,17 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     {
         L = UniformSampleSphere(random(rng_state), random(rng_state), samplePdf);
         L = normalize(GetTangentToWorld(N, T, B, L));
-        reflectance = EvaluateDisneyBSDF(material, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
+        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
     }
     else if (g_sceneCB.importanceSamplingType == 1)
     {
         L = CosineSampleHemisphere(random(rng_state), random(rng_state), samplePdf);
         L = normalize(GetTangentToWorld(N, T, B, L));
-        reflectance = EvaluateDisneyBSDF(material, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
+        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
     }
     else
     {
-        reflectance = SampleDisneyBSDF(rng_state, material, eta, -WorldRayDirection(), normalSide, L, bsdfPdf);
+        reflectance = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, - WorldRayDirection(), normalSide, L, bsdfPdf);
     }
 
     // Update absorption.

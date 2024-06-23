@@ -110,6 +110,7 @@ void DieXaR::ResetSettingsCB()
 	m_sceneCB->applyJitter = m_applyJitter;
 	m_sceneCB->onlyOneLightSample = m_onlyOneLightSample;
 	m_sceneCB->russianRouletteDepth = m_russianRouletteDepth;
+	m_sceneCB->anisotropicBSDF = m_anisotropicBSDF;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -280,7 +281,7 @@ void DieXaR::InitializeDemo()
 		// Setup plane
 		{
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.2f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 2.0f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.6f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 2.0f);
 		}
 
 		UINT offset = 0;
@@ -1477,12 +1478,19 @@ void DieXaR::ShowUI()
 		ImGui::Spacing();
 
 		// Jitter
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 		ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
 		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
 
 		// Only one light sample
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 		ImGui::Checkbox("Single LightBuffer Sample", &m_onlyOneLightSample);
 		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
+
+		// Anisotropic BSDF
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		ImGui::Checkbox("Anisotropic BSDF (Experimental)", &m_anisotropicBSDF);
+		ImGui::SameLine(); HelpMarker("Enable anisotropy model");
 
 		// Ray Tracing Type
 		const char* options[] = { "Whitted", "Path Tracing", "Progressive Path Tracing" };
@@ -1628,7 +1636,7 @@ void DieXaR::ShowUI()
 
 			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
 				ImGui::Spacing();
-				ImGui::Separator();
+			ImGui::Separator();
 			ImGui::Spacing();
 			ImGui::PopID();
 		}

@@ -22,7 +22,7 @@ void ComputeAnisotropicAlphas(in float roughness, in float anisotropic, out floa
 // Mixes the diffuse and metallic specular components.
 float DisneyFresnelMix(in float dotLH, in float eta, in float metallic)
 {
-    float metallicFresnel = FresnelReflectanceSchlick(dotLH, 0.5f);
+    float metallicFresnel = FresnelReflectanceSchlick(dotLH);
     float dielectricFresnel = FresnelDielectric(dotLH, eta);
     return lerp(dielectricFresnel, metallicFresnel, metallic);
 }
@@ -39,7 +39,7 @@ void ComputeSpecularColor(in PBRPrimitiveConstantBuffer material, in float eta, 
 }
 
 // Computes the intensity of the clearcoat BRDF lobe.
-float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in float3 V, in float3 L, in float3 H, out float pdf)
+float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in bool anisotropic, in float3 V, in float3 L, in float3 H, out float pdf)
 {
     pdf = 0.0f;
 
@@ -51,21 +51,21 @@ float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in float3 V, in
     float dotVH = dot(V, H);
 
     // Compute anisotropic roughness.
-    float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
+    float a = anisotropic ? lerp(0.1f, 0.001f, material.clearcoatGloss) : material.roughness;
 
     // Compute D term for the clearcoat.
     float D = DGTR1(H.y, a);
 
-    // Compute F term with Schlick approximation with IOR = 1.5 (F0 = 0.04).
-    float F = FresnelReflectanceSchlick(dotVH, 0.04f);
+    // Compute F term with IOR = 1.5 and F0 = 0.04.
+    float F = lerp(0.04f, 1.0f, FresnelDielectric(dotVH, 0.6667f));
 
     // Compute geometric shadowing term G as product of two G1 terms.
-    float G = SmithG1Anisotropic(L.x, L.z, L.y, 0.25f, 0.25f) * SmithG1Anisotropic(V.x, V.z, V.y, 0.25f, 0.25f);
+    float G = anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, 0.25f, 0.25f) * SmithG1Anisotropic(V.x, V.z, V.y, 0.25f, 0.25f) : SmithG1(L.y, 0.25f) * SmithG1(V.y, 0.25f);
 
     // Compute pdf for sampling.
     pdf = 0.25f * H.y * D / dotVH;
 
-    return float3(0.25f, 0.25f, 0.25f) * D * F * G / (L.y * V.y);
+    return float3(0.25f, 0.25f, 0.25f) * material.clearcoat * D * F * G / (4.0f * L.y * V.y);
 }
 
 // Disney Diffuse BRDF, with sheen and approximated subsurface scattering.
@@ -102,7 +102,7 @@ float3 EvaluateDiffuse(in PBRPrimitiveConstantBuffer material, in float3 sheenCo
 // Disney Specular BRDF (only reflection) - standard Cook-Torrance microfacet BRDF.
 // This is modified to include a dielectric specular term that is missing in the diffuse model.
 float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in float eta, in float3 specularColor, in float3 V, in float3 L, in float3 H,
-                                  in float ax, in float ay, out float pdf)
+                                  in bool anisotropic, in float ax, in float ay, out float pdf)
 {
     pdf = 0.0f;
 
@@ -114,15 +114,15 @@ float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in flo
     float dotLH = dot(L, H);
     float dotVH = dot(V, H);
 
-    // Compute distribution term D.
-    float D = DGTR2Anisotropic(H.x, H.z, H.y, ax, ay);
+    // Compute distribution term D. Roughness < 0.0f means use anisotropic distribution.
+    float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
 
     // compute Fresnel achromatic component (to account for dielectric specular reflection)
     float3 F = lerp(specularColor, float3(1.0f, 1.0f, 1.0f), DisneyFresnelMix(dotLH, eta, material.metallic));
 
     // compute geometric shadowing term G as product of two G1 terms
-    float Gv = SmithG1Anisotropic(V.x, V.z, V.y, ax, ay);
-    float G = Gv * SmithG1Anisotropic(L.x, L.z, L.y, ax, ay);
+    float Gv = anisotropic ? SmithG1Anisotropic(V.x, V.z, V.y, ax, ay) : SmithG1(V.y, material.roughness);
+    float G = Gv * (anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, ax, ay) : SmithG1(L.y, material.roughness));
 
     // Compute pdf.
     pdf = 0.25f * Gv * max(0.0f, dotVH) * D / (V.y * dotVH);
@@ -131,7 +131,8 @@ float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in flo
 }
 
 // Disney Specular BSDF (only refraction).
-float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in float eta, in float3 V, in float3 L, in float3 H, in float ax, in float ay, out float pdf)
+float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in float eta, in float3 V, in float3 L,
+                                    in float3 H, in bool anisotropic, in float ax, in float ay, out float pdf)
 {
     pdf = 0.0f;
 
@@ -145,19 +146,19 @@ float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in f
     float tmp = 1.0f / sq(dotLH + dotVH * eta);
 
     // compute distribution term D
-    float D = DGTR2Anisotropic(H.x, H.z, H.y, ax, ay);
+    float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
 
     // compute Fresnel term
     float F = FresnelDielectric(abs(dotVH), eta);
 
     // compute geometric shadowing term G as product of two G1 terms
-    float Gv = SmithG1Anisotropic(V.x, V.z, V.y, ax, ay);
-    float G = Gv * SmithG1Anisotropic(L.x, L.z, L.y, ax, ay);
+    float Gv = anisotropic ? SmithG1Anisotropic(V.x, V.z, V.y, ax, ay) : SmithG1(V.y, material.roughness);
+    float G = Gv * (anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, ax, ay) : SmithG1(L.y, material.roughness));
 
     // Compute pdf.
     pdf = Gv * max(0.0f, dotVH) * D * tmp * abs(dotLH) / V.y;
 
-    return (1.0f - material.metallic) * material.specularTransmission * sqrt(material.albedo.xyz) * (1.0f - F) * D * G * abs(dotLH) * abs(dotVH) * sq(eta) * tmp / (L.y * V.y);
+    return (1.0f - material.metallic) * material.specularTransmission * sqrt(material.albedo.xyz) * (1.0f - F) * D * G * abs(dotLH) * abs(dotVH) * sq(eta) * tmp / (abs(L.y) * abs(V.y));
 }
 
 // Computes the lobes' probability distribution functions for the microfacet model.
@@ -179,16 +180,17 @@ void ComputePdfs(in PBRPrimitiveConstantBuffer material, in float3 specularColor
 }
 
 // Computes the Disney BSDF as an aggregate of all the components.
-float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in float eta, in float3 V, in float3 L, in float3 N, out float pdf)
+float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in bool anisotropic,
+                          in float eta, in float3 V, in float3 L, in float3 N, out float pdf)
 {
     pdf = 0.0f;
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
 
-    // Transform into the tangent space.
+    // Transform V and L into the tangent space.
     float3 T, B;
     ComputeLocalSpace(N, T, B);
-    V = float3(dot(V, T), dot(V, N), dot(V, B));
-    L = float3(dot(L, T), dot(L, N), dot(L, B));
+    V = GetWorldToTangent(N, T, B, V);
+    L = GetWorldToTangent(N, T, B, L);
 
     // Compute the half vector (with correction for transmission).
     float3 H;
@@ -206,8 +208,9 @@ float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in float eta, 
     float dotVH = dot(V, H);
 
     // Compute anisotropic parameters.
-    float ax, ay;
-    ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+    float ax = 0.0f, ay = 0.0f;
+    if (anisotropic)
+        ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
 
     // Compute specular and sheen color.
     float3 specularColor, sheenColor;
@@ -224,28 +227,28 @@ float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in float eta, 
     // apply diffuse, sheen and approximate subsurface scattering
     if (pDiffuse > 0.0f && L.y > 0.0f)
     {
-        reflectance += EvaluateDiffuse(material, specularColor, V, L, H, lobePdf);
+        reflectance += EvaluateDiffuse(material, sheenColor, V, L, H, lobePdf);
         pdf += pDiffuse * lobePdf;
     }
 
     // apply specular reflection (only if visible)
     if (pSpecularReflection > 0.0f && L.y > 0.0f && V.y > 0.0f)
     {
-        reflectance += EvaluateSpecularReflection(material, eta, specularColor, V, L, H, ax, ay, lobePdf);
+        reflectance += EvaluateSpecularReflection(material, eta, specularColor, V, L, H, anisotropic, ax, ay, lobePdf);
         pdf += pSpecularReflection * lobePdf;
     }
 
     // apply clearcoat (only if visible)
     if (pClearcoat > 0.0f && L.y > 0.0f && V.y > 0.0f)
     {
-        reflectance += EvaluateClearcoat(material, V, L, H, lobePdf);
+        reflectance += EvaluateClearcoat(material, anisotropic, V, L, H, lobePdf);
         pdf += pClearcoat * lobePdf;
     }
 
     // apply transmission
-    if (pSpecularRefraction > 0.0f && L.y <= 0.0f)
+    if (pSpecularRefraction > 0.0f && L.y < 0.0f)
     {
-        reflectance += EvaluateSpecularTransmission(material, eta, V, L, H, ax, ay, lobePdf);
+        reflectance += EvaluateSpecularTransmission(material, eta, V, L, H, anisotropic, ax, ay, lobePdf);
         pdf += pSpecularRefraction * lobePdf;
     }
 
@@ -253,12 +256,12 @@ float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in float eta, 
 }
 
 float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer material, in float eta,
-                        in float3 V, in float3 N, out float3 L, out float pdf)
+                        in bool anisotropic, in float3 V, in float3 N, out float3 L, out float pdf)
 {
     pdf = 0.0f;
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
 
-    // Transform into the tangent space.
+    // Transform V into the tangent space.
     float3 T, B;
     ComputeLocalSpace(N, T, B);
     V = GetWorldToTangent(N, T, B, V);
@@ -295,9 +298,15 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     else if (choice < cdf.y)
     {
         // Sample the specular reflection lobe with VNDF for the half vector.
-        float ax, ay;
-        ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
-        H = VisibleNormalsSampling(eps0, eps1, ax, ay, V);
+        float ax = 0.0f, ay = 0.0f;
+        if (anisotropic)
+        {
+            ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+            H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
+        }
+        else
+            H = SampleVNDF(eps0, eps1, material.roughness, V);
+        
 
         // Correct the half vector if it is below the surface.
         if (H.y < 0.0f)
@@ -306,13 +315,13 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
         // Reflect the view vector.
         L = normalize(reflect(-V, H));
 
-        reflectance = EvaluateSpecularReflection(material, eta, specularColor, V, L, H, ax, ay, pdf);
+        reflectance = EvaluateSpecularReflection(material, eta, specularColor, V, L, H, anisotropic, ax, ay, pdf);
         pdf *= pSpecularReflection;
     }
     else if (choice < cdf.z)
     {
         // Compute aniostropic roughness.
-        float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
+        float a = anisotropic ? lerp(0.1f, 0.001f, material.clearcoatGloss) : material.clearcoatGloss;
 
         // Sample the clearcoat lobe by sampling GTR1 distribution.
         H = SampleDGTR1(eps0, eps1, a);
@@ -324,15 +333,20 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
         // Reflect the view vector.
         L = normalize(reflect(-V, H));
 
-        reflectance = EvaluateClearcoat(material, V, L, H, pdf);
+        reflectance = EvaluateClearcoat(material, anisotropic, V, L, H, pdf);
         pdf *= pClearcoat;
     }
     else
     {
         // Sample the specular refraction lobe with VNDF for the half vector.
-        float ax, ay;
-        ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
-        H = VisibleNormalsSampling(eps0, eps1, ax, ay, V);
+        float ax = 0.0f, ay = 0.0f;
+        if (anisotropic)
+        {
+            ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+            H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
+        }
+        else
+            H = SampleVNDF(eps0, eps1, material.roughness, V);
 
         // Correct the half vector if it is below the surface.
         if (H.y < 0.0f)
@@ -341,14 +355,14 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
         // Compute the refracted direction.
         L = normalize(refract(-V, H, eta));
 
-        reflectance = EvaluateSpecularTransmission(material, eta, V, L, H, ax, ay, pdf);
+        reflectance = EvaluateSpecularTransmission(material, eta, V, L, H, anisotropic, ax, ay, pdf);
         pdf *= pSpecularRefraction;
     }
 
     // Transform the outgoing direction back to world space.
     L = GetTangentToWorld(N, T, B, L);
 
-    return reflectance; // factor in the cosine term
+    return reflectance * abs(dot(N, L)); // factor in the cosine term
 }
 
 #endif // DISNEYBSDF_H

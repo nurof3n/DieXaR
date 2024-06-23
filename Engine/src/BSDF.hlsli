@@ -34,7 +34,7 @@ float3 UniformSampleHemisphere(in float eps0, in float eps1, out float pdf)
 float3 UniformSampleSphere(in float eps0, in float eps1, out float pdf)
 {
     float cosTheta = 1.0f - 2.0f * eps0;
-    float sinTheta = sqrt(1.0f - cosTheta * cosTheta);
+    float sinTheta = sqrt(1.0f - sq(cosTheta));
     float phi = TWO_PI * eps1;
 
     // Compute the pdf.
@@ -61,8 +61,26 @@ float3 CosineSampleHemisphere(in float eps0, in float eps1, out float pdf)
     return float3(sinTheta * cos(phi), cosTheta, sinTheta * sin(phi));
 }
 
+float3 SampleVNDF(in float eps0, in float eps1, in float roughness, in float3 V)
+{
+    float3 stretchedV = normalize(float3(roughness * V.x, V.y, roughness * V.z));
+    
+    float3 T, B;
+    ComputeLocalSpace(stretchedV, T, B);
+
+    float r = sqrt(eps0);
+    float phi = eps1 * TWO_PI;
+    float p1 = r * cos(phi);
+    float p2 = r * sin(phi);
+    float s = 0.5f * (1.0f + stretchedV.y);
+    p2 = (1.0f - s) * sqrt(1.0f - sq(p1)) + s * p2;
+
+    float3 normal = p1 * T + p2 * B + sqrt(max(0.0f, 1.0f - sq(p1) - sq(p2))) * stretchedV;
+    return normalize(float3(roughness * normal.x, max(0.0f, normal.y), roughness * normal.z));
+}
+
 // https://hal.science/hal-01509746/document
-float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in float ay, in float3 V)
+float3 SampleVNDFAnisotropic(in float eps0, in float eps1, in float ax, in float ay, in float3 V)
 {
     // Stretch the view vector to match the roughness 1.
     float3 stretchedV = normalize(float3(ax * V.x, V.y, ay * V.z));
@@ -79,8 +97,8 @@ float3 VisibleNormalsSampling(in float eps0, in float eps1, in float ax, in floa
     float p2 = r * sin(phi) * (eps1 < a ? 1.0f : stretchedV.y);
 
     // Compute the normal in the tangent space.
-    float3 normal = normalize(p1 * T + p2 * B + sqrt(max(0.0f, 1.0f - sq(p1) - sq(p2))) * stretchedV);
-    return float3(ax * normal.x, max(0.0f, normal.y), ay * normal.z);
+    float3 normal = p1 * T + p2 * B + sqrt(max(0.0f, 1.0f - sq(p1) - sq(p2))) * stretchedV;
+    return normalize(float3(ax * normal.x, max(0.0f, normal.y), ay * normal.z));
 }
 
 // float VisibleNormalsPdf(in float ax, in float ay, in float dotLH, in float dotVX, in float dotVY, in float dotVN,
@@ -112,7 +130,7 @@ float FresnelDielectric(in float cosThetaI, float eta)
     if (sinThetaTSq > 1.0f)
         return 1.0f;
     
-    float cosThetaT = sqrt(1.0f - sinThetaTSq);
+    float cosThetaT = sqrt(max(0.0f, 1.0f - sinThetaTSq));
 
     float Rs = (cosThetaI - eta * cosThetaT) / (cosThetaI + eta * cosThetaT);
     float Rp = (cosThetaT - eta * cosThetaI) / (cosThetaT + eta * cosThetaI);
@@ -121,7 +139,7 @@ float FresnelDielectric(in float cosThetaI, float eta)
 
 float FresnelReflectanceSchlick(in float cosi)
 {
-    return pow(saturate(1.0f - cosi), 5);
+    return pow(clamp((1.0f - cosi), 0.0f, 1.0f), 5);
 }
 
 // Fresnel reflectance - schlick approximation.
@@ -203,7 +221,7 @@ float3 SampleDGTR1(in float eps0, in float eps1, in float roughness)
     float phi = eps0 * TWO_PI;
 
     float cosTheta = sqrt((1.0f - pow(a2, 1.0f - eps1)) / (1.0f - a2));
-    float sinTheta = sqrt(1.0f - sq(cosTheta));
+    float sinTheta = clamp(sqrt(1.0f - sq(cosTheta)), 0.0f, 1.0f);
     float sinPhi = sin(phi);
     float cosPhi = cos(phi);
 
@@ -234,7 +252,7 @@ float3 SampleDGTR2(in float eps0, in float eps1, in float roughness)
     float phi = eps0 * TWO_PI;
 
     float cosTheta = sqrt((1.0f - eps1) / (1.0f + (a2 - 1.0f) * eps1));
-    float sinTheta = sqrt(1.0f - (cosTheta * cosTheta));
+    float sinTheta = clamp(sqrt(1.0f - (sq(cosTheta))), 0.0f, 1.0f);
     float sinPhi = sin(phi);
     float cosPhi = cos(phi);
 
@@ -282,7 +300,9 @@ float SmithG1(in float dotWN, in float a)
     if (dotWN == 0.0f)
         return 0.0f;
     float a2 = sq(a);
-    return 2.0f / (1.0f + sqrt(1.0f + a2 * (1.0f / sq(dotWN) - 1.0f)));
+    float dot2 = sq(dotWN);
+    //return 2.0f / (1.0f + sqrt(1.0f + a2 * (1.0f / sq(dotWN) - 1.0f)));
+    return (1.0f * dotWN) / (dotWN + sqrt(a2 + dot2 - a2 * dot2));
 }
 
 // Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
