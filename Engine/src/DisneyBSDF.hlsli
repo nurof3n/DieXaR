@@ -353,7 +353,13 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
             H = -H;
 
         // Compute the refracted direction.
-        L = normalize(refract(-V, H, eta));
+        L = refract(-V, H, eta);
+        
+        // Check if the refraction is total internal.
+        if (dot(L, L) == 0.0f)
+            L = reflect(-V, H);
+        
+        L = normalize(L);
 
         reflectance = EvaluateSpecularTransmission(material, eta, V, L, H, anisotropic, ax, ay, pdf);
         pdf *= pSpecularRefraction;

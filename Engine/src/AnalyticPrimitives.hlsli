@@ -72,7 +72,7 @@ bool RaySphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, o
     {
         // t0 is before RayTMin, let's use t1 instead .
         if (t1 < RayTMin()) return false; // both t0 and t1 are before RayTMin
-
+        
         attr.normal = CalculateNormalForARaySphereHit(ray, t1, center);
         if (IsAValidHit(ray, t1, attr.normal))
         {

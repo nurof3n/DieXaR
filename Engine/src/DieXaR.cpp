@@ -31,7 +31,6 @@ const wchar_t* DieXaR::c_raygenShaderNames[] =
 const wchar_t* DieXaR::c_intersectionShaderNames[] =
 {
 	L"IntersectionShader_AnalyticPrimitive",
-	L"IntersectionShader_VolumetricPrimitive",
 	L"IntersectionShader_SignedDistancePrimitive",
 };
 const wchar_t* DieXaR::c_closestHitShaderNames[] =
@@ -51,7 +50,6 @@ const wchar_t* DieXaR::c_hitGroupNames_TriangleGeometry[] =
 const wchar_t* DieXaR::c_hitGroupNames_AABBGeometry[][RayType::Count] =
 {
 	{ L"HitGroup_AABB_AnalyticPrimitive", L"HitGroup_AABB_AnalyticPrimitive_ShadowRay" },
-	{ L"HitGroup_AABB_VolumetricPrimitive", L"HitGroup_AABB_VolumetricPrimitive_ShadowRay" },
 	{ L"HitGroup_AABB_SignedDistancePrimitive", L"HitGroup_AABB_SignedDistancePrimitive_ShadowRay" },
 };
 
@@ -200,7 +198,7 @@ void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 	XMMATRIX mScale15y = XMMatrixScaling(1, 1.5, 1);
 	XMMATRIX mScale15 = XMMatrixScaling(1.5, 1.5, 1.5);
 	XMMATRIX mScale2 = XMMatrixScaling(2, 2, 2);
-	XMMATRIX mScale3 = XMMatrixScaling(3, 3, 3);
+	XMMATRIX mScale3 = XMMatrixScaling(5, 5, 5);
 
 	XMMATRIX mRotation = XMMatrixRotationY(-2 * animationTime);
 
@@ -226,13 +224,6 @@ void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 		SetTransformForAABB(offset + AABB, mScale15y, mIdentity);
 		SetTransformForAABB(offset + Spheres, mScale15, mRotation);
 		offset += AnalyticPrimitive::Count;
-	}
-
-	// Volumetric primitives.
-	{
-		using namespace VolumetricPrimitive;
-		SetTransformForAABB(offset + Metaballs, mScale15, mRotation);
-		offset += VolumetricPrimitive::Count;
 	}
 
 	// Signed distance primitives.
@@ -295,33 +286,26 @@ void DieXaR::InitializeDemo()
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.1f, 1.0f, 0.2f, 0.0f, 0.0f, 0.5f, 0.0f, 0.8f, 0.8f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.9f, 1.5f);
 			offset += AnalyticPrimitive::Count;
 		}
 
-		// Setup volumetric primitives
-		{
-			using namespace VolumetricPrimitive;
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Metaballs], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Metaballs], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
-			offset += VolumetricPrimitive::Count;
-		}
 
 		// Setup signed distance primitives
 		{
 			using namespace SignedDistancePrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + MiniSpheres], violet, 0.1f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + IntersectedRoundCube], green);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], violet, 0.1f, 0.0f, 0.2f, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f, 1.5f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], ruby, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.3f, 2.2f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.2f);
 		}
 	}
 
@@ -695,22 +679,15 @@ void DieXaR::BuildProceduralGeometryAABBs()
 			offset += AnalyticPrimitive::Count;
 		}
 
-		// Volumetric primitives.
-		{
-			using namespace VolumetricPrimitive;
-			m_aabbs[offset + Metaballs] = InitializeAABB(XMINT3(0, 0, 0), XMFLOAT3(3, 3, 3));
-			offset += VolumetricPrimitive::Count;
-		}
-
 		// Signed distance primitives.
 		{
 			using namespace SignedDistancePrimitive;
 			m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
-			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 2, 2));
+			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 1.5), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
 			m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
-			m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 3), XMFLOAT3(2, 3, 2));
-			m_aabbs[offset + SolidAngle] = InitializeAABB(XMINT3(2, 0, 2), XMFLOAT3(6, 6, 6));
+			m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 3, 2));
+			m_aabbs[offset + SolidAngle] = InitializeAABB(XMINT3(1.2, 0, 1.2), XMFLOAT3(10, 10, 10));
 		}
 		AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size() * sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
 	}

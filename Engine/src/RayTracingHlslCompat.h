@@ -234,15 +234,6 @@ namespace AnalyticPrimitive
 	};
 }
 
-namespace VolumetricPrimitive
-{
-	enum Enum
-	{
-		Metaballs = 0,
-		Count
-	};
-}
-
 namespace SignedDistancePrimitive
 {
 	enum Enum

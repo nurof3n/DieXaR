@@ -102,7 +102,6 @@ namespace BottomLevelASType = GeometryType;
 namespace IntersectionShaderType {
     enum Enum {
         AnalyticPrimitive = 0,
-        VolumetricPrimitive,
         SignedDistancePrimitive,
         Count
     };
@@ -111,14 +110,13 @@ namespace IntersectionShaderType {
         switch (type)
         {
         case AnalyticPrimitive: return AnalyticPrimitive::Count;
-        case VolumetricPrimitive: return VolumetricPrimitive::Count;
         case SignedDistancePrimitive: return SignedDistancePrimitive::Count;
         }
         return 0;
     }
     static const UINT MaxPerPrimitiveTypeCount =
-        max(AnalyticPrimitive::Count, max(VolumetricPrimitive::Count, SignedDistancePrimitive::Count));
+        max(AnalyticPrimitive::Count, SignedDistancePrimitive::Count);
     static const UINT TotalPrimitiveCount =
-        AnalyticPrimitive::Count + VolumetricPrimitive::Count + SignedDistancePrimitive::Count;
+        AnalyticPrimitive::Count + SignedDistancePrimitive::Count;
 }
 

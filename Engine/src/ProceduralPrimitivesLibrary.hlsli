@@ -23,7 +23,6 @@
 #include "RaytracingShaderHelper.hlsli"
 
 #include "AnalyticPrimitives.hlsli"
-#include "VolumetricPrimitives.hlsli"
 #include "SignedDistancePrimitives.hlsli"
 #include "SignedDistanceFractals.hlsli"
 
@@ -42,19 +41,6 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
         return RayAABBIntersectionTest(ray, aabb, thit, attr);
     case AnalyticPrimitive::Spheres:
         return RaySpheresIntersectionTest(ray, thit, attr);
-    default:
-        return false;
-    }
-}
-
-// Analytic geometry intersection test.
-// AABB local space dimensions: <-1,1>.
-bool RayVolumetricGeometryIntersectionTest(in Ray ray, in VolumetricPrimitive::Enum volumetricPrimitive, inout float thit, inout ProceduralPrimitiveAttributes attr, in float elapsedTime)
-{
-    switch (volumetricPrimitive)
-    {
-    case VolumetricPrimitive::Metaballs:
-        return RayMetaballsIntersectionTest(ray, thit, attr, elapsedTime);
     default:
         return false;
     }

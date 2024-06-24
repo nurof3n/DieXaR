@@ -58,7 +58,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0.0f;
+    rayDesc.TMin = refraction ? 0.1f : 0.0f;
     rayDesc.TMax = 10000.0f;
     RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, currentRayRecursionDepth + 1};
 
@@ -572,23 +572,6 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     float thit;
     ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     if (RayAnalyticGeometryIntersectionTest(localRay, primitiveType, thit, attr))
-    {
-        PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
-        attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);
-        attr.normal = normalize(mul((float3x3)ObjectToWorld3x4(), attr.normal));
-
-        ReportHit(thit, /*hitKind*/ 0, attr);
-    }
-}
-
-[shader("intersection")] void IntersectionShader_VolumetricPrimitive()
-{
-    Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    VolumetricPrimitive::Enum primitiveType = (VolumetricPrimitive::Enum)l_aabbCB.primitiveType;
-
-    float thit;
-    ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
-    if (RayVolumetricGeometryIntersectionTest(localRay, primitiveType, thit, attr, g_sceneCB.elapsedTime))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);
