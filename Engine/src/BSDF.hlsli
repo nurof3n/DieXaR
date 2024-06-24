@@ -203,6 +203,7 @@ float FSS90(in float roughness, in float dotHL)
 float DGTR1(in float dotNH, in float a)
 {
     // clamp the roughness
+    a = max(0.001f, a);
     if (abs(a) >= 1.0f)
         return INV_PI;
 
@@ -236,6 +237,8 @@ float3 SampleDGTR1(in float eps0, in float eps1, in float roughness)
 // Note: this distribution is normalized.
 float DGTR2(in float dotNH, in float a)
 {
+    // clamp the roughness
+    a = max(0.001f, a);
     float a2 = sq(a);
     float t = 1.0f + (a2 - 1.0f) * sq(dotNH);
     return INV_PI * a2 / sq(t);
@@ -252,7 +255,7 @@ float3 SampleDGTR2(in float eps0, in float eps1, in float roughness)
     float phi = eps0 * TWO_PI;
 
     float cosTheta = sqrt((1.0f - eps1) / (1.0f + (a2 - 1.0f) * eps1));
-    float sinTheta = clamp(sqrt(1.0f - (sq(cosTheta))), 0.0f, 1.0f);
+    float sinTheta = clamp(sqrt(1.0f - sq(cosTheta)), 0.0f, 1.0f);
     float sinPhi = sin(phi);
     float cosPhi = cos(phi);
 
@@ -280,7 +283,7 @@ float3 SampleDGTR2Anisotropic(in float eps0, in float eps1, in float ax, in floa
     float cosPhi = ax * cos(phi);
     float tanTheta = sqrt(eps1 / (1.0f - eps1));
 
-    return normalize(float3(tanTheta * cosPhi, 1.0f, tanTheta * sinPhi));
+    return float3(tanTheta * cosPhi, 1.0f, tanTheta * sinPhi);
 }
 
 // ##################################################################### //
@@ -297,12 +300,13 @@ float3 SampleDGTR2Anisotropic(in float eps0, in float eps1, in float ax, in floa
 // to prevent energy conservation issues.
 float SmithG1(in float dotWN, in float a)
 {
+    // clamp the roughness
+    a = max(0.001f, a);
     if (dotWN == 0.0f)
         return 0.0f;
     float a2 = sq(a);
     float dot2 = sq(dotWN);
-    //return 2.0f / (1.0f + sqrt(1.0f + a2 * (1.0f / sq(dotWN) - 1.0f)));
-    return (1.0f * dotWN) / (dotWN + sqrt(a2 + dot2 - a2 * dot2));
+    return (2.0f * dotWN) / (dotWN + sqrt(a2 + dot2 - a2 * dot2));
 }
 
 // Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf

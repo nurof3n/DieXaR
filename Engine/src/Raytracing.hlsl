@@ -45,7 +45,7 @@ ConstantBuffer<PBRPrimitiveConstantBuffer> l_pbrCB : register(b3); // PBR materi
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT currentRayRecursionDepth)
+float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT currentRayRecursionDepth, in bool refraction = false)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth)
     {
@@ -61,8 +61,10 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     rayDesc.TMin = 0.0f;
     rayDesc.TMax = 10000.0f;
     RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, currentRayRecursionDepth + 1};
+
+    uint flag = refraction ? RAY_FLAG_CULL_FRONT_FACING_TRIANGLES : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
     TraceRay(g_scene,
-             RAY_FLAG_CULL_BACK_FACING_TRIANGLES,
+             flag,
              TraceRayParameters::InstanceMask,
              TraceRayParameters::HitGroup::Offset[RayType::Radiance],
              TraceRayParameters::HitGroup::GeometryStride,
@@ -310,7 +312,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     }
     else
     {
-        reflectance = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, - WorldRayDirection(), normalSide, L, bsdfPdf);
+        reflectance = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), normalSide, L, bsdfPdf);
     }
 
     // Update absorption.
@@ -326,7 +328,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
 
         // Shoot the next ray and accumulate the color.
         Ray newRay = {hitPosition, L};
-        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.recursionDepth).xyz;
+        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.recursionDepth, dot(N, L) < 0.0f).xyz;
     }
 
     return color;
@@ -351,23 +353,26 @@ float4 CalculateSpecularCoefficient(in float3 hitPosition, in float3 incidentLig
 }
 
 // Phong lighting model = diffuse + specular components.
-float4 CalculatePhongLighting(in float3 lightPosition, in float3 lightColor, in float4 albedo, in float3 normal,
+float4 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 normal,
                               in bool isInShadow, in float diffuseCoef = 1.0, in float specularCoef = 1.0, in float specularPower = 50)
 {
     float3 hitPosition = HitWorldPosition();
     float shadowFactor = isInShadow ? InShadowRadiance : 1.0;
-    float3 incidentLightRay = normalize(hitPosition - lightPosition);
+    float3 incidentLightRay = normalize(hitPosition - light.position);
 
     // Diffuse component.
     // TODO: investigate inShadowRadiance
     float Kd = CalculateDiffuseCoefficient(hitPosition, incidentLightRay, normal);
-    float4 diffuseColor = shadowFactor * diffuseCoef * Kd * float4(lightColor, 1.0f) * albedo;
+    float4 diffuseColor = shadowFactor * diffuseCoef * Kd * float4(light.emission * light.intensity, 1.0f) * albedo;
+
+    if (light.type == LightType::Square)
+        diffuseColor *= sq(light.size);
 
     // Specular component.
     float4 specularColor = float4(0, 0, 0, 0);
     if (!isInShadow)
     {
-        float4 lightSpecularColor = float4(lightColor, 1.0f);
+        float4 lightSpecularColor = float4(light.emission * light.intensity, 1.0f) * sq(light.size);
         float4 Ks = CalculateSpecularCoefficient(hitPosition, incidentLightRay, normal, specularPower);
         specularColor = specularCoef * Ks * lightSpecularColor;
     }
@@ -489,7 +494,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
 
             // Calculate final color.
-            float4 phongColor = CalculatePhongLighting(g_lights[i].position, g_lights[i].emission * g_lights[i].intensity, l_materialCB.albedo, normal,
+            float4 phongColor = CalculatePhongLighting(g_lights[i], l_materialCB.albedo, normal,
                                                        shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower) /
                                 (1.0f + 0.001f * length_toPow2(g_lights[i].position - hitPosition));
             color.xyz += phongColor.xyz;

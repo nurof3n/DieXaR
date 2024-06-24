@@ -272,16 +272,17 @@ void DieXaR::InitializeDemo()
 
 	// Setup Materials
 	{
-		XMFLOAT4 green = XMFLOAT4(0.1f, 1.0f, 0.5f, 1.0f);
-		XMFLOAT4 red = XMFLOAT4(1.0f, 0.5f, 0.5f, 1.0f);
-		XMFLOAT4 yellow = XMFLOAT4(1.0f, 1.0f, 0.5f, 1.0f);
+		XMFLOAT4 green = XMFLOAT4(0.1f, 0.6f, 0.41f, 1.0f);
+		XMFLOAT4 red = XMFLOAT4(0.6f, 0.2f, 0.23f, 1.0f);
+		XMFLOAT4 yellow = XMFLOAT4(0.7f, 0.6f, 0.2f, 1.0f);
 		XMFLOAT4 violet = XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f);
-		XMFLOAT4 orange = XMFLOAT4(1.0f, 0.5f, 0.0f, 1.0f);
+		XMFLOAT4 orange = XMFLOAT4(0.7f, 0.2f, 0.0f, 1.0f);
+		XMFLOAT4 ruby = XMFLOAT4(0.6f, 0.0f, 0.0f, 1.0f);
 
 		// Setup plane
 		{
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.6f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.5f, 2.0f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.1f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 2.0f);
 		}
 
 		UINT offset = 0;
@@ -294,7 +295,7 @@ void DieXaR::InitializeDemo()
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.3f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.1f, 1.0f, 0.2f, 0.0f, 0.0f, 0.5f, 0.0f, 0.8f, 0.8f, 1.3f);
 			offset += AnalyticPrimitive::Count;
 		}
 
@@ -319,8 +320,8 @@ void DieXaR::InitializeDemo()
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
 			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], green, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], ruby, 0.1);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.3f, 2.2f);
 		}
 	}
 
@@ -1488,8 +1489,8 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
 
 		// Anisotropic BSDF
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-		ImGui::Checkbox("Anisotropic BSDF (Experimental)", &m_anisotropicBSDF);
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
+		ImGui::Checkbox("Anisotropic BSDF", &m_anisotropicBSDF);
 		ImGui::SameLine(); HelpMarker("Enable anisotropy model");
 
 		// Ray Tracing Type
@@ -1611,25 +1612,27 @@ void DieXaR::ShowUI()
 				ImGui::EndCombo();
 			}
 
-			float maxIntensity;
-			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
-			{
-				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
-				maxIntensity = 10.0f;
-			}
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 			{
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
-				maxIntensity = 2.0f;
 			}
 
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
 
+			float maxIntensity;
+			if (m_raytracingType == RaytracingType::Whitted || m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
+				maxIntensity = 2.0f;
+			else if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+				maxIntensity = 10.0f;
+			m_scenes[m_crtScene].m_lights[i].intensity = min(m_scenes[m_crtScene].m_lights[i].intensity, maxIntensity);
+
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 5.0f);
+			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, maxIntensity);
 
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 			ImGui::ColorPicker3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);

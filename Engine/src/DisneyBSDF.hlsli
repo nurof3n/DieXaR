@@ -51,7 +51,7 @@ float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in bool anisotr
     float dotVH = dot(V, H);
 
     // Compute anisotropic roughness.
-    float a = anisotropic ? lerp(0.1f, 0.001f, material.clearcoatGloss) : material.roughness;
+    float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
 
     // Compute D term for the clearcoat.
     float D = DGTR1(H.y, a);
@@ -60,7 +60,7 @@ float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in bool anisotr
     float F = lerp(0.04f, 1.0f, FresnelDielectric(dotVH, 0.6667f));
 
     // Compute geometric shadowing term G as product of two G1 terms.
-    float G = anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, 0.25f, 0.25f) * SmithG1Anisotropic(V.x, V.z, V.y, 0.25f, 0.25f) : SmithG1(L.y, 0.25f) * SmithG1(V.y, 0.25f);
+    float G = anisotropic ? (SmithG1Anisotropic(L.x, L.z, L.y, 0.25f, 0.25f) * SmithG1Anisotropic(V.x, V.z, V.y, 0.25f, 0.25f)) : (SmithG1(L.y, 0.25f) * SmithG1(V.y, 0.25f));
 
     // Compute pdf for sampling.
     pdf = 0.25f * H.y * D / dotVH;
@@ -114,7 +114,7 @@ float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in flo
     float dotLH = dot(L, H);
     float dotVH = dot(V, H);
 
-    // Compute distribution term D. Roughness < 0.0f means use anisotropic distribution.
+    // Compute distribution term D.
     float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
 
     // compute Fresnel achromatic component (to account for dielectric specular reflection)
@@ -320,8 +320,8 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     }
     else if (choice < cdf.z)
     {
-        // Compute aniostropic roughness.
-        float a = anisotropic ? lerp(0.1f, 0.001f, material.clearcoatGloss) : material.clearcoatGloss;
+        // Compute anisotropic roughness.
+        float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
 
         // Sample the clearcoat lobe by sampling GTR1 distribution.
         H = SampleDGTR1(eps0, eps1, a);
