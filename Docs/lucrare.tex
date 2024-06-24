@@ -9,6 +9,9 @@
 \usepackage[margin=2.54cm]{geometry}	% dimensiuni pagină și margini
 \usepackage{graphicx} % support the \includegraphics command and options
 \usepackage{subcaption} % for subfigures
+\usepackage{algorithm}
+\usepackage{algpseudocode}
+\usepackage{xpatch}
 
 % formatting sections and subsections
 \usepackage{textcase}
@@ -45,6 +48,17 @@
 \newcommand*\diff{\mathop{}\!\mathrm{d}}
 \newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
 
+% rename Algorithm to Algoritm and add : after number
+\floatname{algorithm}{Algoritmul}
+\renewcommand{\thealgorithm}{\arabic{algorithm}:}
+
+% change algorithmic font
+\xpatchcmd{\algorithmic}{\setcounter}{\algorithmicfont\setcounter}{}{}
+\providecommand{\algorithmicfont}{}
+\providecommand{\setalgorithmicfont}[1]{\renewcommand{\algorithmicfont}{#1}}
+% \renewcommand{\algorithmiccomment}[1]{{\small\hfill$\triangleright$ #1}}
+\setalgorithmicfont{\footnotesize}
+
 \usepackage{amsthm}
 \newtheorem{definition}{Definiția}
 
@@ -61,14 +75,14 @@
 
 
 \newcommand{\HeaderLineSpace}{-0.25cm}
-\newcommand{\UniTextRO}{UNIVERSITATEA POLITEHNICA DIN BUCUREȘTI \\[\HeaderLineSpace] 
+\newcommand{\UniTextRO}{UNIVERSITATEA NAȚIONALĂ DE ȘTIINȚĂ ȘI TEHNOLOGIE \\[\HeaderLineSpace] POLITEHNICA BUCUREȘTI \\[\HeaderLineSpace] 
 FACULTATEA DE AUTOMATICĂ ȘI CALCULATOARE \\[\HeaderLineSpace]
 DEPARTAMENTUL DE CALCULATOARE\\}
 \newcommand{\DiplomaRO}{PROIECT DE DIPLOMĂ}
 \newcommand{\AdvisorRO}{Coordonator științific:}
 \newcommand{\BucRO}{BUCUREȘTI}
 
-\newcommand{\UniTextEN}{UNIVERSITY POLITEHNICA OF BUCHAREST \\[\HeaderLineSpace]
+\newcommand{\UniTextEN}{UNIVERSITY OF SCIENCE AND TECHNOLOGY \\[\HeaderLineSpace] POLITEHNICA BUCHAREST \\[\HeaderLineSpace]
 FACULTY OF AUTOMATIC CONTROL AND COMPUTERS \\[\HeaderLineSpace]
 COMPUTER SCIENCE AND ENGINEERING DEPARTMENT\\}
 \newcommand{\DiplomaEN}{DIPLOMA PROJECT}
@@ -401,7 +415,7 @@ de-a lungul unei direcții de vizualizare, dându-se o funcție de distribuție 
 și un BRDF (Bidirectional Reflectance Distribution Function) pentru materialul de pe
 suprafață. Ecuația conține o integrală de suprafață (peste emisfera unitate), care
 integrează contribuțiile din toate direcțiile. Pentru eficiență, această integrală
-este eșantionată folosind tehnici de Importance Sampling, descrise în secțiunea \ref{sec:stateoftheart}.
+este eșantionată folosind tehnici de eșantionare bazate pe importanță, descrise în secțiunea \ref{sec:stateoftheart}.
 Totuși, numărul de eșantioane per pixel rămâne în continuare foarte limitat, din
 cauza bugetului de calcul (nu depășește 16 eșantioane per pixel). Pentru a reduce
 în continuare varianța (manifestată prin zgomot în imaginea finală), se folosește
@@ -829,7 +843,7 @@ estimatorul, atunci au loc următoarele relații:
 	\end{aligned}
 \end{equation}
 
-\subsection{Importance Sampling}
+\subsection{Eșantionare bazată pe importanță}\label{sec:is}
 
 În practică, distribuția de probabilitate $p(x)$ este adesea greu de eșantionat,
 sau nu produce varianța cea mai mică, ceea ce duce la o convergență lentă a
@@ -895,9 +909,9 @@ varianța estimării.
 \end{figure}
 \footnotetext{\copyright\url{https://medium.com/}}
 
-\subsection{Eșantionare Stratificată}
+\subsection{Eșantionare Stratificată}\label{sec:stratified}
 
-O altă metodă de a reduce varianța estimării este eșantionarea stratificată (Strattified Sampling).
+O altă metodă de a reduce varianța estimării este eșantionarea stratificată (Stratified Sampling).
 În această metodă se partiționează domeniul de eșantionare $\mathbb{D}$ în $n$ subdomenii,
 numite straturi, iar evaluarea integralei se face pe fiecare strat în parte:
 \begin{equation}
@@ -978,14 +992,13 @@ bazate pe fizică, se pot găsi în secțiunea~\ref{sec:pbr}.
 \end{figure}
 \footnotetext{\copyright\url{https://www.researchgate.net/}. Accesat 20.06.2024.}
 
-\subsection{Rezolvarea ecuației transportului luminii}
-
 Găsirea soluției la ecuația transportului luminii (i.e., determinarea radianței $L_o$)
-este provocarea primară în algoritmii de randare realistică. Vom enumera câteva dintre
+este provocarea primară în algoritmii de randare realistică. Vom enumera în secțiunea următoare câteva dintre
 metodele de rezolvare a acestei ecuații, însă ne vom concentra asupra algoritmului
 de Path Tracing.
 
-\subsubsection*{Radiosity}\label{sec:radiosity}
+
+\section{Radiosity}\label{sec:radiosity}
 Radiosity este o tehnică de iluminare globală bazată pe metoda elementului finit.
 Aceasta presupune împărțirea scenei în elemente mici, numite petice, și calcularea
 energiei luminoase reflectată de fiecare dintre acestea. Algoritmul în sine consideră
@@ -1035,6 +1048,459 @@ putea să dureze și 24 de ore.
 	\caption{Ilustrație a algoritmului de shooting radiosity. Tot aici se poate observa și rezoluția peticelor\protect\footref{fn:wiki}}
 	\label{fig:shooting_radiosity}
 \end{figure}
+
+\section{Path Tracing}\label{sec:path_tracing}
+
+Algoritmul Radiosity face o presupunere simplificatoare, și anume că iluminarea
+venită de pe suprafețe depinde doar de direcția de ieșire, și nu și de direcția
+incidentă. Vedem totuși că ecuația transportului luminii~(\ref{eq:light_transport})
+include un termen de distribuție $f$ care depinde de ambele direcții (de unde
+și numele de distribuție bidirecțională). Algoritmul de Path Tracing modelează
+acest aspect, ajustând probabilistic contribuția fiecărui eșantion la radianța
+observată.
+
+O variantă naivă a algoritmului este prezentată în Pseudocodul~\ref{alg:path_tracing}.
+Dacă ar fi să sumarizăm pașii algoritmului, aceștia ar fi:
+\begin{enumerate}
+	\item Pentru fiecare pixel din imagine: \label{enum:pt1}
+	      \begin{enumerate}
+		      \item Generăm o rază de la observator către pixel
+		      \item Intersectăm raza cu scena
+		      \item Dacă nu există intersecție, pixelul primește culoarea de fundal și ne întoarcem la pasul~\ref{enum:pt1}
+		      \item Altfel, calculăm contribuția de lumină pentru punctul intersectat (folosind BRDF)
+		      \item Eșantionăm o nouă rază pornind din punctul intersectat, în funcție de BRDF
+		      \item Calculăm contribuția de lumină pentru noua rază, recursiv
+	      \end{enumerate}
+	\item În final, mediem contribuțiile pentru a obține culoarea pixelului.
+\end{enumerate}
+
+\begin{algorithm}[H]
+	\caption{Pseudocodul algoritmului de Path Tracing recursiv}\label{alg:path_tracing}
+	\begin{algorithmic}[1]
+		\Function{PathTrace}{$ray, depth$}
+		\If{$depth > MAX\_DEPTH$}
+		\State \Return $backgroundColor$	\Comment{Ne oprim dacă am atins adâncimea maximă}
+		\EndIf
+		\State $intersection \gets$ \Call{IntersectScene}{$ray$} \Comment{Intersectăm raza cu scena}
+		\If{$intersection = \texttt{null}$}
+		\State \Return $backgroundColor$	\Comment{Ne oprim dacă nu există intersecție}
+		\EndIf
+		\State $m \gets intersection.material$
+		\State $p \gets intersection.position$
+		\State $n \gets intersection.normal$
+		\State $v \gets -ray.direction$
+		\State $bounceRay \gets$ \Call{SampleRay}{$m, p, n$}	\Comment{Eșantionăm o nouă rază}
+		\State $pdf \gets$ \Call{Pdf}{$m, n, bounceRay$}		\Comment{Evaluăm probabilitatea de eșantionare}
+		\State $reflectance \gets$ \Call{EvalBRDF}{$m, n, v, bounceRay$} \Comment{Evaluăm reflectanța}
+		\State $color \gets$ \Call{PathTrace}{$bounceRay, depth + 1$}	 \Comment{Pasul recursiv}
+		\State \Return $m.emission + reflectance \cdot color / pdf$		 \Comment{Evaluăm ecuația de rendering}
+		\EndFunction
+		\Function{Render}{$pixels, samples$}
+		\For {$p$ in $pixels$}
+		\For {$i \gets 1$ to $samples$}
+		\State $ray \gets$ \Call{GenerateCameraRay}{$p, i$}	\Comment{Generăm raza de la observator}
+		\State $pixel.color \gets pixel.color + $ \Call{PathTrace}{$ray, 0$}	\Comment{Acumulăm contribuția}
+		\EndFor
+		\State $pixel.color \gets pixel.color / samples$ \Comment{Mediem contribuțiile}
+		\EndFor
+		\EndFunction
+
+	\end{algorithmic}
+\end{algorithm}
+
+Algoritmul Path Tracing reprezintă transpunerea completă a ecuației de randare
+într-un algoritm de calcul numeric. Se poate cupla orice tip de BRDF la acest
+algoritm, ceea ce îl face extrem de versatil. Se pot obșine simulări de interacțiuni
+difuze (precum cele obținute cu Radiosity), folosind un BRDF Lambertian~\cite{Lambert}, sau
+simulări de interacțiuni speculare, folosind un BRDF precum Cook-Torrance(\cite{CookTorrance}).
+Se poate extinde de asemenea și la interacțiuni de transmisie, folosind un BTDF.
+Path Tracing este o metodă generală de rezolvare a ecuației de randare, iar componentele
+sale pot fi alese în funcție de necesități. Identificăm astfel câteva dintre diferitele
+categorii de strategii de bază care pot fi customizate în Path Tracing.
+
+\subsection{Strategii de eșantionare a pixelilor}
+
+Pentru o convergență mai rapidă și o imagine mai stabilă, se rulează algoritmul
+de mai multe ori pe același pixel și se combină rezultatele. Strategia de alegere
+a eșantioanelor aferente unui pixel poate influența calitatea finală a imaginii.
+
+Pentru vizualizare, să considerăm un sistem de 64 de eșantioane per pixel.
+Cele mai comune opțiuni sunt:
+\begin{itemize}
+	\item Eșantionare uniformă (Figura~\ref{fig:uniform_sampling}): se alege același eșantion de fiecare dată
+	\item Eșantionare stratificată uniformă (Figura~\ref{fig:uniform_sampling}): se împarte fiecare pixel în subpixeli și se alege câte un eșantion pentru fiecare subpixel
+	\item Eșantionare aleatoare/jittering (Figura~\ref{fig:random_sampling}): fiecare eșantion este ales aleator
+	\item Eșantionare stratificată + jittering (Figura~\ref{fig:random_sampling}): se împarte fiecare pixel în subpixeli și se alege un eșantion aleator pentru fiecare subpixel,
+	      fără a se suprapune zonele de eșantionare.
+\end{itemize}
+\begin{figure}[ht]
+	\centering
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/point-samples.png}
+		\caption{Eșantionare uniformă}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/uniform-point-samples.png}
+		\caption{Eșantionare stratificată}
+	\end{subfigure}
+	\caption{Eșantionare uniformă vs stratificată\protect\footnotemark}
+	\label{fig:uniform_sampling}
+\end{figure}
+\footnotetext{\label{pbr-book}\copyright\url{https://pbr-book.org/}. Accesat 20.06.2024.}
+\begin{figure}[ht]
+	\centering
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/random-point-samples.png}
+		\caption{Eșantionare aleatoare}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/jittered-point-samples.png}
+		\caption{Eșantionare stratificată + jittering}
+	\end{subfigure}
+	\caption{Eșantionare aleatoare vs stratificată + jittering\protect\footref{pbr-book}}
+	\label{fig:random_sampling}
+\end{figure}
+
+În mod evident, eșantionarea uniformă lasă multe de dorit. Aceasta produce artefacte
+de tip aliasing în jurul obiectelor (Figura~\ref{fig:uniform_aliasing}). Eșantionarea
+stratificată (descrisă și în secțiunea~\ref{sec:stratified}) reușește să rezolve parțial
+această problemă, având date din mai multe zone ale pixelului. Eșantionarea aleatoare
+este altă soluție la problema aliasing-ului, însă introduce prea mult zgomot. Totuși,
+reușește să integreze mai bine semnalele de frecvență mare, cum ar fi cazul de randare
+a unei texturi sub unghi mare.
+Cea mai bună variantă este o combinație între cele două din urmă, care să ofere
+avantaje din ambele părți. Comparații calitative sunt reprezentate în Figurile~\ref{fig:sampling_aliasing} și~\ref{fig:sampling_filtering}.
+\begin{figure}[ht]
+	\centering
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/random-circle.png}
+		\caption{Eșantionare aleatoare}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[h]{0.45\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/stratified-circle.png}
+		\caption{Eșantionare stratificată}
+	\end{subfigure}
+	\caption{Comparație la 1 eșantion per pixel. Se pot observa artefacte de aliasing în varianta de jittering\protect\footref{pbr-book}}
+	\label{fig:uniform_aliasing}
+\end{figure}
+\begin{figure}[ht]
+	\centering
+	\begin{subfigure}[h]{0.7\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/uniform-checkerboard.png}
+		\caption{Eșantionare stratificată}
+	\end{subfigure}
+	\hfill
+	\begin{subfigure}[h]{0.7\linewidth}
+		\centering
+		\includegraphics[width=\linewidth]{pics/jittered-checkerboard.png}
+		\caption{Eșantionare aleatoare}
+	\end{subfigure}
+	\caption{Comparație la 1 eșantion per pixel. Varianta cu jittering minimizează artefactele dar adaugă zgomot\protect\footref{pbr-book}}
+	\label{fig:sampling_aliasing}
+\end{figure}
+
+\subsection{\label{sec:pbr}Strategii de alegere a funcției de distribuție a reflectanței}
+
+Un model bun de material (mai ales PBR) face diferența între o randare fotorealistă
+și una care nu este. Chiar dacă algoritmul converge către soluția ecuației de transport,
+rezultatul poate fi unul nerealist dacă nu se folosește un model de materiale adecvat.
+
+\subsubsection*{BRDF}
+
+Definit prima oară de un model matematic general de către Nicodemus (1965)~\cite{Nicodemus},
+BRDF-ul este o funcție care descrie câtă lumină este reflectată într-o anumită direcție.
+Am menționat-o de multe ori în cadrul acestei lucrări și am vorbit despre rolul
+ei în cadrul ecuației de randare (atât de importantă este),
+dar nu am explicat cum se construiește. Să considerăm modelul simplificat
+în care nu se ține cont de lungimea de undă a luminii și nici de variabila de timp.
+În acest caz, tot ce ne mai rămâne de făcut pentru a defini BRDF sunt două concepte
+de radiometrie, pe care le vom defini informal aici:
+
+\begin{definition}
+	Radianța $L$ este măsura fluxului de lumină care trece printr-o suprafață unitară într-o direcție dată.
+\end{definition}
+\begin{definition}
+	Iradianța $E$ este măsura fluxului de lumină primit de o suprafață unitară (din toate direcțiile).
+\end{definition}
+
+Așadar, observăm că radianța depinde de direcția incidentă, în timp ce iradianța
+nu. O ilustrație a acestor concepte se poate vedea în Figura~\ref{fig:radiance}.
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/radiometry.png}
+	\caption{Ilustrație a diferitelor mărimi fizice din radiometrie\protect\footref{fn:wiki}}
+	\label{fig:radiance}
+\end{figure}
+
+Putem acum să definim, informal, BRDF-ul:
+\begin{definition}
+	Funcția de distribuție bidirecțională a reflectanței (BRDF) este raportul infinitezimal
+	dintre radianța reflectată și iradianța incidentă, în funcție de direcția de incidență și de cea de reflecție.
+\end{definition}
+Matematic, aceasta se scrie sub forma:
+\begin{equation}
+	f_r(\mathbf{x}, \omega_i, \omega_o) = \frac{\diff L_r(\mathbf{x}, \omega_o)}{\diff E_i(\mathbf{x}, \omega_i)},
+\end{equation}
+Derivarea se face după direcția incidentă $\omega_i$. Motivul pentru care valorile din
+raport sunt infinitezimale este faptul că ne interesează strict contribuția pe direcția
+incidentă - astfel, restrângem domeniul iradianței $E_i$ la un unghi solid infinitezimal.
+
+\subsubsection*{Plauzibilitate fizică}
+
+Scopul unui BRDF este de a modela împrăștierea luminii înapoi în mediul din care a venit.
+Contextul în care este folosit ignoră transmisia (refracția) și se concentrează strict
+pe reflectare. O funcție de distribuție care modelează această componentă se numește
+BTDF. Cel mai adesea în producție se folosește o generalizare care include ambele
+modele, numită BSDF, însă aceasta nu are o definiție precisă și de obicei se referă
+la combinarea a două modele separate de BRDF și BTDF. Totuși, nici aceste modele nu sunt
+suficiente pentru a descrie complet interacțiunile de lumină. De pildă, într-un fenomen
+de transmisie, lumina poate fi absorbată sau dispersată pe mai multe căi până când
+părăsește complet materialul. Astfel, o aparentă transmisie poate rezulta în ieșirea
+luminii în același mediu, dar din alt punct. Acest fenomen este cunoscut drept
+subsurface scattering (dispersie sub suprafață), iar o ilustrație se află în Figura~\ref{fig:sss}.
+Totuși, pentru scopul lucrării nu vom modela acest fenomen, ci îl vom aproxima,
+așa cum vom vedea în secțiunea~\ref{sec:implementare}.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/bssrdf.png}
+	\caption{Ilustrație a fenomenului de subsurface scattering. Razele intră în obiect și ies în alt punct\protect\footref{fn:wiki}}
+	\label{fig:sss}
+\end{figure}
+
+Pentru a fi considerat pentru uz PBR (physically based rendering), un BRDF
+este supus unor constrângeri care s-au standardizat în literatura de specialitate
+(Lafortune et. al. 1994~\cite{Lafortune}):
+
+\begin{enumerate}
+	\item \textbf{Pozitivitatea}: $f_r(\mathbf{x}, \omega_i, \omega_o) \geq 0$, pentru orice $\mathbf{x}$, $\omega_i$ și $\omega_o$.
+	\item \textbf{Conservarea energiei}: $\int_{\Omega_+} f_r(\mathbf{x}, \omega_i, \omega_o) (\omega_i \cdot \mathbf{n}) \diff \omega_i \leq 1$, pentru orice $\mathbf{x}$ și $\omega_o$.
+	\item \textbf{Reciprocitatea Helmholtz}: $f_r(\mathbf{x}, \omega_i, \omega_o) = f_r(\mathbf{x}, \omega_o, \omega_i)$, pentru orice $\mathbf{x}$, $\omega_i$ și $\omega_o$.
+\end{enumerate}
+
+Dacă modelul nu respectă cel puțin aceste constrângeri, algoritmul de Path Tracing
+poate să nu conveargă sau să producă rezultate nerealiste.
+
+Există multe modele de distribuție în literatura de specialitate, cu grade diferite de complexitate și
+reprezentare a fenomenelor fizice. Printre primele modele apărute se numără
+modelul Lambertian (bazat pe modelul perfect difuz descris de Lambert în 1760~\cite{Lambert}),
+modelul Phong (1975)~\cite{Phong} împreună cu optimizarea Blinn-Phong (1977)~\cite{BlinnPhong},
+precum și modele speculare bazate pe microfațete(\cite{TorranceOld}, \cite{CookTorrance}).
+Vom prezenta în continuare funcțiile de distribuție pentru aceste modele, fără a intra
+în prea multe detalii matematice de derivare. Pentru acestea, cititorul este îndrumat
+spre literatura de specialitate.
+
+\subsubsection*{Modelul Lambertian}
+
+Modelul Lambertian modelează reflectanța difuză a unui material. Dându-se o normală
+la suprafață $\mathbf{n}$ și o direcție de incidență $\omega_i$, reflectanța Lambertiană
+se calculează ca produsul dintre normală și direcția de incidență:
+\begin{equation}
+	f_{Lambert}(\mathbf{x}, \omega_i, \omega_o) = \frac{\rho}{\pi},
+\end{equation}
+unde $\rho$ este culoarea materialului (albedo). Observăm că termenul de $\cos$ cu
+care suntem obisnuiți din formula celebră $L_d = k_d \cdot I \cdot \cos \theta_i$ nu apare
+aici. Acesta este inclus implicit în ecuația de randare~\ref{eq:light_transport}, sub forma $\omega_i \cdot \mathbf{n}$,
+corespunzând legii lui Lambert.
+
+Definiția exactă pentru albedo
+seamănă destul de mult cu termenul integral din ecuația de transport a luminii:
+\begin{equation}
+	\rho = \int_{\Omega_+} f_r(\mathbf{x}, \omega_i, \omega_o) (\omega_i \cdot \mathbf{n}) \diff \omega_i,
+\end{equation}
+deoarece măsoară reflectanța unei suprafețe perfect difuze când este iluminată
+uniform de la toate direcțiile de lumină cu radianță unitară.
+
+Remarcăm faptul că 
+
+\subsubsection*{Modelul Phong}
+
+În adiție față de modelul Lambertian, modelul Phong adaugă un termen de reflexie
+speculară. Modelul inițial introdus de Phong în 1975~\cite{Phong} nu este un BRDF
+propriu-zis (nu respectă constrângerile definite anterior), ci mai degrabă un model de iluminare. O adaptare a acestuia pentru
+a fi folosit ca BRDF a fost făcută de Lafortune și Willems în 1994~\cite{Lafortune}.
+
+Definiția BRDF-ului din publicație este:
+\begin{equation}
+	f_{Phong}(\mathbf{x}, \omega_i, \omega_o) = k_d\frac{1}{\pi} + k_s\frac{n + 2}{2\pi}(\omega_r \cdot \omega_o)^n,
+\end{equation}
+unde $k_d$ și $k_s$ sunt coeficienții de reflexie difuză și speculară, definiți
+în intervalul $[0, 1]$, $n$ este exponentul de reflexie speculară iar $\omega_r$ este
+direcția de reflexie perfect speculară a luminii. De remarcat că termenul de $\cos$
+este restricționat să nu fie mai mic decât zero. Un exponent $n$ mare va duce la o
+reflexie mai concentrată, în timp ce unul mic va duce la o reflexie mai difuză.
+Ideal, pentru a nu viola legea conservării a energiei, trebuie să nu reflectăm mai multă lumină
+decât am primit. Acest lucru se poate obține prin condiția $k_d + k_s \leq 1$.
+
+\subsubsection*{Modelul Microfațetelor}
+Introdusă în anul 1982 de Cook și Torrance~\cite{CookTorrance}, teoria microfațetelor postulează ideea că
+majoritatea materialelor de diferite grade de luciu sunt compuse din microfațete
+(drepte sau modelate de curbe simple - vezi Figura~\ref{fig:microfacet}). Acestea sunt orientate aleator și
+sunt descrise de două lucruri: distribuția orientării lor și profilul (i.e.,
+cum sunt dispuse pe suprafață). Două suprafețe diferite pot avea aceeași distribuție
+dar profiluri diferite, ceea ce duce la aspecte diferite ale materialului (vezi Figura~\ref{fig:microfacet_profiles}).
+
+Asumpția de bază a modelului funcționează prin agregarea comportamentului
+luminii de la nivel microscopic (microfațete) la nivel macroscopic (suprafața modelată).
+Este același principiu pe care funcționează și monitoarele - fiecare pixel este compus
+din subpixeli care emit lumină de diferite culori (RGB), dar la distanța la care
+ne aflăm noi de monitor nu mai putem distinge acești subpixeli individuali, ci doar
+culoarea agregată a pixelului.
+
+Un aspect foarte important care trebuie luat în considerare este profilul microfațetelor.
+Acestea pot fi reprezentate fizic de câmpuri de înălțimi, iar zonele dintre două
+vârfuri adiacente pot fi obstrucționate și private de lumină. Acest fenomen este
+mai departe categorizat în două:
+
+\begin{itemize}
+	\item \textbf{Mascare (Masking)}: microfațeta este obstrucționată din perspectiva observatorului
+	\item \textbf{Umbrire (Shadowing)}: microfațeta este obstrucționată din perspectiva sursei de lumină.
+\end{itemize}
+
+De asemenea, un alt fenomen extrem ce trebuie luat în considerare este cel al
+retroreflexiei. Acesta este manifestat drept o reflexie a luminii înapoit pe direcția
+incidentă (spre deosebire de o reflexie speculară), preponderent mai ales la unghiuri
+de incidență mari. Totuși, există materiale care prezintă acest fenomen mai pronunțat,
+precum cele reflectorizante sau textile.
+În acest model teoretic, retroreflexia apare
+atunci când lumina este reflectată de mai multe ori între microfațete. O ilustrație
+intuitivă a tuturor acestor fenomene importante se poate vedea în Figura~\ref{fig:microfacet_effects}.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/microfacet.png}
+	\caption{Profilul microfațetelor pentru materiale dure (stânga), respectiv lucioase (dreapta)\protect\footref{pbr-book}}
+	\label{fig:microfacet}
+\end{figure}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/microfacet_effects.png}
+	\caption{Efecte geometrice ale microfațetelor: mascare (a), umbrire (b) și retroreflexie (c)\protect\footref{pbr-book}}
+	\label{fig:microfacet_effects}
+\end{figure}
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.7\textwidth]{pics/masking.png}
+	\caption{Diferite profiluri de microfațete pentru aceeași distribuție. \copyright Heinz~\cite{HeitzMasking}}
+	\label{fig:microfacet_profiles}
+\end{figure}
+
+O să concluzionăm prin a prezenta unul dintre primele și cele mai cunoscute BRDF-uri
+bazate pe teoria microfațetelor - descris de Torrance și Sparrow în 1967~\cite{TorranceOld}.
+În continuare, vom nota cu $\omega_i$ direcția de incidență, cu $\omega_o$ direcția de ieșire,
+și cu $\omega_h$ normala microfațetei. Notăm funcția de distribuție a normalelor ca
+$D(\omega_h)$. De notat că această funcție este normalizată, adică
+\begin{equation}\label{eq:d_norm}
+	\int_{\Omega} D(\omega_h)\cos \theta_h \diff \omega_h = 1.
+\end{equation}
+Ecuația~\ref{eq:d_norm} este o condiție necesară pentru plauzibilitatea modelului, iar
+intuitiv reprezintă faptul că orice rază incidentă la suprafață de-a lungul macronormalei $n$ va
+intersecta microfațetele o singură dată.
+
+Pentru a ține cont de efectele de mascare și umbrire, ne trebuie o altă
+funcție de distribuție care să determine ce porțiune din microfațete sunt vizibile
+în funcție de direcția de incidență (mascare) și de direcția de ieșire (umbrire).
+Această distribuție poate fi modelată separat (pentru o singură direcție) de
+către funcția $G_1(\omega, \omega_h)$ a lui Smith, introdusă în 1967~\cite{SmithG1}.
+Aceasta modelează proporția microfațetelor cu normala $\omega_h$ care sunt vizibile
+din direcția $\omega$.
+O formă generală a acestei funcții este:
+\begin{equation}
+	G_1(\omega, \omega_h) = \frac{1}{1 + \Lambda(\omega, \omega_h)},
+\end{equation}
+unde $\Lambda(\omega)$ este o funcție nespecificată. Totuși, ea trebuie aleasă
+pentru a satisface o constrângere de vizibilitate. Concret, aria $\diff A$ a suprafeței
+văzută sub un unghi $\theta$ format între normala la suprafață $n$ și direcția de observare
+$\omega$ trebuie să fie egală cu aria microfațetelor vizibile din aceeași direcție (vezi Figura~\ref{fig:microfacet_visible}):
+\begin{equation}
+	\cos\theta = \int_{\Omega} G_1(\omega, \omega_h) \max(0, \cos \theta) D(\omega_h) \diff \omega_h,
+\end{equation}
+unde adăugarea factorului $\max(0, \cos \theta)$ ne asigură că nu luăm în considerare microfațetele
+care sunt orientate în direcția opusă observatorului.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/microfacet_visible.png}
+	\caption{Ilustrație a vizibilității microfațetelor sub un unghi $\theta$}
+	\label{fig:microfacet_visible}
+\end{figure}
+
+Pentru un model corect trebuie să ținem cont și de mascare și de umbrire simultan.
+Cu alte cuvinte, trebuie să calculăm proporția microfațetelor vizibile din ambele direcții.
+Astfel, avem nevoie de o funcție $G_2(\omega_i, \omega_o, \omega_h)$ care să depindă
+de toate cele trei direcții. O tehnică comună (Walter et. al.~\cite{WalterSmithG2}) este să se aproximeze această funcție
+prin produsul a doi termeni separabili Smith $G_1$:
+\begin{equation}
+	G_2(\omega_i, \omega_o, \omega_h) = G_1(\omega_i, \omega_h)G_1(\omega_o, \omega_h).
+\end{equation}
+Deși nu este o soluție perfectă, căci nu ține cont de corelațiile dintre microfațete,
+această aproximare este suficient de bună pentru a fi folosită în practică.
+
+În final, modelul Torrance-Sparrow are și o componentă speculară modelată de legea
+lui Fresnel. Presupunerea modelului este că microfațetele sunt perfect reflectante
+și că reflexia speculară este dată de reflexia totală a luminii pe suprafață.
+BRDF-ul Torrance-Sparrow este definit ca:
+\begin{equation}
+	f_{TS}(\mathbf{x}, \omega_i, \omega_o) = \frac{D(\omega_h)G_2(\omega_i, \omega_o, \omega_h)F(\omega_o)}{4(\omega_i \cdot \mathbf{n})(\omega_o \cdot \mathbf{n})},
+\end{equation}
+care poate fi simplificată sub asumpția că vizibilitatea microfațetelor este independentă
+de orientarea acestora:
+\begin{equation}
+	f_{TS}(\mathbf{x}, \omega_i, \omega_o) = \frac{D(\omega_h)G_2(\omega_i, \omega_o)F(\omega_o)}{4(\omega_i \cdot \mathbf{n})(\omega_o \cdot \mathbf{n})}.
+\end{equation}
+
+Frumusețea acestui model generalizat este faptul că acceptă diferite distribuții
+de microfațete și funcții Fresnel, deci poate fi folosit atât pentru metale cât
+și pentru materiale dielectrice. În plus, modelul este destul de simplu pentru a
+putea fi folosit în practică, dar suficient de complex pentru a modela fenomene
+fizice complexe.
+
+\subsection{Strategii de eșantionare a direcțiilor de ieșire}
+
+\subsection{Strategii de eșantionare a luminilor din scenă}
+
+\subsection{Combinarea mai multor strategii de eșantionare}
+
+
+
+Putem remarca faptul că acest algoritm generează raze pornind de la observator, nu
+de la sursele de lumină. Această variantă se numește Backwards Path Tracing, în
+timp ce varianta în care se pornește din sursele de lumină se numește Forward Path Tracing
+sau Light Tracing. Se pot observa ușor dezavantajele acestei metode din urmă:
+complexitatea algoritmului crește odată cu numărul de surse de lumină (sau chiar și
+dimensiunea lor), iar razele generate pot să nu ajungă niciodată la observator, ceea
+ce duce la pierderea informației.
+
+Partea cea mai complicată și unde se cercetează cel mai mult este modelarea
+BRDF-ului și a metodelor de eșantionare a acestuia. Așa cum am discutat în
+secțiunea~\ref{sec:is}, eșantionarea bazată pe importanță este crucială pentru
+a obține o convergență rapidă a algoritmului. Dacă BRDF-ul unui material modelează
+o suprafață speculară (poate chiar o oglindă perfectă), atunci distribuția
+direcțiilor de ieșire va fi foarte îngustă, apropiindu-se de funcția delta Dirac:
+\begin{equation}
+	\begin{aligned}
+		 & \delta(x) = \begin{cases}
+			               \infty, & x = 0,    \\
+			               0,      & x \neq 0.
+		               \end{cases},                \\
+		 & \int_{-\infty}^{\infty} \delta(x) \diff x = 1.
+	\end{aligned}
+\end{equation}
+Folosind o eșantionare uniformă, această distribuție va fi eșantionată neoptim,
+iar marea majoritate a direcțiilor generate nu vor contribui la radianța observată,
+nefiind pe direcția de reflecție.
 
 \chapter{\label{sec:solutie}Soluția Propusă}
 
