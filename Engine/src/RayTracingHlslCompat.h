@@ -79,6 +79,7 @@ struct SceneConstantBuffer
 {
 	XMMATRIX projectionToWorld;
 	XMVECTOR cameraPosition;
+	XMFLOAT4 backgroundColor;
 	UINT numLights;
 	float elapsedTime;			  // Elapsed application time.
 	UINT elapsedTicks;			  // Elapsed application time in ticks.
@@ -221,7 +222,6 @@ namespace TraceRayParameters
 // From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
 static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
 
-static const XMFLOAT4 BackgroundColor = XMFLOAT4(0.4f, 0.4f, 0.4f, 1.0f);
 static const float InShadowRadiance = 0.35f;
 
 namespace AnalyticPrimitive

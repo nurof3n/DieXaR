@@ -57,7 +57,6 @@ DieXaR::DieXaR(UINT width, UINT height, std::wstring name) :
 	DXSample(width, height, name),
 	m_raytracingOutputResourceUAVDescriptorHeapIndex(UINT_MAX),
 	m_animateGeometryTime(0.0f),
-	m_cameraFly(false),
 	m_animateGeometry(true),
 	m_descriptorsAllocated(0),
 	m_descriptorSize(0),
@@ -72,15 +71,16 @@ void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 	// Initialize the view and projection inverse matrices.
 	m_eye = eye;
 	m_at = at;
-	XMVECTOR right = { 1.0f, 0.0f, 0.0f, 0.0f };
+	
+	// Compute up and right vectors.
+	XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_at - m_eye, XMVectorSet(0, 1, 0, 0)));
+	m_up = XMVector3Normalize(XMVector3Cross(right, m_at - m_eye));
 
-	XMVECTOR direction = XMVector4Normalize(m_at - m_eye);
-	m_up = XMVector3Normalize(XMVector3Cross(direction, right));
 
-	// Rotate camera around Y axis.
-	XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
-	m_eye = XMVector3Transform(m_eye, rotate);
-	m_up = XMVector3Transform(m_up, rotate);
+	//// Rotate camera around Y axis.
+	//XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
+	//m_eye = XMVector3Transform(m_eye, rotate);
+	//m_up = XMVector3Transform(m_up, rotate);
 
 	// Reset parameters
 	m_cameraMovingLeft = m_cameraMovingRight = m_cameraMovingForward = m_cameraMovingBackward
@@ -109,6 +109,7 @@ void DieXaR::ResetSettingsCB()
 	m_sceneCB->onlyOneLightSample = m_onlyOneLightSample;
 	m_sceneCB->russianRouletteDepth = m_russianRouletteDepth;
 	m_sceneCB->anisotropicBSDF = m_anisotropicBSDF;
+	m_sceneCB->backgroundColor = m_backgroundColor;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -167,7 +168,8 @@ void DieXaR::OnInit()
 		DXGI_FORMAT_R8G8B8A8_UNORM,
 		m_descriptorHeap.Get(),
 		cpuHandle,
-		CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(), descriptorHeapIndex, m_descriptorSize));
+		CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+			descriptorHeapIndex, m_descriptorSize));
 
 	ImGui::StyleColorsDark();
 
@@ -257,8 +259,8 @@ void DieXaR::InitializeDemo()
 	m_scenes[SceneTypes::Demo].m_sceneType = SceneTypes::Demo;
 
 	// Setup Camera
-	m_scenes[SceneTypes::Demo].m_eye = { 0.0f, 5.3f, -17.0f, 1.0f };
-	m_scenes[SceneTypes::Demo].m_at = { 0.0f, 0.0f, 0.0f, 1.0f };
+	m_scenes[SceneTypes::Demo].m_eye = { 2.38f, 2.71f, -17.0f, 1.0f };
+	m_scenes[SceneTypes::Demo].m_at =  XMVECTOR{ 0.0f, -0.0f, 0.0f, 1.0f };
 	ResetCamera(m_scenes[SceneTypes::Demo].m_eye, m_scenes[SceneTypes::Demo].m_at);
 
 	// Setup Materials
@@ -284,12 +286,11 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace AnalyticPrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ChromiumReflectance, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.9f, 1.5f);
+			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ruby, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 1.0f, XMFLOAT3(0.3f, 0.0f, 0.0f), 1.0f);
 			offset += AnalyticPrimitive::Count;
 		}
-
 
 		// Setup signed distance primitives
 		{
@@ -311,8 +312,8 @@ void DieXaR::InitializeDemo()
 
 	// Setup Lights
 	m_scenes[m_crtScene].m_lights.resize(2);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.4f, LightType::Square, 1.0f);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-15.0f, 10.0f, 5.0f), XMFLOAT3(0.65f, 0.6f, 0.9f), 0.2f, LightType::Square, 2.0f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.573f, LightType::Directional, 1.0f, XMFLOAT3(0.2f, -1.0f, 0.3f));
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(1.8f, 10.0f, 5.0f), XMFLOAT3(1.0f, 0.95f, 0.6f), 9.167f, LightType::Square, 6.545f);
 }
 
 void DieXaR::InitializePbrShowcase()
@@ -1395,10 +1396,10 @@ void DieXaR::OnUpdate()
 	// Transform the procedural geometry.
 	if (m_animateGeometry)
 	{
-		m_animateGeometryTime += elapsedTime;
+		//m_animateGeometryTime += elapsedTime;
 	}
 	UpdateAABBPrimitiveAttributes(m_animateGeometryTime);
-	m_sceneCB->elapsedTime = m_animateGeometryTime;
+	m_sceneCB->elapsedTime += elapsedTime;
 	m_sceneCB->elapsedTicks = ticks;
 
 	// Update lights buffer
@@ -1482,7 +1483,12 @@ void DieXaR::ShowUI()
 	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
 	ImGui::Text("Elapsed time: %.2f (s)", m_sceneCB->elapsedTime);
 	ImGui::Text("Elapsed ticks: %u", m_sceneCB->elapsedTicks);
-	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", XMVectorGetX(m_eye), XMVectorGetY(m_eye), XMVectorGetZ(m_eye));
+	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", XMVectorGetX(m_eye),
+		XMVectorGetY(m_eye), XMVectorGetZ(m_eye));
+	XMVECTOR forward = m_at - m_eye;
+	forward = XMVector3Normalize(forward);
+	ImGui::Text("Camera direction: (%.2f, %.2f, %.2f)", XMVectorGetX(forward),
+		XMVectorGetY(forward), XMVectorGetZ(forward));
 	ImGui::Spacing();
 
 	if (ImGui::CollapsingHeader("Controls"))
@@ -1589,7 +1595,8 @@ void DieXaR::ShowUI()
 			m_pathSqrtSamplesPerPixel = min(m_pathSqrtSamplesPerPixel, 4);
 		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
-		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, maxSqrtSamplesPerPixel);
+		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel),
+			1, maxSqrtSamplesPerPixel);
 		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
 		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
 			ResetPathTracing();
@@ -1619,6 +1626,10 @@ void DieXaR::ShowUI()
 	if (ImGui::CollapsingHeader("Scene"))
 	{
 		ImGui::Spacing();
+
+		// Background color
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		ImGui::ColorEdit3("Background Color", &m_backgroundColor.x);
 
 		// Lights
 		for (UINT i = 0; i < m_scenes[m_crtScene].GetLightCount(); ++i)
@@ -1656,7 +1667,8 @@ void DieXaR::ShowUI()
 			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
 
 			float maxIntensity;
-			if (m_raytracingType == RaytracingType::Whitted || m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
+			if (m_raytracingType == RaytracingType::Whitted ||
+				m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 				maxIntensity = 2.0f;
 			else if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
 				maxIntensity = 10.0f;
@@ -1666,7 +1678,7 @@ void DieXaR::ShowUI()
 			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, maxIntensity);
 
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::ColorPicker3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
+			ImGui::ColorEdit3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
 
 			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
 				ImGui::Spacing();

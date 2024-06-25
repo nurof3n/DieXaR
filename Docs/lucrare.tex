@@ -44,6 +44,36 @@
 \usepackage{amsmath}
 \usepackage{amssymb} % for math symbols
 
+\usepackage[section]{placeins}
+\usepackage{listings}
+\usepackage{xcolor}
+
+\definecolor{codegreen}{rgb}{0,0.6,0}
+\definecolor{codegray}{rgb}{0.5,0.5,0.5}
+\definecolor{codepurple}{rgb}{0.58,0,0.82}
+\definecolor{backcolour}{rgb}{0.95,0.95,0.92}
+
+\lstdefinestyle{mystyle}{
+    backgroundcolor=\color{backcolour},   
+    commentstyle=\color{codegreen},
+    keywordstyle=\color{magenta},
+    numberstyle=\tiny\color{codegray},
+    stringstyle=\color{codepurple},
+    basicstyle=\ttfamily\scriptsize,
+    breakatwhitespace=false,         
+    breaklines=true,                 
+    captionpos=b,                    
+    keepspaces=true,                 
+    numbers=left,                    
+    numbersep=5pt,                  
+    showspaces=false,                
+    showstringspaces=false,
+    showtabs=false,                  
+    tabsize=2
+}
+\lstset{style=mystyle}
+\renewcommand{\lstlistingname}{Listarea}
+
 % for integrals
 \newcommand*\diff{\mathop{}\!\mathrm{d}}
 \newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
@@ -63,6 +93,7 @@
 
 \captionsetup{font=small,width=0.8\textwidth}
 
+
 %%% HEADERS & FOOTERS
 \usepackage{fancyhdr}
 \pagestyle{empty}
@@ -81,7 +112,7 @@ DEPARTAMENTUL DE CALCULATOARE\\}
 \newcommand{\AdvisorRO}{Coordonator științific:}
 \newcommand{\BucRO}{BUCUREȘTI}
 
-\newcommand{\UniTextEN}{UNIVERSITY OF SCIENCE AND TECHNOLOGY \\[\HeaderLineSpace] POLITEHNICA BUCHAREST \\[\HeaderLineSpace]
+\newcommand{\UniTextEN}{NATIONAL UNIVERSITY OF SCIENCE AND TECHNOLOGY \\[\HeaderLineSpace] POLITEHNICA BUCHAREST \\[\HeaderLineSpace]
 FACULTY OF AUTOMATIC CONTROL AND COMPUTERS \\[\HeaderLineSpace]
 COMPUTER SCIENCE AND ENGINEERING DEPARTMENT\\}
 \newcommand{\DiplomaEN}{DIPLOMA PROJECT}
@@ -371,13 +402,7 @@ pe implementarea unui motor grafic simplu, cu câteva funcționalități de baz�
 	\item Randarea obiectelor definite ca mesh-uri triunghiulare
 	\item Randarea obiectelor definite prin funcții implicite (e.g., sfere, planuri)
 	\item Suport pentru materiale PBR (Physically Based Rendering)
-	\item Suport pentru mai multe scene precum:
-	      \begin{itemize}
-		      \item Cornell Box\footnote{\url{https://www.graphics.cornell.edu/online/box/}. Accesat 19.06.2024.}
-		      \item Demonstrație a suprafețelor implicite
-		      \item Scenă de testare a materialelor PBR
-	      \end{itemize}
-	\item Meniu de configurare a mai multor parametri (e.g., pentru materiale,
+	\item Meniu de configurare a mai multor parametri (e.g., pentru scenă,
 	      configurarea algoritmului etc.),
 \end{itemize}
 precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a scenei:
@@ -435,22 +460,30 @@ modelul se concentrează pe a avea o interfață cât mai intuitivă pentru arti
 grafic, deviând puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
 PBR sunt descrise în secțiunile \ref{sec:stateoftheart} și \ref{sec:implementare}.
 
-Pentru evaluare se folosesc 2 scene distincte. Se va putea
+Pentru evaluare se va
 face o comparație între cei doi algoritmi de Ray Tracing. Se va mai observa și
 capabilitatea algoritmului de Path Tracing de a simula surse de lumină de tip
 area light, care sunt dificil de modelat în algoritmul Whitted.
-Prima scenă este un test al materialelor PBR, exclusivă pentru algoritmul de Path Tracing.
-Aceasta permite utilizatorului să tuneze parametrii materialelor de pe câteva sfere
-pentru a observa cum aceștia influențează aspectul final al obiectelor.
-A doua scenă testează performanțele de rulare a algoritmilor. Aceasta conține
-mai multe obiecte definite prin suprafețe implicite și obiecte
-definite ca mesh-uri triunghiulare.
+Scena de test prezintă materialele PBR, exclusive pentru algoritmul de Path Tracing.
+Aceasta conține mai multe obiecte definite prin suprafețe implicite și obiecte
+definite ca mesh-uri triunghiulare. Se va evalua performanța de rulare și
+stabilitatea imaginii generate pentru diferite setări ale algoritmului de Path Tracing.
 
 \section{Rezultatele obținute}
 
-//TODO
+Rezultatele obținute sunt încurajatoare, deși mai este loc de multe îmbunătățiri.
+În primul rând, aplicația este ușor de folosit, este stabilă și destul de configurabilă.
+Algoritmul implementat are o fidelitate bună, iar sistemul de materiale este de calitate.
 
-Descriere pe scurt a rezultatelor obținute, eventual de ce acestea sunt importante față de alte soluții sau studii.
+Din păcate, obiectivul de performanță nu este atins decât pentru un număr foarte
+mic de eșantioane per pixel (1-4). Situația se imbunătățește semnificativ dacă
+se activează varianta progresivă a algoritmului, însă, în absența unui denoiser
+cu informație de vectori de mișcare, imaginea finală este o simplă agregare a
+mai multor cadre, ceea ce duce la un efect de blur pronunțat pentru obiectele în mișcare.
+Implementarea unei astfel de soluții este primul lucru pe lista de îmbunătățiri
+viitoare.
+
+Rezultate calitative și interpretarea acestora sunt prezentate în capitolul \ref{sec:evaluare}.
 
 \section{Structura lucrării}
 
@@ -461,8 +494,9 @@ este de a experimenta și de a înțelege mai bine tehnologiile existente, precu
 într-o parte teoretică inițială, menită să familiarizeze cititorul printr-o introducere lină
 în conceptele care stau la baza algoritmului de Path Tracing, și o parte practică,
 care se concentrează pe utilizarea API-ului DirectX12 pentru a implementa algoritmul
-cu accelerare hardware. Din nou, nici conceptele tehnice din urmă nu vor fi prezentate
-într-o lumină precisă, ci mai degrabă într-un mod simplificat și intuitiv.
+cu accelerare hardware. Conceptele tehnice din urmă nu vor fi prezentate
+într-o lumină precisă, ci mai degrabă într-un mod simplificat și intuitiv, din
+perspectiva unui tool care folosit pentru implementarea algoritmului în sine.
 
 În capitolul~\ref{sec:motivatie} este descris contextul actual în care se plasează
 eforturile din domeniu, din perspectiva industriilor de gaming și de cinematografie,
@@ -470,14 +504,16 @@ eforturile din domeniu, din perspectiva industriilor de gaming și de cinematogr
 
 În capitolul~\ref{sec:stateoftheart} se analizează stadiul curent al cercetărilor
 în domeniul algoritmilor de Path Tracing, cu focus pe optimizări pentru timp real.
+Aici se prezintă teoria care stă la baza lucrării și se explică în detaliu fiecare
+aspect.
 De asemenea, se poziționează lucrarea de față în acest peisaj și se conturează
 aspectul didactic al acesteia.
 
-În capitolul~\ref{sec:solutie} se prezintă bazele teoretice ale algoritmilor
-utilizați (Ray Tracing Whitted și Path Tracing), iar pentru cel din urmă se
-detaliază modelul de materiale PBR folosit și tehnicile de denoising. De asemenea, se descrie arhitectura
-generală a motorului grafic, cu accent pe concepte din API-urile DirectX 12 și
-DXR.
+În capitolul~\ref{sec:solutie} se prezintă funcționalitățile prezente în aplicație,
+precum și punerea teoriei în practică. Tot aici se prezintă sistemul de materiale
+specific folosit și ecuațiile care îl definesc. De asemenea, se descrie arhitectura
+generală a motorului grafic, cu accent pe componentele modificate și adăugate
+față de schelet~\cite{Schelet}.
 
 Capitolul~\ref{sec:implementare} detaliază utilizarea API-urilor DirectX 12 și DXR
 pentru implementarea algoritmilor de Ray Tracing cu accelerare hardware. Accentul
@@ -486,14 +522,14 @@ eficientă și ușor de înțeles. Tot aici se notează și dificultățile înt
 și compromisurile făcute pentru a obține un echilibru între fidelitate și performanță.
 
 Capitolul de evaluare \ref{sec:evaluare} prezintă rezultatele obținute
-în urma testelor efectuate pe cele trei scene descrise anterior. Se analizează
+în urma testelor efectuate. Se analizează
 performanțele sistemului, fidelitatea imaginilor generate și se fac comparații
 între cei doi algoritmi de Ray Tracing. De asemenea, se analizează impactul pe
 care îl au diferitele optimizări asupra stabilității imaginilor generate.
 
 Ultimul capitol ~\ref{sec:concluzii} conține concluziile trase din
 rezultatele obținute și se analizează calitativ produsul final. De asemenea, se
-discută posibile direcții de dezvoltare viitoare și se oferă o perspectivă asupra
+discută posibile direcții de dezvoltare pe termen scurt și termen lung și se oferă o perspectivă asupra
 importanței acestei lucrări în contextul cercetării în domeniul graficii pe calculator.
 
 Extrase de cod și imagini detaliate sunt oferite în \hyperref[anexa]{anexă}.
@@ -1550,7 +1586,7 @@ am omite factorul de $\cos$ care apare în ecuația de randare~\ref{eq:light_tra
 Așadar, distribuția este mai degrabă una ponderată de cosinus, și e mult mai bine
 să folosim ecuațiile~\ref{eq:cosine_sampling}. De fapt, eșantionarea uniformă este
 inutilă în aproape toate cazurile, iar rezultatele ei dezamăgitoare se pot
-observa în Figura~\ref{fig:demo_uniform_sampling}.
+observa în Figura~\ref{fig:eval-uniform}.
 
 În cazul unui material Phong definit de BRDF-ul~\ref{eq:phong}, o distribuție
 bună este greu de calculat. Autorii remarcă faptul că partea speculară nu poate
@@ -1660,8 +1696,6 @@ a accelera randarea Path Tracing pe GPU (vezi capitolul~\ref{sec:implementare}).
 
 \chapter{\label{sec:solutie}Soluția Propusă}
 
-\section{Comparație cu Ray Tracing Whitted}
-
 Proiectul de față dezvoltă un motor de randare bazat pe Ray Tracing Whitted și Path Tracing, cu suport
 pentru accelerare hardware folosind API-ul DirectX 12. Acesta este scris în C++20,
 iar algoritmii de Ray Tracing sunt implementați în cadrul HLSL. Proiectul a fost
@@ -1672,6 +1706,7 @@ suport pentru a extinde funcționalitatea cu încă un set de shadere pentru Pat
 a suporta noi tipuri de suprafețe (e.g., unghi solid - Figura~\ref{fig:solid-angle}). De asemenea,
 acesta a fost extins cu multe alte funcționalități, pe care le vom detalia în acest
 capitol.
+
 \begin{figure}[!htb]
 	\centering
 	\includegraphics[width=\textwidth]{pics/solid-angle.png}
@@ -1680,57 +1715,24 @@ capitol.
 \end{figure}
 \footnotetext{Formula câmpului a fost preluată de la adresa~\url{https://www.shadertoy.com/view/Xds3zN}. Accesat 24.06.2024.}
 
-Algoritmul integrat deja în schelet este un Ray Tracer recursiv simplu, de tip Whitted,
-care folosește un model de iluminare Phong. Acesta nu suportă transmisie, iar
-reflexiile sunt perfect geometrice. O randare realizată cu acest algoritm se poate
-vedea în Figura~\ref{fig:demo_whitted}. Torusul de tip inel și cele 3 sfere
-au un material ce simulează cromul și este reflectiv. Se pot observa și umbre
-geometrice, cauzate de două surse de lumină punctiforme.
-\begin{figure}[ht]
-	\centering
-	\includegraphics[width=\textwidth]{pics/demo_whitted.png}
-	\caption{Randare folosing Ray Tracing Whitted}
-	\label{fig:demo_whitted}
-\end{figure}
-Aceeași scenă, dar randată folosind Path Tracing, se poate vedea în Figura~\ref{fig:demo_pathtracing}.
-Condițiile de iluminare nu pot fi replicate perfect. Observăm imediat o diferență
-majoră - această randare ține cont de iluminarea globală. Scena este iluminată
-conform fundalului, iar contribuția reflectanței fiecărui obiect este vizibilă
-pe podea. În acest caz, lumina nu este destul de puternică să lupte cu fundalul,
-de aceea umbrele sunt destul de puțin pronunțate. În randarea din Figura~\ref{fig:demo_pathtracing2}
-culoarea de fundal a fost coborâtă - se observă astfel contribuțiile celor două surse
-de lumină - una de tip suprafață și una direcțională. Umbrele lăsate de zonele
-obstrucționate din perspectiva luminii de suprafață au un aspect natural, cu penumbre
-ce tranziționează lin între umbra completă și lumina directă.
-\begin{figure}[!htb]
-	\centering
-	\includegraphics[width=\textwidth]{pics/demo_pathtracing.png}
-	\caption{Randare folosind Path Tracing}
-	\label{fig:demo_pathtracing}
-\end{figure}
-\begin{figure}[!htb]
-	\centering
-	\includegraphics[width=\textwidth]{pics/demo_pathtracing2.png}
-	\caption{Randare folosind Path Tracing cu fundal mai întunecat}
-	\label{fig:demo_pathtracing2}
-\end{figure}
+Pe scurt, am implementat, pe lângă codul din schelet:
+\begin{itemize}
+	\item Un meniu de setări pentru a controla parametrii de randare și a manipula scena
+	\item Suport pentru reîncărcarea aplicației în timp real (la comandă sau automat la modificarea unor setări de bază)
+	\item Un sistem de mișcare și rotire a camerei, folosind mouse-ul și tastele WASD
+	\item Un sistem de materiale physically based, bazat pe modelul Disney principled BSDF~\cite{Disney,DisneyBSDF}.
+	\item Un algoritm de Path Tracing care folosește acest sistem de materiale. Particularități:
+	      \begin{itemize}
+		      \item Algoritmul este accelerat hardware folosind API-ul DXR
+		      \item Suport pentru reflexii, refracții, umbre, iluminare globală și multiple surse de lumină
+		      \item Suport pentru configurarea parametrilor (a se vedea Figura~\ref{fig:imgui-renderer})
+		      \item Suport pentru eșantionare bazată pe importanță multiplă și Next Event Estimation
+		      \item Metodă de ruletă rusească pentru terminarea prematură (unbiased) a recursivității
+		      \item Suport pentru acumulare progresivă.
+	      \end{itemize}
+\end{itemize}
 
-Așa cum este descris în secțiunea~\ref{sec:disney}, sistemul de materiale
-folosit este physically based și modelează efecte complexe precum reflexii și
-refracții. Un exemplu de material care dă dovadă de ambele comportamente se află
-în figura Figura~\ref{fig:demo_refraction}. Acesta este un material dielectric, cu
-un indice de refracție de 1.5. Se observă refracții către obiectele din spate
-în zonele centrale ale sferelor și reflexii către mediul înconjurător către
-margini, unde unghiul de incidență este mare. Acest comportament este consistent
-cu legile lui Fresnel.
-\begin{figure}[!htb]
-	\centering
-	\includegraphics[width=\textwidth]{pics/demo_refraction.png}
-	\caption{Randare folosind Path Tracing cu sticlă dielectrică}
-	\label{fig:demo_refraction}
-\end{figure}
-
-\section{Tehnici de accelerare a convergenței}
+\section{Tehnici de accelerare a convergenței}\label{sec:options}
 Algoritmul de bază prezentat în pseudocodul~\ref{alg:path_tracing} a fost
 augmentat cu mai multe tehnici de accelerare a convergenței, majoritatea fiind
 descrise în secțiunea~\ref{sec:path_tracing}. Multe dintre acestea sunt configurabile
@@ -1779,7 +1781,7 @@ analitice sunt mult mai rapide decât cele de Ray Marching, dar nu oferă la fel
 de multă flexibilitate creativă.
 
 Ofer credite lui Inigo Quilez~\cite{iq} și Microsoft~\cite{Schelet} pentru formulele care definesc aceste
-suprafețe. Exemple de cod pot fi găsite în capitolul~\ref{sec:implementare}.
+suprafețe.
 
 \section{Sistemul de materiale}\label{sec:disney}
 
@@ -1884,7 +1886,7 @@ iar $\alpha_x$ și $\alpha_y$ sunt parametri de modelare a anizotropiei. Burley 
 cu o mapare în funcție de parametrii materialului $roughness$ și $anisotropic$:
 \begin{equation}
 	\begin{aligned}
-		aspect   & = \sqrt{1 - 0.9\cdot anisotropic},         \\
+		aspect   & = \sqrt{1 - 0.9\cdot anisotropic},        \\
 		\alpha_x & = \max(0.0001, roughness^2 / aspect),     \\
 		\alpha_y & = \max(0.0001, roughness^2 \cdot aspect).
 	\end{aligned}
@@ -1983,87 +1985,697 @@ Lobul folosește același termen de mascare
 
 \chapter{\label{sec:implementare}Detalii de implementare}
 
-//TODO
+\section{Folosirea API-ului DXR}
 
-În plus fata de capitolul precedent acesta conține elemente specifice ale rezolvării problemei care au presupus dificultăți deosebite din punct de vedere tehnic. Pot fi incluse configurații, secvențe de cod, pseudo-cod, implementări ale unor algoritmi, analize ale unor date, scripturi de testare. De asemenea, poate fi detaliat modul în care au fost utilizate tehnologiile introduse in capitolul 3.
+API-ul DXR este unul de nivel scăzut, care necesită o înțelegere profundă a
+arhitecturii GPU și a conceptelor de bază ale Ray Tracing-ului. Am ales să construiesc
+aplicația având acest API la bază din considerente de performanță și de suport
+hardware pentru accelerarea algoritmilor de Ray Tracing. Fără a intra în prea multe detalii,
+pașii efectuați pentru a pregăti pipeline-ul de Ray Tracing\footnote{\url{https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial-part-2}. Accesat 24.06.2024.} sunt, în ordine:
+\begin{enumerate}
+	\item Detectarea suportului pentru DXR și crearea obiectului de interfață
+	\item Construirea structurilor de accelerare BLAS și TLAS (care au la bază arbori BVH). Menționăm
+	faptul că structura BLAS (bottom) este construită din geometria de randat, conținând
+	date despre vârfuri. Un BLAS poate conține mai multe obiecte. Spre deosebire, TLAS (top)
+	este o structură de nivel superior care conține referințe la BLAS-uri și le asociază
+	matrice de transformare. O ilustrație a acestei organizări se poate vedea în Figura~\ref{fig:blas}.
+	\item Scrierea shaderelor necesare:
+	\begin{itemize}
+		\item Ray Generation - apelat pentru fiecare pixel din imagine (aici se generează traiectoriile razelor care pornesc din cameră)
+		\item Hit - apelat atunci când are loc o intersecție cu geometria (aici se fac calculele de iluminare)
+		\item Miss - apelat atunci când nu are loc nicio intersecție (aici se oprește recursivitatea)
+		\item (opțional) Intersection - apelat la traversarea structurilor de accelerare (aici se fac calculele custom de intersecție cu suprafețe implicite sau analitice de exemplu)
+	\end{itemize}
+	\item Crearea unui tabel de legare de shading (SBT), care asociază diferite tipuri de geometrie cu diferitele tipuri de shader
+	(aici se leagă spre exemplu shaderele de tip Hit cu geometria de tip triunghi).
+\end{enumerate}
 
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/AccelerationStructure.png}
+	\caption{Organizarea structurilor de accelerare în DXR~\protect\footnotemark}
+	\label{fig:blas}
+\end{figure}
+\footnotetext{\copyright~\url{https://developer.nvidia.com/rtx/raytracing/dxr/dx12-raytracing-tutorial-part-1}. Accesat 24.06.2024.}
 
-Criterii pentru calificativul \textit{Bine}:
+Framework-ul oferit de Microsoft~\cite{Schelet} oferă o structură minimală pentru
+setup-ul unui proiect folosind DXR, precum crearea resurselor Direct3D, gestionarea
+stărilor acestora și efectuarea pașilor descriși mai sus. Mare parte din acest
+cod nu a fost modificat, cu excepția adăugării legăturilor pentru shaderele de
+tip Ray Generation. De aceea, nu voi include cod legat de schelet în această secțiune,
+ci mă voi concentra pe implementarea efectivă a algoritmului de Path Tracing din
+cadrul HLSL.
+
+\section{Meniul}
+Meniul aplicației a fost creat folosind ImGui\footnote{\label{fn:imgui}\url{https://github.com/ocornut/imgui}. Accesat 24.06.2024.}, o bibliotecă open-source ce oferă
+elementele de construcție pentru interfețe grafice imediate (care sunt integrate
+în bucla de randare a aplicației). Pentru integrarea cu DirectX 12, ImGui oferă
+un API minimal și ușor de folosit, însă am întampinat dificultăți. Conform documentației,
+trebuie folosite simultan integrarea cu Win32 și cu DirectX 12. Operațiile de inițializare
+și de curățare trebuie să se facă simultan. Totuși, dintr-un motiv necunoscut,
+la recrearea resurselor de Direct3D, (împreună cu cele două contextele ale ImGui),
+aplicația dă crash. Soluția găsită de mine a fost să dau shutdown doar la contextul
+de Win32, iar după reinițializarea acestuia să repet aceeași secvență de restart
+și pentru contextul de DirectX 12. Soluția se află în listarea~\ref{lst:imgui}.
+\begin{lstlisting}[caption={Reinițializare ImGui. Bazat pe documentația oficială\protect\footref{fn:imgui}},label={lst:imgui},language=C++]
+// Initialize imgui.
+IMGUI_CHECKVERSION();
+ImGui::CreateContext();
+ImGuiIO& io = ImGui::GetIO();
+io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+
+ImGui_ImplWin32_Init(Win32Application::GetHwnd());
+D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
+UINT descriptorHeapIndex = AllocateDescriptor(&cpuHandle);
+
+ImGui_ImplDX12_Shutdown();
+ImGui_ImplDX12_Init(m_deviceResources->GetD3DDevice(),
+	FrameCount,
+	DXGI_FORMAT_R8G8B8A8_UNORM,
+	m_descriptorHeap.Get(),
+	cpuHandle,
+	CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+		descriptorHeapIndex, m_descriptorSize));
+
+ImGui::StyleColorsDark();
+\end{lstlisting}
+
+Meniul este modular. El poate fi redimensionat, mutat în cadrul ferestrei sau minimizat.
+Secțiunile sunt grupate astfel:
 \begin{itemize}
-	\item	Descrierea detaliată a algoritmilor/structurilor utilizați; Prezentarea etapizată a dezvoltării, inclusiv cu dificultăți de implementare întâmpinate, soluții descoperite; (dacă este cazul) demonstrarea corectitudinii algoritmilor utilizați.
+	\item \textbf{Header}: aici sunt afișate informații despre performanța aplicației,
+	      precum FPS-ul, dar și timpul scurs și poziția camerei. Ilustrație în figura Figura~\ref{fig:imgui-controls}.
+	\item \textbf{Controls}: aici sunt afișate controalele pentru aplicație.
+	      Ilustrație în figura Figura~\ref{fig:imgui-controls}.
+	\item \textbf{Renderer}: aici sunt afișate setările de configurare ale algoritmului
+	      de randare, precum numărul de eșantioane, adâncimea maximă de recursivitate, etc.
+	      Aici se pot configura și tehnicile de accelerare a convergenței definite în secțiunea~\ref{sec:options}.
+	      Ilustrație în figura Figura~\ref{fig:imgui-renderer}.
+	\item \textbf{Scene}: aici se pot configura luminile din scenă, precum culoarea de emisie,
+	      tipul (de suprafață sau direcționale), intensitatea, direcția sau poziția.
+	      Ilustrație în figura Figura~\ref{fig:imgui-scene}.
 \end{itemize}
 
-\section{Indicații formatare tabele}
-Se recomandă utilizarea tabelelor de forma celui de mai jos.  Font size :  9.
-Orice tabel prezent în teză va fi referit în text; exemplu: a se vedea Tabel~\ref{tab:criterii}.
+Codul utilizat pentru compunerea acestui meniu se află în listarea~\ref{lst:showui}.
 
-\begin{table}[th]\small\linespread{1}
-	\caption{Sumarizare criterii}
-	\label{tab:criterii}
-	\begin{tabular}{l >{\raggedright\arraybackslash}p{8cm} >{\raggedright\arraybackslash}p{4cm}}
-		\textbf{Calificativ}    & \textbf{Criteriu}                                                                                                                                                                                                                                & \textbf{Observații}                                                                                                                     \\\hline
-		\textbf{Nesatisfacator} & Sunt prezentate pe scurt scheme și pseudo-cod                                                                                                                                                                                                    &                                                                                                                                         \\\hline
-		\textbf{Satisfacator}   & Descriere sumara a implementării, prezentarea unor secvențe nerelevante de cod, scheme, etc.                                                                                                                                                     &                                                                                                                                         \\
-		\hline
-		\textbf{\textit{Bine}}  & Descrierea detaliată a algoritmilor/structurilor utilizați; Prezentarea etapizată a dezvoltării, inclusiv cu dificultăți de implementare întâmpinate, soluții descoperite; (dacă este cazul) demonstrarea corectitudinii algoritmilor utilizați. & Pot fi incluse configurații, secvente de cod, pseudo-cod, implementări ale unor algoritmi, analize ale unor date, scripturi de testare. \\
-		\hline
-	\end{tabular}
-\end{table}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/imgui-controls.png}
+	\caption{Meniul aplicației, secțiunea de statistici și controale}
+	\label{fig:imgui-controls}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/imgui-renderer.png}
+	\caption{Meniul aplicației, secțiunea de configurare a algoritmului de randare}
+	\label{fig:imgui-renderer}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=0.5\textwidth]{pics/imgui-scene.png}
+	\caption{Meniul aplicației, secțiunea de configurare a luminilor din scenă}
+	\label{fig:imgui-scene}
+\end{figure}
 
+\section{Generator de numere aleatoare}
+
+Natura algoritmului recursiv de tip Monte Carlo necesită un generator de numere
+aleatoare care să fie rapid și să ofere o distribuție bună atât în lățime (deoarece
+trebuie folosit de toți pixelii simultan) cât și în adâncime (deoarece trebuie
+generate mai multe numere aleatoare per pixel). Am ales să folosesc un generator
+PCG descris în~\cite{prng} care îndeplinește aceste cerințe (este și prng și hash). Codul
+generatorului se află în listarea~\ref{lst:prng}.
+\begin{lstlisting}[caption={Generatorul de numere aleatoare PCG\protect\footnotemark},label={lst:prng},language=C++]
+// PRNG
+// https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/
+uint rand_pcg(inout uint rng_state)
+{
+	uint state = rng_state;
+	rng_state = rng_state * 747796405u + 2891336453u;
+	uint word = ((state >> ((state >> 28u) + 4u)) ^ state) * 277803737u;
+	return (word >> 22u) ^ word;
+}
+
+float random(inout uint rng_state)
+{
+	return float(rand_pcg(rng_state)) / float(0xFFFFFFFFu);
+}
+\end{lstlisting}
+\footnotetext{\url{https://www.reedbeta.com/blog/hash-functions-for-gpu-rendering/}. Accesat 24.06.2024.}
+
+\section{Ray Generation shader}
+
+Razele sunt generate în scenă pornind din fiecare pixel al imaginii. În funcție
+de setări, se pot genera mai multe raze per pixel, pentru a obține o imagine
+mai clară. Strategia de eșantionare este la bază stratificată și poate fi configurată,
+putând fi activat sau dezactivat jittering-ul.
+
+Pentru algoritmul normal de Path Tracing, se așteaptă să se calculeze
+contribuția pentru fiecare eșantion și la final se stochează în buffer
+media aritmetică a acestora. În schimb, pentru algoritmul progresiv, se
+calculează contribuția pentru un singur eșantion și acumulează în buffer
+folosind un factor de interpolare care asignează o pondere dependentă de
+indexul eșantionului curent. Implementările pentru aceste rutine se află în
+shadere de tip Ray Generation și sunt ilustrate în listările~\ref{lst:raygen} și~\ref{lst:raygen-progresiv}.
+
+\begin{lstlisting}[caption={Generarea razelor în algoritmul Path Tracing},label={lst:raygen},language=C++]
+[shader("raygeneration")] void RaygenShader_PathTracing()
+{
+	// Initialize the random number generator.
+	uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+
+	float3 finalColor = float3(0.0f, 0.0f, 0.0f);
+
+	uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
+
+	for (uint i = 0; i < g_sceneCB.pathSqrtSamplesPerPixel; i++)
+		for (uint j = 0; j < g_sceneCB.pathSqrtSamplesPerPixel; j++)
+		{
+			// Compute the ray offset inside the pixel (for stratified sampling), between 0 and 1.
+			float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2((i + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (j + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
+
+			// Apply jittering if enabled.
+			float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
+			offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
+
+			// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+			Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld, offset);
+
+			// Cast a ray into the scene and retrieve a shaded color.
+			UINT currentRecursionDepth = 0;
+			float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
+
+			// Accumulate the color.
+			finalColor += color.xyz;
+		}
+
+	// Average the accumulated color.
+	g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
+}
+\end{lstlisting}
+
+\begin{lstlisting}[caption={Generarea razelor în algoritmul Path Tracing progresiv},label={lst:raygen-progresiv},language=C++]
+[shader("raygeneration")] void RaygenShader_PathTracingTemporal()
+{
+	// Initialize the random number generator.
+	uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+
+	uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
+
+	// Compute the ray offset inside the pixel (for stratified sampling), between 0 and 1.
+	float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2(((g_sceneCB.pathFrameCacheIndex - 1) % g_sceneCB.pathSqrtSamplesPerPixel + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (floor((g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathSqrtSamplesPerPixel) + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
+
+	// Apply jittering if enabled.
+	float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
+	offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
+
+	// Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
+	Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld, offset);
+
+	// Cast a ray into the scene and retrieve a shaded color.
+	UINT currentRecursionDepth = 0;
+	float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
+
+	// Accumulate the color.
+	const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
+	g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(color.xyz, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
+}
+\end{lstlisting}
+
+\section{Closest Hit shader}
+Sunt două shadere de acest tip - unul pentru primitive și unul pentru suprafețele bounding box-urile
+suprafețelor implicite și analitice. Ambele apelează aceeași funcție helper care alege
+dintre algoritmul de Ray Tracing Whitted și Path Tracing pentru a calcula reflectanța în punctul
+de intersecție. Iluminarea pentru Ray Tracing era deja implementată în schelet, așa că nu o mai
+includem. Codul pentru Path Tracing este ilustrat în listarea~\ref{lst:closesthit}.
+\begin{lstlisting}[caption={Closest Hit helper pentru Path Tracing},label={lst:closesthit},language=C++]
+void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition)
+{
+	float4 color = float4(0.0f, 0.0f, 0.0f, 1.0f);
+	if (g_sceneCB.raytracingType > 0) // path tracing
+	{
+		color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
+	}
+	else // Whitted-style ray tracing
+	{
+		// Reflected component.
+		// color.xyz = ...
+	}
+
+	// Apply visibility falloff.
+	float t = RayTCurrent();
+	color = lerp(color, g_sceneCB.backgroundColor, 1.0 - exp(-0.000002 * t * t * t));
+
+	rayPayload.color = color;
+}
+\end{lstlisting}
+
+\subsection{Algoritmul Path Tracing}
+Funcția \texttt{DoPathTracing} definește întreg algoritmul de Path Tracing. Aici
+se efectuează toate optimizările și tehnicile de accelerare a convergenței
+despre care am vorbit în capitolul~\ref{sec:solutie}. Listarea~\ref{lst:pathtracing}
+ilustrează implementarea algoritmului.
+
+Observăm la liniile \ref{line:absorption1},~\ref{line:absorption2} și~\ref{line:absorption3}
+prezența unui termen de absorbție. Acesta modelează absorbția volumetrică a luminii
+când parcurge un mediu. Acesta se aplică doar în cazul în care raza se află
+în interiorul unui obiect. Modelul este bazat pe legea Beer-Lambert:
+\begin{equation}\label{eq:absorption}
+	T = e^{-\sigma_a d},
+\end{equation}
+unde $T$ reprezintă coeficientul de transmisie, $\sigma_a$ este coeficientul de absorbție,
+iar $d$ este distanța parcursă în interiorul obiectului.
+Pentru parametrizare în cadrul materialului, am introdus 2 noi parametri: $atDistance$ și
+$extinction$. Inversând ecuația~\ref{eq:absorption}, putem obține coeficientul de absorbție:
+\begin{equation}
+	\sigma_a = -\dfrac{\log(extinction)}{atDistance}.
+\end{equation}
+
+Funcțiile \texttt{MIS} și \texttt{NextEventEstimation} sunt folosite pentru eșantionarea
+multiplă bazată pe importanță. Acestea sunt implementate conform teoriei prezentate în
+capitolul~\ref{sec:stateoftheart}. Codul pentru aceste funcții se află în listarea~\ref{lst:mis}.
+\begin{lstlisting}[caption={Funcțiile de eșantionare multiplă bazată pe importanță},label={lst:mis},language=C++]
+// Samples a light source.
+bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition,
+								in uint recursionDepth, out LightSample lightSample)
+{
+	float angle;
+	float2 eps;
+	float3 samplePos;
+	switch (light.type)
+	{
+	case LightType::Square:
+		eps = float2(random(rng_state), random(rng_state));
+		samplePos = light.position + float3(eps.x - 0.5f, 0.0f, eps.y - 0.5f) * light.size;
+		lightSample.L = samplePos - hitPosition;
+		lightSample.dist = length(lightSample.L);
+		lightSample.L /= lightSample.dist;
+		// bail out if the sample is on the wrong side of the light
+		angle = dot(lightSample.L, float3(0.0f, 1.0f, 0.0f));
+		if (angle <= 0.0f)
+			return false;
+		lightSample.emission = light.intensity * light.emission;
+		lightSample.pdf = (sq(lightSample.dist)) / (sq(light.size) * angle);
+		break;
+	case LightType::Directional:
+		lightSample.L = -normalize(light.direction);
+		lightSample.dist = INFINITY;
+		lightSample.emission = light.intensity * light.emission;
+		lightSample.pdf = 1.0f;
+		break;
+	}
+
+	// Check if the light is occluded.
+	Ray shadowRay = {hitPosition, lightSample.L};
+	bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, recursionDepth);
+	return !shadowRayHit;
+}
+
+float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float eta,
+	in float3 hitPosition, in LightBuffer light, in float3 N, in uint recursionDepth)
+{
+	float3 reflectance = float3(0.0f, 0.0f, 0.0f);
+
+	// Sample the light source.
+	LightSample lightSample;
+	if (NextEventEstimation(rng_state, light, hitPosition, recursionDepth, lightSample))
+	{
+		// Evaluate the BSDF.
+		float bsdfPdf;
+		reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), lightSample.L, N, bsdfPdf);
+
+		// Calculate the MIS weight.
+		float weight = 1.0f;
+		if (light.type != LightType::Directional)
+			weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
+
+		// Calculate the final color.
+		if (bsdfPdf > 0.0f)
+			reflectance *= weight * lightSample.emission / lightSample.pdf;
+		else
+			reflectance = float3(0.0f, 0.0f, 0.0f);
+	}
+
+	return reflectance;
+}
+\end{lstlisting}
+
+\section{Miss shader}
+
+În cazul în care o rază nu intersectează niciun obiect din scenă, se execută
+shader-ul de tip Miss. Acesta adaugă culoarea de fundal drept contribuție la cale (vezi listarea~\ref{lst:miss}).
+\begin{lstlisting}[caption={Shader-ul de tip Miss},label={lst:miss},language=C++]
+[shader("miss")] void MissShader(inout RayPayload rayPayload)
+{
+	rayPayload.color = g_sceneCB.backgroundColor * rayPayload.throughput;
+}
+\end{lstlisting}
+
+\section{Evaluarea și eșantionarea BSDF-ului}
+
+În secțiunile ~\ref{sec:pbr} și~\ref{sec:disney} am prezentat bazele teoretice
+ale funcțiilor de distribuție a reflectanței și am prezentat modelul Disney Principled
+BSDF. Totuși, nu am vorbit despre eșantionarea acestora. Acesta este un proces complex
+și de obicei nu se găsesc soluții analitice. Astfel, diferite implementări folosesc
+diferite metode de eșantionare și asignează ponderi diferite lobilor. Totuși, ideea
+de bază este aceeași: pentru evaluare, se evaluează toți lobii (care au sens - nu evaluăm
+transmisia dacă avem reflexie) și se ponderează în funcție de parametrii materialului,
+pentru a asigna un fel de probabilitate ad-hoc fiecărui lob. Pentru eșantionare
+(alegerea direcției razei următoare), se alege probabilistic (folosind aceleași ponderi
+ca la evaluare) un singur lob și se eșantionează conform unei distribuții bazate
+pe importanță ce aproximează cât mai bine distribuția microfațetelor din cadrul BRDF-ului.
+
+În implementare am urmat modelul de eșantionare folosit în~\cite{GlslPathTracer}.
+Codul se află în listarea~\ref{lst:bsdf}. Vreau să subliniez faptul că mi-a fost foarte
+greu să ajung la o implementare corectă a BSDF-ului, din cauza complexității matematice.
 
 \chapter{\label{sec:evaluare}Evaluare}
 
-//TODO
+\section{Evaluarea performanțelor}
 
-Acest capitol trebuie să răspundă, în principiu, la 2 întrebări și să se încheie cu o discuție a rezultatelor obținute. Cele doua întrebări la care trebuie sa se răspundă sunt:
-\begin{enumerate}
-	\item  \textbf{Merge corect?} (Conform specificațiilor extrase în capitolul 2);
-	      Evaluarea dacă merge corect se face pe baza cerințelor identificate în capitolele anterioare.
-
-	\item Cât de \textit{Bine} merge / cum se compară cu soluțiile existente? (pe baza unor metrici clare).
-	      Evaluarea cât de \textit{Bine} merge trebuie să fie bazată pe procente, timpi, cantitate, numere, \textbf{comparativ cu soluțiile prezentate în capitolul 3}. Poate fi vorba de performanță, overhead, resurse consumate, scalabilitate etc.
-\end{enumerate}
-
-În realizarea discuției, se vor utiliza tabele cu procente, rezultate numerice și grafice. În mod obișnuit, aici se fac comparații și teste comparative cu alte proiecte similare (dacă există) și se extrag puncte tari și puncte slabe. Se ține cont de avantajele menționate și se demonstrează viabilitatea abordării / aplicației, de dorit prin comparație cu alte abordări (dacă acest lucru este posibil). Cuvântul cheie la evaluare este ``metrică'': trebuie să aveți noțiuni măsurabile și cuantificabile. În cadrul procesului de evaluare, explicați datele, tabelele și graficele pe care le prezentați și insistați pe relevanța lor, în următorul stil: ``este de preferat ... deoarece …''; explicați cititorului nu doar datele ci și semnificația lor și cum sunt acestea interpretate. Din această interpretare trebuie să rezulte poziționarea proiectului vostru printre alternativele existente, precum și cum poate fi acesta îmbunătățit în continuare.
-
-Criterii pentru calificativul \textit{Bine}:
+În continuare prezentăm rezultatele obținute în urma testelor de performanță. Toate
+testele folosesc aceeași scenă și aceeași poziționare a camerei (ca în Figura~\ref{fig:demo_pathtracing}), astfel încât să se
+observe impactul fiecărei setări asupra performanței. Vom varia pe rând fiecare setare,
+ținând restul constante. Valorile implicite ale setărilor sunt:
 \begin{itemize}
-	\item \dezvoltare Teste unitare și de integrare, instrumente de punere in funcțiune (deployment) utilizate și care arată lucru constant de-a lungul semestrului, lucrare validată cu clienții / utilizatorii, produs în producție.
-	\item \cercetare Componentele și soluția în ansamblu au fost evaluate din punct de vedere al performanței, folosind seturi de date standard și cu o interpretare corectă a rezultatelor.
-	\item \ambele Discuție cu prezentarea calitativă și cantitativă a rezultatelor, precum și a relevanței acestor rezultate printr-o comparație complexă cu alte sisteme similare.
+	\item Numărul de eșantioane per pixel: 2
+	\item Adâncimea maximă de recursivitate: 2
+	\item Adâncimea minimă pentru ruleta rusească: 3
+	\item O singură lumină eșantionată: adevărat
+	\item Metodă de eșantionare a direcției următoare: BSDF.
 \end{itemize}
+
+Rezultatele sunt prezentate în tabelele următoare. Testele au fost efectuate la o
+rezoluție de 1920x1080 pixeli, pe o placă video Nvidia RTX 2060 Super. Menționăm
+faptul că FPS-urile sunt limitate la 140.
+
+\subsection{Numărul de eșantioane per pixel}
+\begin{table}[!bth]\small\linespread{1}
+	\centering
+	\caption{Performanța în funcție de numărul de eșantioane per pixel}
+	\begin{tabular}{l >{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{2cm}}
+		\textbf{Valoare Setată} & \textbf{FPS} \\\hline
+		\textbf{1}              & 75           \\\hline
+		\textbf{4}              & 16           \\\hline
+		\textbf{8}              & 6            \\\hline
+		\textbf{16}             & 1            \\\hline
+	\end{tabular}
+	\label{tab:samples}
+\end{table}
+Rezultatele din tabela~\ref{tab:samples} arată că numărul de eșantioane per pixel
+are un impact imens asupra performanței. Un număr modest de 4 eșantioane per pixel
+nu este totuși suficient pentru a crea o imagine stabilă în absența tehnicilor
+de denoising, așadar algoritmul este limitat în acest aspect.
+
+\subsection{Adâncimea maximă a recursivității}
+\begin{table}[!bth]\small\linespread{1}
+	\centering
+	\caption{Performanța în funcție de numărul de adâncimea maximă a recursivității}
+	\begin{tabular}{l >{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{2cm}}
+		\textbf{Valoare Setată} & \textbf{FPS} \\\hline
+		\textbf{1}              & 140          \\\hline
+		\textbf{2}              & 77           \\\hline
+		\textbf{3}              & 40           \\\hline
+		\textbf{4}              & 36           \\\hline
+		\textbf{5}              & 33           \\\hline
+		\textbf{6}              & 32           \\\hline
+		\textbf{7}              & 31           \\\hline
+		\textbf{8}              & 31           \\\hline
+		\textbf{9}              & 30           \\\hline
+		\textbf{10}             & 29           \\\hline
+	\end{tabular}
+	\label{tab:depth}
+\end{table}
+Rezultatele din tabela~\ref{tab:depth} arată că adâncimea maximă a recursivității
+are și ea un impact semnificativ asupra performanței. Pentru a avea reflexii convingătoare,
+o adâncime de 3 este suficientă, pe când în cazul refracțiilor, o adâncime de 5 este
+ma potrivită. Observăm totuși că impactul scade odată cu creșterea adâncimii, ceea ce
+este un efect al ruletei rusești.
+
+\subsection{Adâncimea minimă pentru ruleta rusească}
+\begin{table}[!bth]\small\linespread{1}
+	\centering
+	\caption{Performanța în funcție de adâncimea minimă la care se aplică ruleta rusească. Pentru acest test s-a setat adâncimea maximă de recursivitate la 10}
+	\begin{tabular}{l >{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{2cm}}
+		\textbf{Valoare Setată} & \textbf{FPS} \\\hline
+		\textbf{1}              & 35           \\\hline
+		\textbf{2}              & 34           \\\hline
+		\textbf{3}              & 34           \\\hline
+		\textbf{4}              & 32           \\\hline
+		\textbf{5}              & 32           \\\hline
+		\textbf{6}              & 31           \\\hline
+		\textbf{7}              & 31           \\\hline
+		\textbf{8}              & 30           \\\hline
+		\textbf{9}              & 30           \\\hline
+		\textbf{10}             & 29           \\\hline
+	\end{tabular}
+	\label{tab:roulette}
+\end{table}
+Tabela~\ref{tab:roulette} arată că ruleta rusească este o metodă destul de eficientă
+pentru a crește performanța de rulare, fără a sacrifica prea mult calitatea imaginii.
+
+\subsection{Eșantionarea unei singure lumini}
+\begin{table}[!bth]\small\linespread{1}
+	\centering
+	\caption{Performanța în eșantionarea unei singure lumini sau a amândurora}
+	\begin{tabular}{l >{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{2cm}}
+		\textbf{Valoare Setată} & \textbf{FPS} \\\hline
+		\textbf{DA}             & 87           \\\hline
+		\textbf{NU}             & 77           \\\hline
+	\end{tabular}
+	\label{tab:onelight}
+\end{table}
+Tabela~\ref{tab:onelight} arată că eșantionarea unei singure lumini are un impact
+bun asupra performanței, fără a sacrifica deloc calitatea imaginii. Acest test s-a
+efectuat cu doar 2 lumini în scenă - scene mai complexe vor avea un impact imens
+asupra performanței dacă se eșantionează toate luminile deodată (spre deosebire
+de niciun impact în setarea cealaltă, însă asta aduce o reducere a calității imaginii).
+
+\subsection{Strategia de eșantionare a direcției următoare}
+\begin{table}[!bth]\small\linespread{1}
+	\centering
+	\caption{Performanța în funcție de strategia de eșantionare a direcției următoare}
+	\begin{tabular}{l >{\raggedright\arraybackslash}p{4cm} >{\raggedright\arraybackslash}p{2cm}}
+		\textbf{Valoare Setată}             & \textbf{FPS} \\\hline
+		\textbf{BSDF}                       & 87           \\\hline
+		\textbf{Cosine-weighted Hemisphere} & 51           \\\hline
+		\textbf{Uniform sphere}             & 46           \\\hline
+	\end{tabular}
+	\label{tab:bsdf}
+\end{table}
+Tabela~\ref{tab:bsdf} arată că eșantionarea bazată pe BSDF este, surprinzător, cea mai eficientă
+dar și cea mai calitativă (vezi Figurile~\ref{fig:eval-bsdf}, \ref{fig:eval-cosine} și \ref{fig:eval-uniform}). Presupunerea mea este că, deoarece podeaua are un material specular,
+eșantionarea BSDF-ului va conduce rapid la ieșirea razelor din scenă și la oprirea
+recursivității. Eșantionarea uniformă a sferei este cea mai lentă, deoarece implică și
+o componentă de transmisie.
+
+\section{Evaluare calitativă}
+
+\subsection{Comparație cu Ray Tracing Whitted}
+
+Algoritmul integrat deja în schelet este un Ray Tracer recursiv simplu, de tip Whitted,
+care folosește un model de iluminare Phong. Acesta nu suportă transmisie, iar
+reflexiile sunt perfect geometrice. O randare realizată cu acest algoritm se poate
+vedea în Figura~\ref{fig:demo_whitted}. Torusul de tip inel și cele 3 sfere
+au un material ce simulează cromul și este reflectiv. Se pot observa și umbre
+geometrice, cauzate de două surse de lumină punctiforme.
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_whitted.png}
+	\caption{Randare folosing Ray Tracing Whitted}
+	\label{fig:demo_whitted}
+\end{figure}
+Aceeași scenă, dar randată folosind Path Tracing, se poate vedea în Figura~\ref{fig:demo_pathtracing}.
+Condițiile de iluminare nu pot fi replicate perfect. Observăm imediat o diferență
+majoră - această randare ține cont de iluminarea globală. Scena este iluminată
+conform fundalului, iar contribuția reflectanței fiecărui obiect este vizibilă
+pe podea. În acest caz, lumina nu este destul de puternică să lupte cu fundalul,
+de aceea umbrele sunt destul de puțin pronunțate. În randarea din Figura~\ref{fig:demo_pathtracing2}
+culoarea de fundal a fost coborâtă - se observă astfel contribuțiile celor două surse
+de lumină - una de tip suprafață și una direcțională. Umbrele lăsate de zonele
+obstrucționate din perspectiva luminii de suprafață au un aspect natural, cu penumbre
+ce tranziționează lin între umbra completă și lumina directă.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_pathtracing.png}
+	\caption{Randare folosind Path Tracing}
+	\label{fig:demo_pathtracing}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_pathtracing2.png}
+	\caption{Randare folosind Path Tracing cu fundal mai întunecat}
+	\label{fig:demo_pathtracing2}
+\end{figure}
+
+Așa cum este descris în secțiunea~\ref{sec:disney}, sistemul de materiale
+folosit este physically based și modelează efecte complexe precum reflexii și
+refracții. Un exemplu de material care dă dovadă de ambele comportamente se află
+în figura Figura~\ref{fig:demo_refraction}. Acesta este un material dielectric, cu
+un indice de refracție de 1.5. Se observă refracții către obiectele din spate
+în zonele centrale ale sferelor și reflexii către mediul înconjurător către
+margini, unde unghiul de incidență este mare. Acest comportament este consistent
+cu legile lui Fresnel.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_refraction.png}
+	\caption{Randare folosind Path Tracing cu sticlă dielectrică}
+	\label{fig:demo_refraction}
+\end{figure}
+
+\subsection{Evaluarea strategiei de eșantionare a direcției următoare}
+
+Așa cum era de așteptat, eșantionarea bazată pe importanța BSDF-ului converge cel mai repede.
+Celelalte strategii nu reușesc să conveargă nici la 256 eșantioane per pixel, în timp ce
+imaginea eșantionată cu BSDF este foarte stabilă. Ilustrații în Figurile~\ref{fig:eval-bsdf},
+\ref{fig:eval-cosine} și~\ref{fig:eval-uniform} arată această diferență.
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-bsdf.png}
+	\caption{Eșantionare bazată pe BSDF}
+	\label{fig:eval-bsdf}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-cosine.png}
+	\caption{Eșantionare ponderată de cosinus a emisferei}
+	\label{fig:eval-cosine}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-uniform.png}
+	\caption{Eșantionare uniformă a sferei}
+	\label{fig:eval-uniform}
+\end{figure}
+
+
+\subsection{Evaluarea modelului Disney principled BSDF}
+
+Am descris în secțiunea~\ref{sec:disney} modelul Disney principled BSDF, modelul
+de materiale folosit în această implementare. Acesta este un model complex dar foarte bun,
+folosit în producție la Disney pentru filmele lor animate încă din anul 2012~\cite{Disney}.
+Vom supune așadar acest model la teste pentru a ne convinge de calitatea și fidelitatea sa. 
+
+În continuare, vom evalua efectele parametrilor care definesc sistemul de materiale. Pentru această
+scenă s-au folosit setările la calitate maximă: 256 eșantioane per pixel, algoritm progresiv și adâncime
+maximă de recursivitate 10. Am folosit pentru aceste randări varianta progresivă a algoritmului,
+pentru a obține performanțe comparabile cu un singur eșantion per pixel dar calitate mult mai bună.
+În următoarele randări, s-a variat câte un parametru
+în timp ce restul sunt la valorile implicite (i.e., 0 pentru majoritatea și 1.5 pentru
+indexul de refracție)
+
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-metallic-1.0.png}
+	\caption{Material metallic cu $metallic = 1.0$. Se pot observa reflexiile speculare
+		ce sunt colorate în funcție de culoarea materialului}
+	\label{fig:demo-metallic-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-rough-1.0.png}
+	\caption{Material dielectric cu $roughness = 1.0$. Se observă modelul difuz}
+	\label{fig:demo-rough-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-subsurface-1.0.png}
+	\caption{Material dielectric cu $subsurface = 1.0$ și $roughness = 0.0$. Se observă modelul difuz și efectul de subsurface scattering}
+	\label{fig:demo-subsurface-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-clearcoat-1.0.png}
+	\caption{Material cu strat de clearcoat cu $clearcoat = 1.0$ și $roughness = 0.5$. Se observă un luciu
+		adițional (deși minor) pe material}
+	\label{fig:demo-clearcoat-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-clearcoatGloss-1.0.png}
+	\caption{Material dielectric cu $clearcoat = 1.0,\ clearcoatGloss = 1.0$ și $roughness = 0.5$. Se observă efectul de luciu pronunțat}
+	\label{fig:demo-clearcoatGloss-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-anisotropy-1.0.png}
+	\caption{Material dielectric cu $anisotropy = 1.0$ și $roughness = 0.5$. Se observă anizotropia punctelor speculare}
+	\label{fig:demo-anisotropy-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-sheen-1.0.png}
+	\caption{Material dielectric cu $sheen = 1.0$ și $roughness = 0.5$. Se observă retroreflexia la unghiurile mari de incidență}
+	\label{fig:demo-sheen-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-sheenTint-1.0.png}
+	\caption{Material dielectric cu $sheen = 1.0,\ sheenTint = 1.0$ și $roughness = 0.5$. Se observă retroreflexia accentuată și colorată}
+	\label{fig:demo-sheenTint-1.0}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-trans-0.5.png}
+	\caption{Material dielectric cu $specularTransmission = 0.5$ și $roughness = 0.0$. Se observă refracțiile și reflexile dielectrice}
+	\label{fig:demo-trans-0.5}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-trans-1.png}
+	\caption{Material dielectric cu $specularTransmission = 1.0$ și $roughness = 0.0$. Se observă refracțiile pronunțate și reflexile dielectrice}
+	\label{fig:demo-trans-1}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-trans-ior1.1.png}
+	\caption{Material dielectric cu $specularTransmission = 1.0$ și $ior = 1.1$. Se observă refracții la devieri mici}
+	\label{fig:demo-trans-ior1.1}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-trans-ior2.png}
+	\caption{Material dielectric cu $specularTransmission = 1.0$ și $ior = 2.0$. Se observă refracții la devieri mari}
+	\label{fig:demo-trans-ior2}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo-extinction-0.3-atdistance-0.1.png}
+	\caption{Material dielectric cu $extinction = (0.3, 0.0, 0.0)$ și $atDistance = 0.1$. Se observă cum refracția este afectată de absorbție}
+	\label{fig:demo-extinction-0.3-atdistance-0.1}
+\end{figure}
+
 
 \chapter{\label{sec:concluzii}Concluzii}
 
-//TODO
+Procesul implementării unui Path Tracer a fost unul complex și plin de provocări. Desigur,
+varianta brută a algoritmului este simplă, însă pentru a obține o imagine de calitate
+care să conveargă repede și în timp real este nevoie de multe optimizări și tehnici
+avansate. Am observat în capitolele~\ref{sec:stateoftheart} și~\ref{sec:implementare}
+cât de complexă este teoria probabilistică din spate, dar și modelele care aproximează
+fenomenele fizice ale interacțiunii luminii cu suprafețele. Rezultatele au fost totuși
+satisfăcătoare din punct de vedere calitativ, însă performanța nu este tocmai în timp real,
+din cauza sistemului complex de materiale. În practică, un Path Tracer real-time folosește
+un număr foarte mic de eșantioane per pixel dar compensează prin metode de eșantionare
+inteligente și tehnici de denoising și mai inteligente.
 
-În acest capitol este sumarizat întreg proiectul, de la obiective, la implementare, si la relevanta rezultatelor obținute. În finalul capitolului poate exista o subsecțiune de ``Dezvoltări ulterioare''.
+Ca direcție viitoare, aș dori să explorez algoritmii de denoising din literatura de
+specialitate și să implementez unul în proiectul meu. Am văzut cum impactul imens
+asupra performanței poate fi ameliorat printr-o implementare progresivă a algoritmului
+de Path Tracing, însă pentru a elimina blur-ul trebuie implementat un algoritm de denoising
+care să țină cont de istoricul eșantioanelor și de mișcarea camerei și a obiectelor din scenă.
 
-Criterii pentru calificativul \textit{Bine}:
-\begin{itemize}
-	\item	Concluziile sunt corelate cu conținutul lucrării, și se oferă o imagine precisa asupra relevantei și calității rezultatelor obținute în cadrul proiectului.
-\end{itemize}
+În concluzie, consider că lucrarea de față și-a atins scopul de a explora teoria și
+a implementa într-un context real un Path Tracer. Doresc ca lucrarea de față să servească
+drept material didactic pentru cei aflați la început de drum și să reprezinte o privire
+de ansamblu, dar cu suficient de multe detalii pentru a înțelege cu adevărat algoritmul
+Path Tracing. 
+
 
 % Asa se specifica folosirea unui fisier cu referinte bibliografice:
 \bibliographystyle{plain}
 \bibliography{bibliography}
-
-%% O alta varianta ar fi fost includerea de articole direct in acest fisier
-%% in felul urmator:
-%% \begin{thebibliography}{ABC}
-%%
-%% \bibitem{article}
-%%  H. Baali, H. Djelouat, A. Amira and F. Bensaali,
-%%  ``Empowering Technology Enabled Care Using IoT and Smart Devices:
-%   A Review''. In: IEEE Sensors Journal, vol. 322 (10), pp. 891--921, 1905.
-%%
-%% (more \bibitem items here...)
-%%
-%% \end{thebibliography}
-
-%% Daca vreti ca o sectiune sa inceapa pe o pagina noua, puteti forta acest lucru cu comanda "\newpage", ca mai jos:
-
-%\newpage
 
 \chapter*{Anexe}\addcontentsline{toc}{chapter}{Anexe}
 
@@ -2087,8 +2699,686 @@ Criterii pentru calificativul \textit{Bine}:
 	\end{figure}
 
 	\chapter{Extrase de cod} % Introduce o nouă anexă
-	\ldots
 
+	\begin{lstlisting}[caption={Compunerea meniului ImGui},label={lst:showui},language=C++]
+void DieXaR::ShowUI()
+{
+	IM_ASSERT(ImGui::GetCurrentContext() != NULL && "No ImGui context.");
 
+	if (!ImGui::Begin("Settings")) {
+		// Don't draw if the window is collapsed.
+		ImGui::End();
+		return;
+	}
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+	ImGui::Text("Elapsed time: %.2f (s)", m_sceneCB->elapsedTime);
+	ImGui::Text("Elapsed ticks: %u", m_sceneCB->elapsedTicks);
+	ImGui::Text("Camera position: (%.2f, %.2f, %.2f)", XMVectorGetX(m_eye),
+		XMVectorGetY(m_eye), XMVectorGetZ(m_eye));
+	ImGui::Spacing();
+
+	if (ImGui::CollapsingHeader("Controls"))
+	{
+		ImGui::Spacing();
+
+		ImGui::SeparatorText("Keyboard");
+		ImGui::BulletText("F1 - Reload graphics");
+		ImGui::BulletText("ESC - Exit application");
+		ImGui::BulletText("C - Toggle camera fly/revolution mode");
+		ImGui::BulletText("WASD - Move camera (fly mode)");
+		ImGui::BulletText("EQ - Move camera up/down (fly mode)");
+		ImGui::BulletText("Shift - Move camera slower (fly mode)");
+		ImGui::BulletText("AD - Modify camera speed (revolution mode)");
+		ImGui::BulletText("R - Stop camera (revolution mode)");
+
+		ImGui::SeparatorText("Mouse");
+		ImGui::BulletText("Camera movement available only in fly mode");
+
+		ImGui::Spacing();
+	}
+
+	if (ImGui::CollapsingHeader("Renderer"))
+	{
+		ImGui::Spacing();
+
+		// Jitter
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
+		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
+
+		// Only one light sample
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		ImGui::Checkbox("Single LightBuffer Sample", &m_onlyOneLightSample);
+		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
+
+		// Anisotropic BSDF
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
+		ImGui::Checkbox("Anisotropic BSDF", &m_anisotropicBSDF);
+		ImGui::SameLine(); HelpMarker("Enable anisotropy model");
+
+		// Ray Tracing Type
+		const char* options[] = { "Whitted", "Path Tracing", "Progressive Path Tracing" };
+		RaytracingType::Enum prevRaytracingType = m_raytracingType;
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		if (ImGui::BeginCombo("Raytracing Type", options[m_raytracingType]))
+		{
+			bool selected = m_raytracingType == RaytracingType::Whitted;
+			if (ImGui::Selectable("Whitted", selected))
+				m_raytracingType = RaytracingType::Whitted;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_raytracingType == RaytracingType::PathTracing;
+			if (ImGui::Selectable("Path Tracing", selected))
+				m_raytracingType = RaytracingType::PathTracing;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_raytracingType == RaytracingType::PathTracingTemporal;
+			if (ImGui::Selectable("Progressive Path Tracing", selected))
+				m_raytracingType = RaytracingType::PathTracingTemporal;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine(); HelpMarker("Select the raytracing type to use");
+
+		// Trigger a graphics reload if the raytracing type has changed.
+		if (prevRaytracingType != m_raytracingType)
+			m_shouldReload = true;
+
+		// Importance Sampling type
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
+		const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
+		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType]))
+		{
+			bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
+			if (ImGui::Selectable("Uniform Sphere", selected))
+				m_importanceSamplingType = ImportanceSamplingType::Uniform;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_importanceSamplingType == ImportanceSamplingType::Cosine;
+			if (ImGui::Selectable("Cosine Hemisphere", selected))
+				m_importanceSamplingType = ImportanceSamplingType::Cosine;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			selected = m_importanceSamplingType == ImportanceSamplingType::BSDF;
+			if (ImGui::Selectable("BSDF", selected))
+				m_importanceSamplingType = ImportanceSamplingType::BSDF;
+			if (selected)
+				ImGui::SetItemDefaultFocus();
+
+			ImGui::EndCombo();
+		}
+		ImGui::SameLine(); HelpMarker("Select the importance sampling type to use");
+
+		// Sqrt Samples per pixel
+		int maxSqrtSamplesPerPixel = m_raytracingType == RaytracingType::PathTracingTemporal ? 16 : 4;
+		if (m_raytracingType != RaytracingType::PathTracingTemporal)
+			m_pathSqrtSamplesPerPixel = min(m_pathSqrtSamplesPerPixel, 4);
+		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, maxSqrtSamplesPerPixel);
+		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
+		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
+			ResetPathTracing();
+
+		// Max recursion
+		UINT oldMaxRecursionDepth = m_maxRecursionDepth;
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Max Recursion Depth", reinterpret_cast<int*>(&m_maxRecursionDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Maximum recursion depth for path tracing");
+		// we need to reload graphics if this changed (because it was set in stone for optimization purposes)
+		if (oldMaxRecursionDepth != m_maxRecursionDepth)
+			m_shouldReload = true;
+
+		// Max shadow recursion depth
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Max Shadow Recursion Depth", reinterpret_cast<int*>(&m_maxShadowRecursionDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Maximum recursion depth for shooting shadow rays");
+
+		// Russian Roulette
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		ImGui::SliderInt("Russian Roulette Depth", reinterpret_cast<int*>(&m_russianRouletteDepth), 1, 10);
+		ImGui::SameLine(); HelpMarker("Depth at which to start Russian Roulette");
+
+		ImGui::Spacing();
+	}
+
+	if (ImGui::CollapsingHeader("Scene"))
+	{
+		ImGui::Spacing();
+
+		// Background color
+		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+		ImGui::ColorEdit3("Background Color", &m_backgroundColor.x);
+
+		// Lights
+		for (UINT i = 0; i < m_scenes[m_crtScene].GetLightCount(); ++i)
+		{
+			ImGui::PushID(i);
+			ImGui::Text("LIGHT %u", i);
+			ImGui::Spacing();
+
+			// Light type
+			const char* lightTypeOptions[] = { "Area", "Directional" };
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+			if (ImGui::BeginCombo("Type", lightTypeOptions[m_scenes[m_crtScene].m_lights[i].type]))
+			{
+				for (UINT j = 0; j < LightType::Count; ++j)
+				{
+					bool selected = m_scenes[m_crtScene].m_lights[i].type == j;
+					if (ImGui::Selectable(lightTypeOptions[j], selected))
+						m_scenes[m_crtScene].m_lights[i].type = j;
+					if (selected)
+						ImGui::SetItemDefaultFocus();
+				}
+				ImGui::EndCombo();
+			}
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+
+			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
+			{
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
+			}
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
+
+			float maxIntensity;
+			if (m_raytracingType == RaytracingType::Whitted || m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
+				maxIntensity = 2.0f;
+			else if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+				maxIntensity = 10.0f;
+			m_scenes[m_crtScene].m_lights[i].intensity = min(m_scenes[m_crtScene].m_lights[i].intensity, maxIntensity);
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, maxIntensity);
+
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			ImGui::ColorEdit3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
+
+			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
+				ImGui::Spacing();
+			ImGui::Separator();
+			ImGui::Spacing();
+			ImGui::PopID();
+		}
+
+		ImGui::Spacing();
+	}
+
+	ImGui::End();
+}
+\end{lstlisting}
+	\begin{lstlisting}[caption={Algoritmul Path Tracing},label={lst:pathtracing},language=C++,escapechar=\$]
+float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer material, in float3 N, in float3 hitPosition, in float hitDistance)
+{
+	bool inside = dot(WorldRayDirection(), N) > 0.0f;
+	float3 normalSide = inside ? -N : N;
+
+	// Set IOR.
+	float eta = inside ? material.eta : 1.0f / material.eta;
+
+	// Reset absorption if going outside.
+	float3 absorption = inside ? rayPayload.absorption.xyz : float3(0.0f, 0.0f, 0.0f);	$\label{line:absorption1}$
+
+	// Add absorption.
+	float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);		$\label{line:absorption2}$
+
+	// Initialize the random number generator.
+	uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + rayPayload.recursionDepth * 1337 + hash(hitPosition));
+
+	//--- Multiple importance sampling.
+	float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
+
+	// 1. Sample direct lighting.
+
+	if (g_sceneCB.onlyOneLightSample)
+	{
+		// If one light at a time, choose randomly and adjust pdf
+		uint idx = random(rng_state) * g_sceneCB.numLights;
+		color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[idx], normalSide, rayPayload.recursionDepth) * g_sceneCB.numLights;
+	}
+	else
+	{
+		// Sample all lights at once
+		for (uint i = 0; i < g_sceneCB.numLights; i++)
+			color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
+	}
+
+	// Apply Russian roulette.
+	float russianRoulettePdf = 1.0f;
+	if (rayPayload.recursionDepth >= g_sceneCB.russianRouletteDepth)
+	{
+		russianRoulettePdf = max(throughput.x, max(throughput.y, throughput.z));
+		if (random(rng_state) > russianRoulettePdf)
+			return color;
+	}
+
+	// 2. Sample BSDF.
+
+	float3 reflectance;
+	float3 L;
+	float samplePdf, bsdfPdf;
+
+	// Compute local space.
+	float3 T, B;
+	ComputeLocalSpace(N, T, B);
+
+	if (g_sceneCB.importanceSamplingType == 0)
+	{
+		L = UniformSampleSphere(random(rng_state), random(rng_state), samplePdf);
+		L = normalize(GetTangentToWorld(N, T, B, L));
+		reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
+		bsdfPdf = samplePdf;
+	}
+	else if (g_sceneCB.importanceSamplingType == 1)
+	{
+		L = CosineSampleHemisphere(random(rng_state), random(rng_state), samplePdf);
+		if (random(rng_state) < 0.5f)
+			L = -L;
+		L = normalize(GetTangentToWorld(N, T, B, L));
+		reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
+		bsdfPdf = samplePdf / 2.0f;
+	}
+	else
+	{
+		reflectance = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), normalSide, L, bsdfPdf);
+	}
+
+	// Update absorption.
+	if (dot(normalSide, L) < 0.0f)													
+		absorption = -log(material.extinction) / material.atDistance;				$\label{line:absorption3}$
+
+	// Update throughput and continue only if the pdf is non-zero.
+	if (bsdfPdf > 0.0f) {
+		throughput *= reflectance / bsdfPdf;
+
+		// Apply the Russian roulette pdf.
+		throughput /= russianRoulettePdf;
+
+		// Shoot the next ray and accumulate the color.
+		Ray newRay = {hitPosition, L};
+		color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.recursionDepth, dot(N, L) < 0.0f).xyz;
+	}
+
+	return color;
+}
+\end{lstlisting}
+\begin{lstlisting}[caption={Evaluarea și eșantionarea BSDF-ului Disney},label={lst:bsdf},language=C++,escapechar=\$]
+// Credits: https://media.disneyanimation.com/uploads/production/publication_asset/48/asset/s2012_pbs_disney_brdf_notes_v3.pdf
+//
+// This computes the alpha x and y values for the anisotropic distribution of GTR2.
+// (the variations of the roughness in the x and y directions in tangent space).
+void ComputeAnisotropicAlphas(in float roughness, in float anisotropic, out float ax, out float ay)
+{
+	float aspect = sqrt(1.0f - 0.9f * anisotropic); // limits the aspect ratio to 10:1
+	float roughness2 = roughness * roughness;
+	ax = max(0.0001f, roughness2 / aspect);
+	ay = max(0.0001f, roughness2 * aspect);
+}
+
+// Mixes the diffuse and metallic specular components.
+float DisneyFresnelMix(in float dotLH, in float eta, in float metallic)
+{
+	float metallicFresnel = FresnelReflectanceSchlick(dotLH);
+	float dielectricFresnel = FresnelDielectric(dotLH, eta);
+	return lerp(dielectricFresnel, metallicFresnel, metallic);
+}
+
+// Computes both the sheen color and the diffuse specular color.
+// It is used in the Fresnel term of the Metal BRDF.
+void ComputeSpecularColor(in PBRPrimitiveConstantBuffer material, in float eta, out float3 specularColor, out float3 sheenColor)
+{
+	float luminance = GetLuminance(material.albedo.xyz);
+	float3 tint = luminance > 0.0f ? material.albedo.xyz / luminance : float3(1.0f, 1.0f, 1.0f);
+	float3 R0 = R0FromIOR(eta);
+	sheenColor = lerp(float3(1.0f, 1.0f, 1.0f), tint, material.sheenTint);
+	specularColor = lerp(R0 * sheenColor, material.albedo.xyz, material.metallic);
+}
+
+// Computes the intensity of the clearcoat BRDF lobe.
+float3 EvaluateClearcoat(in PBRPrimitiveConstantBuffer material, in bool anisotropic, in float3 V, in float3 L, in float3 H, out float pdf)
+{
+	pdf = 0.0f;
+
+	// Reject if we are below the surface.
+	if (L.y <= 0.0f)
+		return float3(0.0f, 0.0f, 0.0f);
+
+	// Precompute dot products.
+	float dotVH = dot(V, H);
+
+	// Compute anisotropic roughness.
+	float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
+
+	// Compute D term for the clearcoat.
+	float D = DGTR1(H.y, a);
+
+	// Compute F term with IOR = 1.5 and F0 = 0.04.
+	float F = lerp(0.04f, 1.0f, FresnelDielectric(dotVH, 0.6667f));
+
+	// Compute geometric shadowing term G as product of two G1 terms.
+	float G = anisotropic ? (SmithG1Anisotropic(L.x, L.z, L.y, 0.25f, 0.25f) * SmithG1Anisotropic(V.x, V.z, V.y, 0.25f, 0.25f)) : (SmithG1(L.y, 0.25f) * SmithG1(V.y, 0.25f));
+
+	// Compute pdf for sampling.
+	pdf = 0.25f * H.y * D / dotVH;
+
+	return float3(0.25f, 0.25f, 0.25f) * material.clearcoat * D * F * G / (4.0f * L.y * V.y);
+}
+
+// Disney Diffuse BRDF, with sheen and approximated subsurface scattering.
+float3 EvaluateDiffuse(in PBRPrimitiveConstantBuffer material, in float3 sheenColor,
+						in float3 V, in float3 L, in float3 H, out float pdf)
+{
+	pdf = 0.0f;
+
+	// Reject if we are below the surface.
+	if (L.y <= 0.0f)
+		return float3(0.0f, 0.0f, 0.0f);
+
+	// Precompute dot products.
+	float dotHL = dot(H, L);
+
+	// Compute diffuse component.
+	float fd90 = FD90(material.roughness, dotHL);
+	float d = FD(fd90, V.y) * FD(fd90, L.y);
+
+	// Compute subsurface scattering approximation.
+	float fss90 = FSS90(material.roughness, dotHL);
+	float Fss = FD(fss90, V.y) * FD(fss90, L.y);
+	float ss = 1.25f * (Fss * (1.0f / (L.y + V.y) - 0.5f) + 0.5f);
+
+	// Compute the sheen component.
+	float3 sh = material.sheen * FresnelReflectanceSchlick(dotHL) * sheenColor;
+
+	// Compute the pdf.
+	pdf = L.y * INV_PI;
+
+	return (1.0f - material.metallic) * (1.0f - material.specularTransmission) * (INV_PI * material.albedo.xyz * lerp(d, ss, material.subsurface) + sh);
+}
+
+// Disney Specular BRDF (only reflection) - standard Cook-Torrance microfacet BRDF.
+// This is modified to include a dielectric specular term that is missing in the diffuse model.
+float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in float eta, in float3 specularColor, in float3 V, in float3 L, in float3 H,
+									in bool anisotropic, in float ax, in float ay, out float pdf)
+{
+	pdf = 0.0f;
+
+	// Reject if we are below the surface.
+	if (L.y <= 0.0f)
+		return float3(0.0f, 0.0f, 0.0f);
+
+	// Precompute dot products.
+	float dotLH = dot(L, H);
+	float dotVH = dot(V, H);
+
+	// Compute distribution term D.
+	float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
+
+	// compute Fresnel chromatic component (to account for dielectric specular reflection)
+	float3 F = lerp(specularColor, float3(1.0f, 1.0f, 1.0f), DisneyFresnelMix(dotLH, eta, material.metallic));
+
+	// compute geometric shadowing term G as product of two G1 terms
+	float Gv = anisotropic ? SmithG1Anisotropic(V.x, V.z, V.y, ax, ay) : SmithG1(V.y, material.roughness);
+	float G = Gv * (anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, ax, ay) : SmithG1(L.y, material.roughness));
+
+	// Compute pdf.
+	pdf = 0.25f * Gv * max(0.0f, dotVH) * D / (V.y * dotVH);
+
+	return 0.25f * D * F * G / (L.y * V.y);
+}
+
+// Disney Specular BSDF (only refraction).
+float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in float eta, in float3 V, in float3 L,
+									in float3 H, in bool anisotropic, in float ax, in float ay, out float pdf)
+{
+	pdf = 0.0f;
+
+	// Reject if we are above the surface.
+	if (L.y >= 0.0f)
+		return float3(0.0f, 0.0f, 0.0f);
+
+	// Precompute dot products.
+	float dotLH = dot(L, H);
+	float dotVH = dot(V, H);
+	float tmp = 1.0f / sq(dotLH + dotVH * eta);
+
+	// compute distribution term D
+	float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
+
+	// compute Fresnel term
+	float F = FresnelDielectric(abs(dotVH), eta);
+
+	// compute geometric shadowing term G as product of two G1 terms
+	float Gv = anisotropic ? SmithG1Anisotropic(V.x, V.z, V.y, ax, ay) : SmithG1(V.y, material.roughness);
+	float G = Gv * (anisotropic ? SmithG1Anisotropic(L.x, L.z, L.y, ax, ay) : SmithG1(L.y, material.roughness));
+
+	// Compute pdf.
+	pdf = Gv * max(0.0f, dotVH) * D * tmp * abs(dotLH) / V.y;
+
+	return (1.0f - material.metallic) * material.specularTransmission * sqrt(material.albedo.xyz) * (1.0f - F) * D * G * abs(dotLH) * abs(dotVH) * sq(eta) * tmp / (abs(L.y) * abs(V.y));
+}
+
+// Computes the lobes' probability distribution functions for the microfacet model.
+// Ignores the sheen lobe because its influence is minimal.
+void ComputePdfs(in PBRPrimitiveConstantBuffer material, in float3 specularColor, in float fresnelMix,
+					out float pSpecularReflection, out float pDiffuse, out float pClearcoat, out float pSpecularRefraction)
+{
+	float wDiffuse = GetLuminance(material.albedo.xyz) * (1.0f - material.metallic) * (1.0f - material.specularTransmission);
+	float wSpecularReflection = GetLuminance(lerp(specularColor, float3(1, 1, 1), fresnelMix));
+	float wSpecularRefraction = GetLuminance(material.albedo.xyz) * (1.0f - fresnelMix) * material.specularTransmission * (1.0f - material.metallic);
+	float wClearcoat = material.clearcoat * (1.0f - material.metallic);
+
+	float totalWeight = wDiffuse + wSpecularReflection + wClearcoat + wSpecularRefraction;
+
+	pSpecularReflection = wSpecularReflection / totalWeight;
+	pDiffuse = wDiffuse / totalWeight;
+	pClearcoat = wClearcoat / totalWeight;
+	pSpecularRefraction = wSpecularRefraction / totalWeight;
+}
+
+// Computes the Disney BSDF as an aggregate of all the components.
+float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in bool anisotropic,
+							in float eta, in float3 V, in float3 L, in float3 N, out float pdf)
+{
+	pdf = 0.0f;
+	float3 reflectance = float3(0.0f, 0.0f, 0.0f);
+
+	// Transform V and L into the tangent space.
+	float3 T, B;
+	ComputeLocalSpace(N, T, B);
+	V = GetWorldToTangent(N, T, B, V);
+	L = GetWorldToTangent(N, T, B, L);
+
+	// Compute the half vector (with correction for transmission).
+	float3 H;
+	if (L.y >= 0.0f)
+		H = normalize(L + V);
+	else
+		H = normalize(L + V * eta);
+
+	// Correct the half vector if it is below the surface.
+	if (H.y < 0.0f)
+		H = -H;
+
+	// Compute dot products.
+	float dotLH = dot(L, H);
+	float dotVH = dot(V, H);
+
+	// Compute anisotropic parameters.
+	float ax = 0.0f, ay = 0.0f;
+	if (anisotropic)
+		ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+
+	// Compute specular and sheen color.
+	float3 specularColor, sheenColor;
+	ComputeSpecularColor(material, eta, specularColor, sheenColor);
+
+	// Compute lobe pdfs.
+	float pDiffuse, pSpecularReflection, pClearcoat, pSpecularRefraction;
+	float fresnelMix = DisneyFresnelMix(dotVH, eta, material.metallic);
+	ComputePdfs(material, specularColor, fresnelMix, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
+
+	// Evaluate the lobes.
+	float lobePdf;
+
+	// apply diffuse, sheen and approximate subsurface scattering
+	if (pDiffuse > 0.0f && L.y > 0.0f)
+	{
+		reflectance += EvaluateDiffuse(material, sheenColor, V, L, H, lobePdf);
+		pdf += pDiffuse * lobePdf;
+	}
+
+	// apply specular reflection (only if visible)
+	if (pSpecularReflection > 0.0f && L.y > 0.0f && V.y > 0.0f)
+	{
+		reflectance += EvaluateSpecularReflection(material, eta, specularColor, V, L, H, anisotropic, ax, ay, lobePdf);
+		pdf += pSpecularReflection * lobePdf;
+	}
+
+	// apply clearcoat (only if visible)
+	if (pClearcoat > 0.0f && L.y > 0.0f && V.y > 0.0f)
+	{
+		reflectance += EvaluateClearcoat(material, anisotropic, V, L, H, lobePdf);
+		pdf += pClearcoat * lobePdf;
+	}
+
+	// apply transmission
+	if (pSpecularRefraction > 0.0f && L.y < 0.0f)
+	{
+		reflectance += EvaluateSpecularTransmission(material, eta, V, L, H, anisotropic, ax, ay, lobePdf);
+		pdf += pSpecularRefraction * lobePdf;
+	}
+
+	return reflectance * abs(L.y); // factor in the cosine term
+}
+
+float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer material, in float eta,
+						in bool anisotropic, in float3 V, in float3 N, out float3 L, out float pdf)
+{
+	pdf = 0.0f;
+	float3 reflectance = float3(0.0f, 0.0f, 0.0f);
+
+	// Transform V into the tangent space.
+	float3 T, B;
+	ComputeLocalSpace(N, T, B);
+	V = GetWorldToTangent(N, T, B, V);
+
+	// Compute the specular and sheen color.
+	float3 specularColor, sheenColor;
+	ComputeSpecularColor(material, eta, specularColor, sheenColor);
+
+	// Compute the lobe weights.
+	float pDiffuse, pSpecularReflection, pClearcoat, pSpecularRefraction;
+	float fresnelMix = DisneyFresnelMix(V.y, eta, material.metallic);
+	ComputePdfs(material, specularColor, fresnelMix, pSpecularReflection, pDiffuse, pClearcoat, pSpecularRefraction);
+
+	// Generate random numbers.
+	float eps0 = random(rng_state);
+	float eps1 = random(rng_state);
+	float choice = random(rng_state);
+
+	// Pick one of the lobes to sample.
+	float3 H;
+	float3 cdf;
+	cdf.x = pDiffuse;
+	cdf.y = cdf.x + pSpecularReflection;
+	cdf.z = cdf.y + pClearcoat;
+	if (choice < cdf.x)
+	{
+		// Sample the diffuse lobe with cosine-weighted distribution for outgoing direction.
+		L = CosineSampleHemisphere(eps0, eps1, pdf);
+		H = normalize(V + L);
+
+		reflectance = EvaluateDiffuse(material, sheenColor, V, L, H, pdf);
+		pdf *= pDiffuse;
+	}
+	else if (choice < cdf.y)
+	{
+		// Sample the specular reflection lobe with VNDF for the half vector.
+		float ax = 0.0f, ay = 0.0f;
+		if (anisotropic)
+		{
+			ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+			H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
+		}
+		else
+			H = SampleVNDF(eps0, eps1, material.roughness, V);
+		
+
+		// Correct the half vector if it is below the surface.
+		if (H.y < 0.0f)
+			H = -H;
+
+		// Reflect the view vector.
+		L = normalize(reflect(-V, H));
+
+		reflectance = EvaluateSpecularReflection(material, eta, specularColor, V, L, H, anisotropic, ax, ay, pdf);
+		pdf *= pSpecularReflection;
+	}
+	else if (choice < cdf.z)
+	{
+		// Compute anisotropic roughness.
+		float a = lerp(0.1f, 0.001f, material.clearcoatGloss);
+
+		// Sample the clearcoat lobe by sampling GTR1 distribution.
+		H = SampleDGTR1(eps0, eps1, a);
+
+		// Correct the half vector if it is below the surface.
+		if (H.y < 0.0f)
+			H = -H;
+
+		// Reflect the view vector.
+		L = normalize(reflect(-V, H));
+
+		reflectance = EvaluateClearcoat(material, anisotropic, V, L, H, pdf);
+		pdf *= pClearcoat;
+	}
+	else
+	{
+		// Sample the specular refraction lobe with VNDF for the half vector.
+		float ax = 0.0f, ay = 0.0f;
+		if (anisotropic)
+		{
+			ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+			H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
+		}
+		else
+			H = SampleVNDF(eps0, eps1, material.roughness, V);
+
+		// Correct the half vector if it is below the surface.
+		if (H.y < 0.0f)
+			H = -H;
+
+		// Compute the refracted direction.
+		L = refract(-V, H, eta);
+		
+		// Check if the refraction is total internal.
+		if (dot(L, L) == 0.0f)
+			L = reflect(-V, H);
+		
+		L = normalize(L);
+
+		reflectance = EvaluateSpecularTransmission(material, eta, V, L, H, anisotropic, ax, ay, pdf);
+		pdf *= pSpecularRefraction;
+	}
+
+	// Transform the outgoing direction back to world space.
+	L = GetTangentToWorld(N, T, B, L);
+
+	return reflectance * abs(dot(N, L)); // factor in the cosine term
+}
+\end{lstlisting}
 \end{appendices}
 \end{document}

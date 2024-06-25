@@ -147,7 +147,8 @@ private:
 	UINT m_pathFrameCacheIndex{ 1 };		// current frame index for temporal path tracing (ALWAYS >= 1)
 	bool m_onlyOneLightSample{ true };		// if true, only one light is sampled at a time
 	UINT m_russianRouletteDepth{ 3 };		// the depth at which Russian roulette is applied
-	bool m_anisotropicBSDF{ true };		// if true, anisotropic BSDF is used
+	bool m_anisotropicBSDF{ true };			// if true, anisotropic BSDF is used
+	XMFLOAT4 m_backgroundColor{ 0.678f, 0.788f, 0.819f, 1.0f };
 
 	void UpdateCameraMatrices();
 	void UpdateAABBPrimitiveAttributes(float animationTime);

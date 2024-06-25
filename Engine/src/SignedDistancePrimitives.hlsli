@@ -303,7 +303,7 @@ bool RaySignedDistancePrimitiveTest(in Ray ray, in SignedDistancePrimitive::Enum
     while (i++ < MaxSteps && t <= RayTCurrent())
     {
         float3 position = ray.origin + t * ray.direction;
-        float distance = abs(GetDistanceFromSignedDistancePrimitive(position, sdPrimitive));
+        float distance = GetDistanceFromSignedDistancePrimitive(position, sdPrimitive);
 
         // Has the ray intersected the primitive? 
         if (distance <= threshold * t)

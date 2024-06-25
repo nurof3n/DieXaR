@@ -117,7 +117,7 @@ float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in flo
     // Compute distribution term D.
     float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
 
-    // compute Fresnel achromatic component (to account for dielectric specular reflection)
+    // compute Fresnel chromatic component (to account for dielectric specular reflection)
     float3 F = lerp(specularColor, float3(1.0f, 1.0f, 1.0f), DisneyFresnelMix(dotLH, eta, material.metallic));
 
     // compute geometric shadowing term G as product of two G1 terms

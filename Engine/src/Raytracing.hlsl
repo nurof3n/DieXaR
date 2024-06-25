@@ -178,7 +178,7 @@ bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 h
         lightSample.pdf = (sq(lightSample.dist)) / (sq(light.size) * angle);
         break;
     case LightType::Directional:
-        lightSample.L = -light.direction;
+        lightSample.L = -normalize(light.direction);
         lightSample.dist = INFINITY;
         lightSample.emission = light.intensity * light.emission;
         lightSample.pdf = 1.0f;
@@ -243,8 +243,7 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
     return reflectance;
 }
 
-float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer material,
-    in float3 N, in float3 hitPosition, in float hitDistance)
+float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer material, in float3 N, in float3 hitPosition, in float hitDistance)
 {
     bool inside = dot(WorldRayDirection(), N) > 0.0f;
     float3 normalSide = inside ? -N : N;
@@ -507,7 +506,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, BackgroundColor, 1.0 - exp(-0.000002 * t * t * t));
+    color = lerp(color, g_sceneCB.backgroundColor, 1.0 - exp(-0.000002 * t * t * t));
 
     rayPayload.color = color;
 }
@@ -543,7 +542,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
 [shader("miss")] void MissShader(inout RayPayload rayPayload)
 {
-    rayPayload.color = BackgroundColor * rayPayload.throughput;
+    rayPayload.color = g_sceneCB.backgroundColor * rayPayload.throughput;
 }
 
 [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)

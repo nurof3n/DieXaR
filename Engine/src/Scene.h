@@ -73,7 +73,9 @@ public:
 		float specularTransmission = 0.0f,
 		float eta = 1.5f,
 		float atDistance = 1.0f,
-		const XMFLOAT3& extinction = XMFLOAT3(1.0f, 1.0f, 1.0f))
+		const XMFLOAT3& extinction = XMFLOAT3(1.0f, 1.0f, 1.0f),
+		float subsurface = 0.0f
+	)
 	{
 		attributes.albedo = albedo;
 		attributes.roughness = roughness;
@@ -88,6 +90,7 @@ public:
 		attributes.eta = eta;
 		attributes.atDistance = atDistance;
 		attributes.extinction = extinction;
+		attributes.subsurface = subsurface;
 	};
 
 public:
@@ -99,7 +102,7 @@ public:
 	std::vector<LightBuffer> m_lights{};
 
 	// Geometry
-	
+
 
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB{};
