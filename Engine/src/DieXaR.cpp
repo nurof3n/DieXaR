@@ -644,6 +644,22 @@ void DieXaR::CreateDescriptorHeap()
 // Build AABBs for procedural geometry within a bottom-level acceleration structure.
 void DieXaR::BuildProceduralGeometryAABBs()
 {
+	switch (m_crtScene)
+	{
+	case SceneTypes::CornellBox:
+		BuildProceduralGeometryAABBsCornellBox();
+		break;
+	case SceneTypes::Demo:
+		BuildProceduralGeometryAABBsDemo();
+		break;
+	case SceneTypes::PbrShowcase:
+		BuildProceduralGeometryAABBsPbrShowcase();
+		break;
+	}
+}
+
+void DieXaR::BuildProceduralGeometryAABBsDemo()
+{
 	auto device = m_deviceResources->GetD3DDevice();
 
 	// Set up AABBs on a grid.
@@ -651,12 +667,12 @@ void DieXaR::BuildProceduralGeometryAABBs()
 		XMINT3 aabbGrid = XMINT3(4, 1, 4);
 		const XMFLOAT3 basePosition =
 		{
-			-(aabbGrid.x * c_aabbWidth + (aabbGrid.x - 1) * c_aabbDistance) / 2.0f,
-			-(aabbGrid.y * c_aabbWidth + (aabbGrid.y - 1) * c_aabbDistance) / 2.0f,
-			-(aabbGrid.z * c_aabbWidth + (aabbGrid.z - 1) * c_aabbDistance) / 2.0f,
+			-(aabbGrid.x * 2 + (aabbGrid.x - 1) * 2) / 2.0f,
+			-(aabbGrid.y * 2 + (aabbGrid.y - 1) * 2) / 2.0f,
+			-(aabbGrid.z * 2 + (aabbGrid.z - 1) * 2) / 2.0f,
 		};
 
-		XMFLOAT3 stride = XMFLOAT3(c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance, c_aabbWidth + c_aabbDistance);
+		XMFLOAT3 stride = XMFLOAT3(2 + 2, 2 + 2, 2 + 2);
 		auto InitializeAABB = [&](auto& offsetIndex, auto& size)
 			{
 				return D3D12_RAYTRACING_AABB{
@@ -691,6 +707,14 @@ void DieXaR::BuildProceduralGeometryAABBs()
 		}
 		AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size() * sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
 	}
+}
+
+void DieXaR::BuildProceduralGeometryAABBsCornellBox()
+{
+}
+
+void DieXaR::BuildProceduralGeometryAABBsPbrShowcase()
+{
 }
 
 void DieXaR::BuildPlaneGeometry()
@@ -778,6 +802,74 @@ void DieXaR::BuildGeometryDescsForBottomLevelAS(array<vector<D3D12_RAYTRACING_GE
 	}
 }
 
+template <class InstanceDescType, class BLASPtrType>
+void DieXaR::BuildBotomLevelASInstanceDescsDemo(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
+{
+	auto device = m_deviceResources->GetD3DDevice();
+
+	vector<InstanceDescType> instanceDescs;
+	instanceDescs.resize(NUM_BLAS);
+
+	UINT c_aabbWidth = 2;
+	UINT c_aabbDistance = 2;
+
+	// Width of a bottom-level AS geometry.
+	// Make the plane a little larger than the actual number of primitives in each dimension.
+	const XMUINT3 NUM_AABB = XMUINT3(700, 1, 700);
+	const XMFLOAT3 fWidth = XMFLOAT3(
+		NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
+		NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
+		NUM_AABB.z * c_aabbWidth + (NUM_AABB.z - 1) * c_aabbDistance);
+	const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
+
+
+	// Bottom-level AS with a single plane.
+	{
+		auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
+		instanceDesc = {};
+		instanceDesc.InstanceMask = 1;
+		instanceDesc.InstanceContributionToHitGroupIndex = 0;
+		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
+
+		// Calculate transformation matrix.
+		const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
+
+		// Scale in XZ dimensions.
+		XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
+		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
+		XMMATRIX mTransform = mScale * mTranslation;
+		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc.Transform), mTransform);
+	}
+
+	// Create instanced bottom-level AS with procedural geometry AABBs.
+	// Instances share all the data, except for a transform.
+	{
+		auto& instanceDesc = instanceDescs[BottomLevelASType::AABB];
+		instanceDesc = {};
+		instanceDesc.InstanceMask = 1;
+
+		// Set hit group offset to beyond the shader records for the triangle AABB.
+		instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
+		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
+
+		// Move all AABBS above the ground plane.
+		XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth / 2, 0)));
+		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc.Transform), mTranslation);
+	}
+	UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
+	AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
+}
+
+template <class InstanceDescType, class BLASPtrType>
+void DieXaR::BuildBotomLevelASInstanceDescsCornellBox(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
+{
+}
+
+template <class InstanceDescType, class BLASPtrType>
+void DieXaR::BuildBotomLevelASInstanceDescsPbrShowcase(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
+{
+}
+
 AccelerationStructureBuffers DieXaR::BuildBottomLevelAS(const vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDescs, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)
 {
 	auto device = m_deviceResources->GetD3DDevice();
@@ -832,56 +924,18 @@ AccelerationStructureBuffers DieXaR::BuildBottomLevelAS(const vector<D3D12_RAYTR
 template <class InstanceDescType, class BLASPtrType>
 void DieXaR::BuildBotomLevelASInstanceDescs(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource)
 {
-	auto device = m_deviceResources->GetD3DDevice();
-
-	vector<InstanceDescType> instanceDescs;
-	instanceDescs.resize(NUM_BLAS);
-
-	// Width of a bottom-level AS geometry.
-	// Make the plane a little larger than the actual number of primitives in each dimension.
-	const XMUINT3 NUM_AABB = XMUINT3(700, 1, 700);
-	const XMFLOAT3 fWidth = XMFLOAT3(
-		NUM_AABB.x * c_aabbWidth + (NUM_AABB.x - 1) * c_aabbDistance,
-		NUM_AABB.y * c_aabbWidth + (NUM_AABB.y - 1) * c_aabbDistance,
-		NUM_AABB.z * c_aabbWidth + (NUM_AABB.z - 1) * c_aabbDistance);
-	const XMVECTOR vWidth = XMLoadFloat3(&fWidth);
-
-
-	// Bottom-level AS with a single plane.
+	switch (m_crtScene)
 	{
-		auto& instanceDesc = instanceDescs[BottomLevelASType::Triangle];
-		instanceDesc = {};
-		instanceDesc.InstanceMask = 1;
-		instanceDesc.InstanceContributionToHitGroupIndex = 0;
-		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
-
-		// Calculate transformation matrix.
-		const XMVECTOR vBasePosition = vWidth * XMLoadFloat3(&XMFLOAT3(-0.35f, 0.0f, -0.35f));
-
-		// Scale in XZ dimensions.
-		XMMATRIX mScale = XMMatrixScaling(fWidth.x, fWidth.y, fWidth.z);
-		XMMATRIX mTranslation = XMMatrixTranslationFromVector(vBasePosition);
-		XMMATRIX mTransform = mScale * mTranslation;
-		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc.Transform), mTransform);
+	case SceneTypes::CornellBox:
+		BuildBotomLevelASInstanceDescsCornellBox<InstanceDescType, BLASPtrType>(bottomLevelASaddresses, instanceDescsResource);
+		break;
+	case SceneTypes::Demo:
+		BuildBotomLevelASInstanceDescsDemo<InstanceDescType, BLASPtrType>(bottomLevelASaddresses, instanceDescsResource);
+		break;
+	case SceneTypes::PbrShowcase:
+		BuildBotomLevelASInstanceDescsPbrShowcase<InstanceDescType, BLASPtrType>(bottomLevelASaddresses, instanceDescsResource);
+		break;
 	}
-
-	// Create instanced bottom-level AS with procedural geometry AABBs.
-	// Instances share all the data, except for a transform.
-	{
-		auto& instanceDesc = instanceDescs[BottomLevelASType::AABB];
-		instanceDesc = {};
-		instanceDesc.InstanceMask = 1;
-
-		// Set hit group offset to beyond the shader records for the triangle AABB.
-		instanceDesc.InstanceContributionToHitGroupIndex = BottomLevelASType::AABB * RayType::Count;
-		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
-
-		// Move all AABBS above the ground plane.
-		XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(0, c_aabbWidth / 2, 0)));
-		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc.Transform), mTranslation);
-	}
-	UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));
-	AllocateUploadBuffer(device, instanceDescs.data(), bufferSize, &(*instanceDescsResource), L"InstanceDescs");
 };
 
 AccelerationStructureBuffers DieXaR::BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags)

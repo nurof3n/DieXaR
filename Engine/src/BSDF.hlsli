@@ -11,7 +11,7 @@
 // Uniformly samples a hemisphere.
 // eps0 and eps1 are random numbers in [0, 1).
 // phi = 2 * PI * eps1
-// theta = acos(1 - eps0)
+// theta = acos(eps0)
 // pdf = 1 / (2 * PI)
 // y is the up vector.
 float3 UniformSampleHemisphere(in float eps0, in float eps1, out float pdf)

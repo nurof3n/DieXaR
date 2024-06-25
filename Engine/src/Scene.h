@@ -98,6 +98,9 @@ public:
 
 	std::vector<LightBuffer> m_lights{};
 
+	// Geometry
+	
+
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB{};
 	PBRPrimitiveConstantBuffer m_pbrPlaneMaterialCB{};

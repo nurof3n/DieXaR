@@ -302,13 +302,17 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     {
         L = UniformSampleSphere(random(rng_state), random(rng_state), samplePdf);
         L = normalize(GetTangentToWorld(N, T, B, L));
-        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
+        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
+        bsdfPdf = samplePdf;
     }
     else if (g_sceneCB.importanceSamplingType == 1)
     {
         L = CosineSampleHemisphere(random(rng_state), random(rng_state), samplePdf);
+        if (random(rng_state) < 0.5f)
+            L = -L;
         L = normalize(GetTangentToWorld(N, T, B, L));
-        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf) / samplePdf;
+        reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
+        bsdfPdf = samplePdf / 2.0f;
     }
     else
     {

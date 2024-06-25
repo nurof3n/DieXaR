@@ -61,8 +61,6 @@ private:
 
 	// Constants.
 	const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
-	const float c_aabbWidth = 2;      // AABB width.
-	const float c_aabbDistance = 2;   // Distance between AABBs.
 	const UINT NUM_SCENES = 3;		  // Number of scenes available.
 
 	// DirectX Raytracing (DXR) attributes
@@ -179,11 +177,20 @@ private:
 	void CreateDescriptorHeap();
 	void CreateRaytracingOutputResource();
 	void BuildProceduralGeometryAABBs();
+	void BuildProceduralGeometryAABBsDemo();
+	void BuildProceduralGeometryAABBsCornellBox();
+	void BuildProceduralGeometryAABBsPbrShowcase();
 	void BuildGeometry();
 	void BuildPlaneGeometry();
 	void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
 	template <class InstanceDescType, class BLASPtrType>
 	void BuildBotomLevelASInstanceDescs(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
+	template <class InstanceDescType, class BLASPtrType>
+	void BuildBotomLevelASInstanceDescsDemo(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
+	template <class InstanceDescType, class BLASPtrType>
+	void BuildBotomLevelASInstanceDescsCornellBox(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
+	template <class InstanceDescType, class BLASPtrType>
+	void BuildBotomLevelASInstanceDescsPbrShowcase(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
 	AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	void BuildAccelerationStructures();
