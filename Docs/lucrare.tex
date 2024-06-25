@@ -390,8 +390,8 @@ precum și a unor efecte de iluminare care să ofere o imagine fotorealistică a
 De asemenea, vom explora și implementa tehnici de optimizare a algoritmului propriu-zis,
 pe care le vom evalua în contextul de performanță și fidelitate obținute.
 
-În final, dorim să obținem o implementare eficientă, care să țintească un frametime de 16.6ms
-(60 de cadre pe secundă) la o rezoluție Full HD (1920x1080), pentru hardware entry-level cu suport pentru
+În final, dorim să obținem o implementare eficientă, care să țintească un frametime de 33.3ms
+(30 de cadre pe secundă) la o rezoluție Full HD (1920x1080), pentru hardware entry-level cu suport pentru
 DirectX Raytracing (e.g., Nvidia GeForce RTX 2060).
 
 \subsubsection*{}
@@ -1110,7 +1110,7 @@ Dacă ar fi să sumarizăm pașii algoritmului, aceștia ar fi:
 
 Algoritmul Path Tracing reprezintă transpunerea completă a ecuației de randare
 într-un algoritm de calcul numeric. Se poate cupla orice tip de BRDF la acest
-algoritm, ceea ce îl face extrem de versatil. Se pot obșine simulări de interacțiuni
+algoritm, ceea ce îl face extrem de versatil. Se pot obține simulări de interacțiuni
 difuze (precum cele obținute cu Radiosity), folosind un BRDF Lambertian~\cite{Lambert}, sau
 simulări de interacțiuni speculare, folosind un BRDF precum Cook-Torrance(\cite{CookTorrance}).
 Se poate extinde de asemenea și la interacțiuni de transmisie, folosind un BTDF.
@@ -1175,7 +1175,7 @@ este altă soluție la problema aliasing-ului, însă introduce prea mult zgomot
 reușește să integreze mai bine semnalele de frecvență mare, cum ar fi cazul de randare
 a unei texturi sub unghi mare.
 Cea mai bună variantă este o combinație între cele două din urmă, care să ofere
-avantaje din ambele părți. Comparații calitative sunt reprezentate în Figurile~\ref{fig:sampling_aliasing} și~\ref{fig:sampling_filtering}.
+avantaje din ambele părți. Comparații calitative sunt reprezentate în Figurile~\ref{fig:uniform_aliasing} și~\ref{fig:sampling_aliasing}.
 \begin{figure}[ht]
 	\centering
 	\begin{subfigure}[h]{0.45\linewidth}
@@ -1245,7 +1245,7 @@ nu. O ilustrație a acestor concepte se poate vedea în Figura~\ref{fig:radiance
 Putem acum să definim, informal, BRDF-ul:
 \begin{definition}
 	Funcția de distribuție bidirecțională a reflectanței (BRDF) este raportul infinitezimal
-	dintre radianța reflectată și iradianța incidentă, în funcție de direcția de incidență și de cea de reflecție.
+	dintre radianța reflectată și iradianța incidentă, în funcție de direcția de incidență și de cea de reflexie.
 \end{definition}
 Matematic, aceasta se scrie sub forma:
 \begin{equation}
@@ -1295,7 +1295,7 @@ Există multe modele de distribuție în literatura de specialitate, cu grade di
 reprezentare a fenomenelor fizice. Printre primele modele apărute se numără
 modelul Lambertian (bazat pe modelul perfect difuz descris de Lambert în 1760~\cite{Lambert}),
 modelul Phong (1975)~\cite{Phong} împreună cu optimizarea Blinn-Phong (1977)~\cite{BlinnPhong},
-precum și modele speculare bazate pe microfațete(\cite{TorranceOld}, \cite{CookTorrance}).
+precum și modele speculare bazate pe microfațete (\cite{TorranceOld}, \cite{CookTorrance}).
 Vom prezenta în continuare funcțiile de distribuție pentru aceste modele, fără a intra
 în prea multe detalii matematice de derivare. Pentru acestea, cititorul este îndrumat
 spre literatura de specialitate.
@@ -1304,14 +1304,15 @@ spre literatura de specialitate.
 
 Modelul Lambertian modelează reflectanța difuză a unui material. Dându-se o normală
 la suprafață $\mathbf{n}$ și o direcție de incidență $\omega_i$, reflectanța Lambertiană
-se calculează ca produsul dintre normală și direcția de incidență:
-\begin{equation}
+se calculează ca produsul dintre albedo-ul materialului, normala și direcția de incidență:
+$L = \rho \cdot (\omega_i \cdot \mathbf{n})$. Acest model trebuie totuși normalizat pentru
+a fi transformat într-un BRDF - o derivare folosind concepte de bază se găsește în~\cite{LambertBRDF}.
+BRDF-ul rezultat este:
+\begin{equation}\label{eq:lambert}
 	f_{Lambert}(\mathbf{x}, \omega_i, \omega_o) = \frac{\rho}{\pi},
 \end{equation}
 unde $\rho$ este culoarea materialului (albedo). Observăm că termenul de $\cos$ cu
-care suntem obisnuiți din formula celebră $L_d = k_d \cdot I \cdot \cos \theta_i$ nu apare
-aici. Acesta este inclus implicit în ecuația de randare~\ref{eq:light_transport}, sub forma $\omega_i \cdot \mathbf{n}$,
-corespunzând legii lui Lambert.
+nu apare aici. Acesta este inclus implicit în ecuația de randare~\ref{eq:light_transport}.
 
 Definiția exactă pentru albedo
 seamănă destul de mult cu termenul integral din ecuația de transport a luminii:
@@ -1321,8 +1322,6 @@ seamănă destul de mult cu termenul integral din ecuația de transport a lumini
 deoarece măsoară reflectanța unei suprafețe perfect difuze când este iluminată
 uniform de la toate direcțiile de lumină cu radianță unitară.
 
-Remarcăm faptul că 
-
 \subsubsection*{Modelul Phong}
 
 În adiție față de modelul Lambertian, modelul Phong adaugă un termen de reflexie
@@ -1331,7 +1330,7 @@ propriu-zis (nu respectă constrângerile definite anterior), ci mai degrabă un
 a fi folosit ca BRDF a fost făcută de Lafortune și Willems în 1994~\cite{Lafortune}.
 
 Definiția BRDF-ului din publicație este:
-\begin{equation}
+\begin{equation}\label{eq:phong}
 	f_{Phong}(\mathbf{x}, \omega_i, \omega_o) = k_d\frac{1}{\pi} + k_s\frac{n + 2}{2\pi}(\omega_r \cdot \omega_o)^n,
 \end{equation}
 unde $k_d$ și $k_s$ sunt coeficienții de reflexie difuză și speculară, definiți
@@ -1424,7 +1423,7 @@ unde $\Lambda(\omega)$ este o funcție nespecificată. Totuși, ea trebuie aleas
 pentru a satisface o constrângere de vizibilitate. Concret, aria $\diff A$ a suprafeței
 văzută sub un unghi $\theta$ format între normala la suprafață $n$ și direcția de observare
 $\omega$ trebuie să fie egală cu aria microfațetelor vizibile din aceeași direcție (vezi Figura~\ref{fig:microfacet_visible}):
-\begin{equation}
+\begin{equation}\label{eq:ndf}
 	\cos\theta = \int_{\Omega} G_1(\omega, \omega_h) \max(0, \cos \theta) D(\omega_h) \diff \omega_h,
 \end{equation}
 unde adăugarea factorului $\max(0, \cos \theta)$ ne asigură că nu luăm în considerare microfațetele
@@ -1433,7 +1432,7 @@ care sunt orientate în direcția opusă observatorului.
 \begin{figure}[ht]
 	\centering
 	\includegraphics[width=0.5\textwidth]{pics/microfacet_visible.png}
-	\caption{Ilustrație a vizibilității microfațetelor sub un unghi $\theta$}
+	\caption{Ilustrație a vizibilității microfațetelor sub un unghi $\theta$\protect\footref{pbr-book}}
 	\label{fig:microfacet_visible}
 \end{figure}
 
@@ -1469,22 +1468,18 @@ fizice complexe.
 
 \subsection{Strategii de eșantionare a direcțiilor de ieșire}
 
-\subsection{Strategii de eșantionare a luminilor din scenă}
+Ce am prezentat mai devreme despre funcțiile de distribuție a reflectanței
+sunt expresiile acestora și modul în care se evaluează. Concret, evaluarea
+BRDF-ului presupune cunoștința în prealabil a direcției de incidență și a celei
+de ieșire. Într-un algoritm de Path Tracing, la fiecare pas al recursivității
+se cunoaște doar direcția incidentă (începând cu prima rază pornită de la observator),
+urmând să se determine, după intersecția cu o suprafață, direcția de ieșire (care
+va constitui direcția incidentă pentru următoarea rază ș.a.m.d.). Această
+direcție de ieșire poate fi aleasă aleator sau conform unei strategii de eșantionare.
+În orice caz, fiind un algoritm Monte Carlo, se va ține cont de distribuția strategiei
+de eșantionare și se va pondera rezultatul contribuției reflectanței în consecință.
 
-\subsection{Combinarea mai multor strategii de eșantionare}
-
-
-
-Putem remarca faptul că acest algoritm generează raze pornind de la observator, nu
-de la sursele de lumină. Această variantă se numește Backwards Path Tracing, în
-timp ce varianta în care se pornește din sursele de lumină se numește Forward Path Tracing
-sau Light Tracing. Se pot observa ușor dezavantajele acestei metode din urmă:
-complexitatea algoritmului crește odată cu numărul de surse de lumină (sau chiar și
-dimensiunea lor), iar razele generate pot să nu ajungă niciodată la observator, ceea
-ce duce la pierderea informației.
-
-Partea cea mai complicată și unde se cercetează cel mai mult este modelarea
-BRDF-ului și a metodelor de eșantionare a acestuia. Așa cum am discutat în
+Așa cum am discutat în
 secțiunea~\ref{sec:is}, eșantionarea bazată pe importanță este crucială pentru
 a obține o convergență rapidă a algoritmului. Dacă BRDF-ul unui material modelează
 o suprafață speculară (poate chiar o oglindă perfectă), atunci distribuția
@@ -1498,9 +1493,122 @@ direcțiilor de ieșire va fi foarte îngustă, apropiindu-se de funcția delta 
 		 & \int_{-\infty}^{\infty} \delta(x) \diff x = 1.
 	\end{aligned}
 \end{equation}
-Folosind o eșantionare uniformă, această distribuție va fi eșantionată neoptim,
+Folosind o eșantionare uniformă (\ref{eq:uniform_sampling}), această distribuție va fi eșantionată neoptim,
 iar marea majoritate a direcțiilor generate nu vor contribui la radianța observată,
-nefiind pe direcția de reflecție.
+având probabilitate 0 (nefiind pe direcția de reflexie).
+
+Pentru eșantionare, ne trebuie un generator de numere aleatoare. Fie $\xi_1$ și $\xi_2$
+numere aleatoare din intervalul $[0, 1]$ (alese conform unei distribuții uniforme).
+Aceste numere vor fi folosite în strategiile descrise jos pentru a genera direcții
+de ieșire. De asemenea, facem precizarea că metodele prezentate mai jos presupun
+că ne aflăm în sistemul de coordonate tangent la suprafață $(\mathbf{t}, \mathbf{n}, \mathbf{b})$, cu normala $\mathbf{n}$
+orientată în sus, $\mathbf{n} = (0, 1, 0)$. Câteva metode presupun coordonatele sferice $(\theta, \phi)$,
+din care putem transforma în cele carteziene folosind formulele:
+\begin{equation}
+	\begin{aligned}
+		\mathbf{x} &= \sin \theta \cos \phi, \\
+		\mathbf{y} &= \cos \theta,           \\
+		\mathbf{z} &= \sin \theta \sin \phi.
+	\end{aligned}
+\end{equation}
+
+Cea mai simplă strategie este eșantionarea emisferică uniformă. Aceasta presupune
+alegerea aleatoare a unei direcții de ieșire din emisfera superioară a punctului
+de intersecție. Considerând coordonatele sferice $(\theta, \phi)$, formulele
+de transformare, împreună cu probabilitatea eșantionului, sunt:
+\begin{equation}\label{eq:uniform_sampling}
+	\begin{aligned}
+		\theta &= \arccos \xi_1, \\
+		\phi   &= 2\pi \xi_2,	 \\
+		pdf    &= \frac{1}{2\pi}.
+	\end{aligned}
+\end{equation}
+
+Această strategie este foarte brută. Nu ține cont de distribuția BRDF-ului și
+poate să genereze multe direcții care nu contribuie la radianța observată (mai ales
+în cazul unui material specular - atunci rezultatele ar fi chiar greșite). O variantă mai bună (dar care tot nu ține cont de material) este eșantionarea ponderată
+de cosinusul unghiului de ieșire. Această strategie ponderează probabilitatea
+eșantionului cu $\cos \theta$ (unghiul făcut cu normala) și are la bază principiul
+cosinusului Lambertian. Formulele sunt:
+\begin{equation}\label{eq:cosine_sampling}
+	\begin{aligned}
+		\theta &= \arccos \sqrt{\xi_1}, \\
+		\phi   &= 2\pi \xi_2,	         \\
+		pdf    &= \frac{\cos \theta}{\pi}.
+	\end{aligned}
+\end{equation}
+
+Derivări ale ecuațiilor~\ref{eq:uniform_sampling} și~\ref{eq:cosine_sampling} se pot găsi
+în~\cite{sampling}.
+
+Am discutat în secțiunea~\ref{sec:is} despre eșantionarea bazată pe importanță.
+În contextul de față, aceasta înseamnă alegerea unei direcții de ieșire care să
+contribuie cât mai mult la radianța observată. Acest lucru este realizat prin
+modelarea unei distribuții de eșantionare care să aproximeze cât mai bine distribuția
+BRDF-ului.
+
+În cazul unui material Lambertian, definit de ecuația~\ref{eq:lambert}, observăm
+că distribuția BRDF-ului este constantă are aceeași formă uniformă ca eșantionarea
+uniformă. Astfel, am fi tentați să concluzionăm că putem folosi
+ecuațiile~\ref{eq:uniform_sampling} pentru a genera direcții de ieșire. Totuși,
+am omite factorul de $\cos$ care apare în ecuația de randare~\ref{eq:light_transport}.
+Așadar, distribuția este mai degrabă una ponderată de cosinus, și e mult mai bine
+să folosim ecuațiile~\ref{eq:cosine_sampling}. De fapt, eșantionarea uniformă este
+inutilă în aproape toate cazurile, iar rezultatele ei dezamăgitoare se pot
+observa în Figura~\ref{fig:demo_uniform_sampling}.
+
+În cazul unui material Phong definit de BRDF-ul~\ref{eq:phong}, o distribuție
+bună este greu de calculat. Autorii remarcă faptul că partea speculară nu poate
+fi integrată analitic și că eșantionarea acesteia se face printr-un proces
+Monte Carlo. Voi omite detaliile matematice aici, pentru că nu prezintă interes;
+cititorul este îndrumat spre~\cite{Lafortune} pentru detalii.
+
+Eșantionarea modelului Torrance-Sparrow este intuitivă. Deoarece factorul
+predominant este distribuția micronormalelor $D(\omega_h)$, eșantionarea
+se poate face fix pe această distribuție. În acest caz, se va reflecta
+raza de incidență $\omega_i$ în jurul normalei eșantionate pentru a obține
+direcția de ieșire $\omega_o$. Totuși, o metodă mult mai eficientă pentru 
+unghiuri de incidență mari o reprezintă eșantionarea normalelor vizibile.
+Reamintim că ecuația~\ref{eq:ndf} trebuie să fie satisfăcută pentru a obține
+o distribuție corectă. Această ecuație descria proporția microfațetelor vizibile
+sub un unghi $\theta$ față de normala la suprafață. Putem rearanja ecuația
+pentru a obține distribuția micronormalelor într-o direcție $\omega$:
+\begin{equation}
+	D_{\omega}(\omega_h) = \frac{G_1(\omega, \omega_h)\max(0, \cos \theta)D(\omega_h)}{\cos \theta_h}.
+\end{equation}
+Un ultim aspect de luat în considerare în calculul probabilității de eșantionare
+este faptul că această distribuție reprezintă normalele în jurul micronormalei $\omega_h$,
+în timp ce BRDF-ul ține cont de direcția de incidență $\omega_i$. Astfel, trebuie făcută
+o ajustare de schimbare de variabilă. Procesul este detaliat în~\cite{PbrBookNdf}.
+Densitatea de probabilitate se modifică astfel cu un factor de $\dfrac{1}{4(\omega_o \cdot \omega_h)}$.
+
+\subsection{Next Event Estimation}
+
+Next Event Estimation (NEE) este o strategie de eșantionare bazată pe importanță
+multiplă (MIS) care presupune o combinație între eșantionarea BRDF-ului și a
+surselor de lumină. Aceasta reprezintă o îmbunătățire masivă a convergenței
+algoritmului de Path Tracing, deoarece multe dintre direcțiile generate de
+eșantionarea BRDF-ului în sine pot să nu ajungă să intersecteze o sursă de lumină
+și, implicit, nu vor contribui la radianța observată. În schimb, eșantionarea
+surselor de lumină la fiecare pas al recursivității ajută mult în acest sens.
+Astfel, eșantionarea luminii calculează iluminarea directă, în timp ce eșantionarea
+BRDF-ului calculează iluminarea indirectă. În final, aceste două contribuții
+sunt combinate probabilistic pentru a obține rezultatul final. Avantajele acestei
+metode se pot observa în Figura~\ref{fig:nee}.
+
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=\textwidth]{pics/nee.png}
+	\caption{Comparație între eșantionare a BRDF-ului (stânga) și NEE (dreapta)\protect\footnotemark}
+	\label{fig:nee}
+\end{figure}
+\footnotetext{\copyright\url{https://www.cg.tuwien.ac.at/sites/default/files/course/4411/attachments/08_next\%20event\%20estimation.pdf}. Accesat 24.06.2024.}
+
+Ideea de bază este de a combina cele două contribuții (directă și indirectă)
+cu o pondere în $[0, 1]$. Aceasta poate fi ori constantă (e.g., 0 sau 1) ori
+bazată pe o euristică (precum cele studiate de Veach - balance sau power~\cite{Veach,VeachPower}).
+
+\section{Accelerare Hardware}
 
 \chapter{\label{sec:solutie}Soluția Propusă}
 
