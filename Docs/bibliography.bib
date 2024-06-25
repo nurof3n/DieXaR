@@ -85,6 +85,26 @@
   series    = {SIGGRAPH '15}
 }
 
+@misc{DisneyHomework,
+  howpublished = {\url{https://cseweb.ucsd.edu/~tzli/cse272/wi2023/homework1.pdf}},
+  title        = {UCSD CSE 272 Assignment 1: Disney Principled BSDF},
+  note         = {Accesat 24.06.2024}
+}
+
+@misc{DisneySchutte,
+  howpublished = {\url{https://schuttejoe.github.io/post/disneybsdf/}},
+  author       = {Joe Schutte},
+  title        = {Rendering the Moana Island Scene Part 1: Implementing the Disney BSDF},
+  note         = {Accesat 24.06.2024}
+}
+
+@misc{GlslPathTracer,
+  howpublished = {\url{https://github.com/knightcrawler25/GLSL-PathTracer}},
+  author       = {knightcrawler25},
+  title        = {GLSL-PathTracer},
+  note         = {Accesat 24.06.2024}
+}
+
 @article{Halton,
   author     = {Halton, John H.},
   title      = {A Retrospective and Prospective Survey of the Monte Carlo Method},
@@ -148,6 +168,13 @@
   month      = {aug},
   pages      = {133–142},
   numpages   = {10}
+}
+
+@misc{iq,
+  howpublished = {\url{https://iquilezles.org/}},
+  author       = {Inigo Quilez},
+  title        = {Personal Blog},
+  note         = {Accesat 24.06.2024}
 }
 
 @article{Kajiya,
@@ -240,6 +267,23 @@
   publisher = {sumptibus vidvae E. Klett, typis C.P. Detleffsen}
 }
 
+@misc{LambertBRDF,
+  howpublished = {\url{https://sakibsaikia.github.io/graphics/2019/09/10/Deriving-Lambertian-BRDF-From-First-Principles.html}},
+  title        = {Deriving Lambertian BRDF from first principles},
+  note         = {Accesat 24.06.2024}
+}
+
+@article{MERL,
+  author  = {Wojciech Matusik and Hanspeter Pfister and Matt Brand and Leonard McMillan},
+  title   = {A Data-Driven Reflectance Model},
+  journal = {ACM Transactions on Graphics},
+  year    = {2003},
+  month   = jul,
+  volume  = {22},
+  number  = {3},
+  pages   = {759-769}
+}
+
 @article{Nicodemus,
   author    = {Fred E. Nicodemus},
   journal   = {Appl. Opt.},
@@ -254,6 +298,12 @@
   url       = {https://opg.optica.org/ao/abstract.cfm?URI=ao-4-7-767},
   doi       = {10.1364/AO.4.000767},
   abstract  = {Concepts, terminology, and symbols are presented for specifying and relating directional variations in reflectance and emissivity of an opaque surface element. Their relationship to more familiar concepts, including those of perfectly diffuse and specular reflectance, is given, and they are applied to illustrative examples. It is shown that, when the usual reciprocity relationship holds, the reflectance for a ray incident on an opaque surface element is related by Kirchhoff's law to the emissivity of that element for a ray emitted along the same line in the opposite sense.}
+}
+
+@misc{PbrBookNdf,
+  howpublished = {\url{https://pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Sampling_Reflection_Functions#MicrofacetDistribution::Pdf}},
+  title        = {Sampling Reflection Functions},
+  note         = {Accesat 24.06.2024}
 }
 
 @article{Phong,
@@ -282,16 +332,26 @@
   note         = {Accesat 24.06.2024}
 }
 
-@misc{LambertBRDF,
-  howpublished = {\url{https://sakibsaikia.github.io/graphics/2019/09/10/Deriving-Lambertian-BRDF-From-First-Principles.html}},
-  title        = {Deriving Lambertian BRDF from first principles},
+@misc{Schelet,
+  howpublished = {\url{https://github.com/microsoft/directx-graphics-samples/blob/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/}},
+  author       = {Microsoft},
+  title        = {D3D12 Raytracing Procedural Geometry Sample},
   note         = {Accesat 24.06.2024}
 }
 
-@misc{PbrBookNdf,
-  howpublished = {\url{https://pbr-book.org/3ed-2018/Light_Transport_I_Surface_Reflection/Sampling_Reflection_Functions#MicrofacetDistribution::Pdf}},
-  title        = {Sampling Reflection Functions},
-  note         = {Accesat 24.06.2024}
+@article{Schlick,
+  author   = {Schlick, Christophe},
+  title    = {An Inexpensive BRDF Model for Physically-based Rendering},
+  journal  = {Computer Graphics Forum},
+  volume   = {13},
+  number   = {3},
+  pages    = {233-246},
+  keywords = {Physically-Based Rendering, Bidirectional Reflectance Distribution Function, Optimization},
+  doi      = {https://doi.org/10.1111/1467-8659.1330233},
+  url      = {https://onlinelibrary.wiley.com/doi/abs/10.1111/1467-8659.1330233},
+  eprint   = {https://onlinelibrary.wiley.com/doi/pdf/10.1111/1467-8659.1330233},
+  abstract = {Abstract: A new BRDF model is presented which can be viewed as an kind of intermediary model between empirism and theory. Main results of physics are observed (energy conservation, reciprocity rule, microfacet theory) and numerous phenomena involved in light reflection are accounted for, in a physically plausible way (incoherent and coherent reflection, spectrum modifications, anisotropy, self-shadowing, multiple surface and subsurface reflection, differences between homogeneous and heterogeneous materials). The model has been especially intended for computer graphics applications and therefore includes two main features: simplicity (a small number of intuitively understandable parameters controls the model) and efficiency (the formulation provides adequation to Monte-Carlo rendering techniques and/or hardware implementations).},
+  year     = {1994}
 }
 
 @article{SmithG1,
@@ -347,6 +407,47 @@
   abstract  = {The directional distribution of radiant flux reflected from roughened surfaces is analyzed on the basis of geometrical optics. The analytical model assumes that the surface consists of small, randomly disposed, mirror-like facets. Specular reflection from these facets plus a diffuse component due to multiple reflections and/or internal scattering are postulated as the basic mechanisms of the reflection process. The effects of shadowing and masking of facets by adjacent facets are included in the analysis. The angular distributions of reflected flux predicted by the analysis are in very good agreement with experiment for both metallic and nonmetallic surfaces. Moreover, the analysis successfully predicts the off-specular maxima in the reflection distribution which are observed experimentally and which emerge as the incidence angle increases. The model thus affords a rational explanation for the off-specular peak phenomenon in terms of mutual masking and shadowing of mirror-like, specularly reflecting surface facets.}
 }
 
+@inproceedings{Veach,
+  author    = {Veach, Eric and Guibas, Leonidas J.},
+  title     = {Optimally combining sampling techniques for Monte Carlo rendering},
+  year      = {1995},
+  isbn      = {0897917014},
+  publisher = {Association for Computing Machinery},
+  address   = {New York, NY, USA},
+  url       = {https://doi.org/10.1145/218380.218498},
+  doi       = {10.1145/218380.218498},
+  booktitle = {Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques},
+  pages     = {419–428},
+  numpages  = {10},
+  keywords  = {Monte Carlo, distribution ray tracing, global illumination, lighting simulation, rendering, variance reduction},
+  series    = {SIGGRAPH '95}
+}
+
+@phdthesis{VeachPower,
+  author    = {Veach, Eric},
+  advisor   = {Guibas, Leonidas J.},
+  title     = {Robust monte carlo methods for light transport simulation},
+  year      = {1998},
+  isbn      = {0591907801},
+  publisher = {Stanford University},
+  address   = {Stanford, CA, USA},
+  abstract  = {Light transport algorithms generate realistic images by simulating the emission and scattering of light in an artificial environment. Applications include lighting design, architecture, and computer animation, while related engineering disciplines include neutron transport and radiative heat transfer. The main challenge with these algorithms is the high complexity of the geometric, scattering, and illumination models used. In this dissertation, we develop new Monte Carlo techniques that greatly extend the range of input models for which light transport simulations are practical. We start by developing a rigorous theoretical basis for bidirectional light transport algorithms (those that combine direct and adjoint techniques). We propose a new formulation based on linear operators, such that for any physically valid input scene, the transport operators are symmetric. We also show how light transport can be formulated as an integral over a space of paths. This framework allows new sampling and integration techniques to be applied, such as the Metropolis sampling method.Our statistical contributions include multiple importance sampling, a new variance reduction technique that can greatly increase the robustness of Monte Carlo integration. It uses more than one sampling technique to evaluate an integral, and combines these samples in a way that is provably close to optimal.Finally, we propose new Monte Carlo light transport algorithms. Bidirectional path tracing uses a family of different path sampling techniques that generate some path vertices starting from a light source, and some starting from a sensor. We show that when these techniques are combined using multiple importance sampling, a large range of difficult lighting effects can be handled efficiently.The second algorithm we describe is Metropolis light transport, inspired by the Metropolis sampling method from computational physics. Paths are generated by following a random walk through path space, such that the probability density of visiting each path is proportional the contribution it makes to the ideal image. The resulting algorithm is unbiased, handles arbitrary geometry and materials, and can be orders of magnitude more efficient than previous unbiased approaches for difficult lighting problems. To our knowledge, this is the first application of the Metropolis method to transport problems of any kind.},
+  note      = {AAI9837162}
+}
+
+@inproceedings{Volumetric,
+  author    = {Lafortune, Eric P. and Willems, Yves D.},
+  title     = {Rendering participating media with bidirectional path tracing},
+  year      = {1996},
+  isbn      = {3211828834},
+  publisher = {Springer-Verlag},
+  address   = {Berlin, Heidelberg},
+  booktitle = {Proceedings of the Eurographics Workshop on Rendering Techniques '96},
+  pages     = {91–100},
+  numpages  = {10},
+  location  = {Porto, Portugal}
+}
+
 @inproceedings{WalterSmithG2,
   author    = {Walter, Bruce and Marschner, Stephen R. and Li, Hongsong and Torrance, Kenneth E.},
   title     = {Microfacet models for refraction through rough surfaces},
@@ -381,32 +482,4 @@
   pages      = {14},
   numpages   = {1},
   keywords   = {Visible surface algorithms, Shading, Raster displays, Computer graphics, Computer animation}
-}
-
-@inproceedings{Veach,
-  author    = {Veach, Eric and Guibas, Leonidas J.},
-  title     = {Optimally combining sampling techniques for Monte Carlo rendering},
-  year      = {1995},
-  isbn      = {0897917014},
-  publisher = {Association for Computing Machinery},
-  address   = {New York, NY, USA},
-  url       = {https://doi.org/10.1145/218380.218498},
-  doi       = {10.1145/218380.218498},
-  booktitle = {Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques},
-  pages     = {419–428},
-  numpages  = {10},
-  keywords  = {Monte Carlo, distribution ray tracing, global illumination, lighting simulation, rendering, variance reduction},
-  series    = {SIGGRAPH '95}
-}
-
-@phdthesis{VeachPower,
-  author    = {Veach, Eric},
-  advisor   = {Guibas, Leonidas J.},
-  title     = {Robust monte carlo methods for light transport simulation},
-  year      = {1998},
-  isbn      = {0591907801},
-  publisher = {Stanford University},
-  address   = {Stanford, CA, USA},
-  abstract  = {Light transport algorithms generate realistic images by simulating the emission and scattering of light in an artificial environment. Applications include lighting design, architecture, and computer animation, while related engineering disciplines include neutron transport and radiative heat transfer. The main challenge with these algorithms is the high complexity of the geometric, scattering, and illumination models used. In this dissertation, we develop new Monte Carlo techniques that greatly extend the range of input models for which light transport simulations are practical. We start by developing a rigorous theoretical basis for bidirectional light transport algorithms (those that combine direct and adjoint techniques). We propose a new formulation based on linear operators, such that for any physically valid input scene, the transport operators are symmetric. We also show how light transport can be formulated as an integral over a space of paths. This framework allows new sampling and integration techniques to be applied, such as the Metropolis sampling method.Our statistical contributions include multiple importance sampling, a new variance reduction technique that can greatly increase the robustness of Monte Carlo integration. It uses more than one sampling technique to evaluate an integral, and combines these samples in a way that is provably close to optimal.Finally, we propose new Monte Carlo light transport algorithms. Bidirectional path tracing uses a family of different path sampling techniques that generate some path vertices starting from a light source, and some starting from a sensor. We show that when these techniques are combined using multiple importance sampling, a large range of difficult lighting effects can be handled efficiently.The second algorithm we describe is Metropolis light transport, inspired by the Metropolis sampling method from computational physics. Paths are generated by following a random walk through path space, such that the probability density of visiting each path is proportional the contribution it makes to the ideal image. The resulting algorithm is unbiased, handles arbitrary geometry and materials, and can be orders of magnitude more efficient than previous unbiased approaches for difficult lighting problems. To our knowledge, this is the first application of the Metropolis method to transport problems of any kind.},
-  note      = {AAI9837162}
 }

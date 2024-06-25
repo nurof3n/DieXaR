@@ -48,9 +48,8 @@
 \newcommand*\diff{\mathop{}\!\mathrm{d}}
 \newcommand*\Diff[1]{\mathop{}\!\mathrm{d^#1}}
 
-% rename Algorithm to Algoritm and add : after number
+% rename Algorithm to Algoritm
 \floatname{algorithm}{Algoritmul}
-\renewcommand{\thealgorithm}{\arabic{algorithm}:}
 
 % change algorithmic font
 \xpatchcmd{\algorithmic}{\setcounter}{\algorithmicfont\setcounter}{}{}
@@ -406,21 +405,21 @@ La nivel de bază, motorul grafic conține două implementări din clasa algorit
 de Ray Tracing. Prima este o versiune simplă a algoritmului original descris de
 Whitted (1979)~\cite{Whitted}, peste care se aplică modelul clasic de iluminare
 Phong (1975)~\cite{Phong}. Această implementare a fost adaptată din codul sursă
-suport oferit de Microsoft\footnote{\url{https://github.com/microsoft/directx-graphics-samples/blob/master/Samples/Desktop/D3D12Raytracing/src/D3D12RaytracingProceduralGeometry/readme.md}. Accesat 19.06.2024.}.
+suport oferit de Microsoft~\cite{Schelet}.
 A doua implementare este scrisă de la zero și folosește algoritmul de tip Monte Carlo
 Path Tracing pentru a rezolva ecuația de iluminare globală propusă de Kajiya (1986)~\cite{Kajiya}.
-Fără a intra în prea multe detalii tehnice (vezi secțiunea \ref{sec:stateoftheart}),
+Fără a intra în prea multe detalii tehnice (vezi capitolul \ref{sec:stateoftheart}),
 această ecuație descrie cantitatea de lumină emisă dintr-un punct de pe o suprafață,
 de-a lungul unei direcții de vizualizare, dându-se o funcție de distribuție a luminii
 și un BRDF (Bidirectional Reflectance Distribution Function) pentru materialul de pe
 suprafață. Ecuația conține o integrală de suprafață (peste emisfera unitate), care
 integrează contribuțiile din toate direcțiile. Pentru eficiență, această integrală
-este eșantionată folosind tehnici de eșantionare bazate pe importanță, descrise în secțiunea \ref{sec:stateoftheart}.
+este eșantionată folosind tehnici de eșantionare bazate pe importanță, descrise în capitolul \ref{sec:stateoftheart}.
 Totuși, numărul de eșantioane per pixel rămâne în continuare foarte limitat, din
 cauza bugetului de calcul (nu depășește 16 eșantioane per pixel). Pentru a reduce
 în continuare varianța (manifestată prin zgomot în imaginea finală), se folosește
 un algoritm de denoising în faza de post procesare. Mai multe detalii tehnice
-despre implementare sunt prezentate în secțiunea \ref{sec:implementare}.
+despre implementare sunt prezentate în capitolul \ref{sec:implementare}.
 
 Algoritmul de Path Tracing folosește un sistem de materiale diferit de cel folosit
 de algoritmul Whitted. Dacă acesta din urmă este limitat de modelul simplu de iluminare
@@ -436,20 +435,16 @@ modelul se concentrează pe a avea o interfață cât mai intuitivă pentru arti
 grafic, deviând puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
 PBR sunt descrise în secțiunile \ref{sec:stateoftheart} și \ref{sec:implementare}.
 
-Pentru evaluare se folosesc 3 scene distincte. Prima este celebra Cornell Box
-(o variantă se poate vedea în Figura~\ref{fig:cornell-raster}), care este folosită
-pentru a evalua corectitudinea algoritmului de iluminare globală. Se va putea
+Pentru evaluare se folosesc 2 scene distincte. Se va putea
 face o comparație între cei doi algoritmi de Ray Tracing. Se va mai observa și
 capabilitatea algoritmului de Path Tracing de a simula surse de lumină de tip
 area light, care sunt dificil de modelat în algoritmul Whitted.
-A doua scenă este un test al materialelor PBR, exclusivă pentru algoritmul de Path Tracing.
-Aceasta conține mai multe sfere cu același material de bază, care diferă
-printr-un singur parametru. Utilizatorul poate alege care să fie acest parametru
-variabil și să seteze constante pentru restul parametrilor. Scena va fi folosită pentru
-a evalua fidelitatea sistemului de materiale.
-Ultima scenă testează performanțele de rulare a algoritmilor. Aceasta conține
-mai multe obiecte simple, definite prin suprafețe implicite, dar și obiecte
-complexe definite ca mesh-uri triunghiulare cu multe poligoane.
+Prima scenă este un test al materialelor PBR, exclusivă pentru algoritmul de Path Tracing.
+Aceasta permite utilizatorului să tuneze parametrii materialelor de pe câteva sfere
+pentru a observa cum aceștia influențează aspectul final al obiectelor.
+A doua scenă testează performanțele de rulare a algoritmilor. Aceasta conține
+mai multe obiecte definite prin suprafețe implicite și obiecte
+definite ca mesh-uri triunghiulare.
 
 \section{Rezultatele obținute}
 
@@ -469,34 +464,34 @@ care se concentrează pe utilizarea API-ului DirectX12 pentru a implementa algor
 cu accelerare hardware. Din nou, nici conceptele tehnice din urmă nu vor fi prezentate
 într-o lumină precisă, ci mai degrabă într-un mod simplificat și intuitiv.
 
-În secțiunea~\ref{sec:motivatie} este descris contextul actual în care se plasează
+În capitolul~\ref{sec:motivatie} este descris contextul actual în care se plasează
 eforturile din domeniu, din perspectiva industriilor de gaming și de cinematografie,
 și se prezintă motivațiile principale pentru a continua avansurile în cercetare.
 
-În secțiunea~\ref{sec:stateoftheart} se analizează stadiul curent al cercetărilor
+În capitolul~\ref{sec:stateoftheart} se analizează stadiul curent al cercetărilor
 în domeniul algoritmilor de Path Tracing, cu focus pe optimizări pentru timp real.
 De asemenea, se poziționează lucrarea de față în acest peisaj și se conturează
 aspectul didactic al acesteia.
 
-În secțiunea~\ref{sec:solutie} se prezintă bazele teoretice ale algoritmilor
+În capitolul~\ref{sec:solutie} se prezintă bazele teoretice ale algoritmilor
 utilizați (Ray Tracing Whitted și Path Tracing), iar pentru cel din urmă se
 detaliază modelul de materiale PBR folosit și tehnicile de denoising. De asemenea, se descrie arhitectura
 generală a motorului grafic, cu accent pe concepte din API-urile DirectX 12 și
 DXR.
 
-Secțiunea~\ref{sec:implementare} detaliază utilizarea API-urilor DirectX 12 și DXR
+Capitolul~\ref{sec:implementare} detaliază utilizarea API-urilor DirectX 12 și DXR
 pentru implementarea algoritmilor de Ray Tracing cu accelerare hardware. Accentul
 este pus pe transpunerea aspectelor teoretice în cod și pe deciziile de design luate pentru a obține o implementare
 eficientă și ușor de înțeles. Tot aici se notează și dificultățile întâmpinate
 și compromisurile făcute pentru a obține un echilibru între fidelitate și performanță.
 
-Secțiunea de evaluare (secțiunea~\ref{sec:evaluare}) prezintă rezultatele obținute
+Capitolul de evaluare \ref{sec:evaluare} prezintă rezultatele obținute
 în urma testelor efectuate pe cele trei scene descrise anterior. Se analizează
 performanțele sistemului, fidelitatea imaginilor generate și se fac comparații
 între cei doi algoritmi de Ray Tracing. De asemenea, se analizează impactul pe
 care îl au diferitele optimizări asupra stabilității imaginilor generate.
 
-Ultima secțiune (secțiunea~\ref{sec:concluzii}) conține concluziile trase din
+Ultimul capitol ~\ref{sec:concluzii} conține concluziile trase din
 rezultatele obținute și se analizează calitativ produsul final. De asemenea, se
 discută posibile direcții de dezvoltare viitoare și se oferă o perspectivă asupra
 importanței acestei lucrări în contextul cercetării în domeniul graficii pe calculator.
@@ -696,7 +691,7 @@ interesantă.
 	\label{fig:whitted}
 \end{figure}
 
-\subsection*{Ray Marching}
+\subsection*{Ray Marching}\label{sec:raymarching}
 
 Un algoritm foarte drag mie, datorită eleganței matematice, este Ray Marching.
 Dacă celelalte metode de Ray Tracing calculează intersecții cu obiecte definite
@@ -931,7 +926,7 @@ atunci varianța estimării nu va fi mai mare decât fără eșantionare stratif
 Pentru mai multe informații se poate consulta cartea de specialitate a lui Kleijnen et al.~\cite{Kleijnen2013}.
 
 Un exemplu de eșantionare stratificată este ilustrat sub tehnica de jittering
-în eșantionarea pixelilor, detaliată în secțiunea~\ref{sec:implementare}.
+în eșantionarea pixelilor, detaliată în capitolul~\ref{sec:implementare}.
 
 \subsection{Ecuația transportului luminii}
 
@@ -1269,7 +1264,7 @@ părăsește complet materialul. Astfel, o aparentă transmisie poate rezulta î
 luminii în același mediu, dar din alt punct. Acest fenomen este cunoscut drept
 subsurface scattering (dispersie sub suprafață), iar o ilustrație se află în Figura~\ref{fig:sss}.
 Totuși, pentru scopul lucrării nu vom modela acest fenomen, ci îl vom aproxima,
-așa cum vom vedea în secțiunea~\ref{sec:implementare}.
+așa cum vom vedea în capitolul~\ref{sec:implementare}.
 
 \begin{figure}[ht]
 	\centering
@@ -1416,7 +1411,7 @@ către funcția $G_1(\omega, \omega_h)$ a lui Smith, introdusă în 1967~\cite{S
 Aceasta modelează proporția microfațetelor cu normala $\omega_h$ care sunt vizibile
 din direcția $\omega$.
 O formă generală a acestei funcții este:
-\begin{equation}
+\begin{equation}\label{eq:g1}
 	G_1(\omega, \omega_h) = \frac{1}{1 + \Lambda(\omega, \omega_h)},
 \end{equation}
 unde $\Lambda(\omega)$ este o funcție nespecificată. Totuși, ea trebuie aleasă
@@ -1456,7 +1451,7 @@ BRDF-ul Torrance-Sparrow este definit ca:
 \end{equation}
 care poate fi simplificată sub asumpția că vizibilitatea microfațetelor este independentă
 de orientarea acestora:
-\begin{equation}
+\begin{equation}\label{eq:ts}
 	f_{TS}(\mathbf{x}, \omega_i, \omega_o) = \frac{D(\omega_h)G_2(\omega_i, \omega_o)F(\omega_o)}{4(\omega_i \cdot \mathbf{n})(\omega_o \cdot \mathbf{n})}.
 \end{equation}
 
@@ -1506,9 +1501,9 @@ orientată în sus, $\mathbf{n} = (0, 1, 0)$. Câteva metode presupun coordonate
 din care putem transforma în cele carteziene folosind formulele:
 \begin{equation}
 	\begin{aligned}
-		\mathbf{x} &= \sin \theta \cos \phi, \\
-		\mathbf{y} &= \cos \theta,           \\
-		\mathbf{z} &= \sin \theta \sin \phi.
+		\mathbf{x} & = \sin \theta \cos \phi, \\
+		\mathbf{y} & = \cos \theta,           \\
+		\mathbf{z} & = \sin \theta \sin \phi.
 	\end{aligned}
 \end{equation}
 
@@ -1518,9 +1513,9 @@ de intersecție. Considerând coordonatele sferice $(\theta, \phi)$, formulele
 de transformare, împreună cu probabilitatea eșantionului, sunt:
 \begin{equation}\label{eq:uniform_sampling}
 	\begin{aligned}
-		\theta &= \arccos \xi_1, \\
-		\phi   &= 2\pi \xi_2,	 \\
-		pdf    &= \frac{1}{2\pi}.
+		\theta & = \arccos \xi_1,  \\
+		\phi   & = 2\pi \xi_2,     \\
+		pdf    & = \frac{1}{2\pi}.
 	\end{aligned}
 \end{equation}
 
@@ -1532,9 +1527,9 @@ eșantionului cu $\cos \theta$ (unghiul făcut cu normala) și are la bază prin
 cosinusului Lambertian. Formulele sunt:
 \begin{equation}\label{eq:cosine_sampling}
 	\begin{aligned}
-		\theta &= \arccos \sqrt{\xi_1}, \\
-		\phi   &= 2\pi \xi_2,	         \\
-		pdf    &= \frac{\cos \theta}{\pi}.
+		\theta & = \arccos \sqrt{\xi_1},    \\
+		\phi   & = 2\pi \xi_2,              \\
+		pdf    & = \frac{\cos \theta}{\pi}.
 	\end{aligned}
 \end{equation}
 
@@ -1567,7 +1562,7 @@ Eșantionarea modelului Torrance-Sparrow este intuitivă. Deoarece factorul
 predominant este distribuția micronormalelor $D(\omega_h)$, eșantionarea
 se poate face fix pe această distribuție. În acest caz, se va reflecta
 raza de incidență $\omega_i$ în jurul normalei eșantionate pentru a obține
-direcția de ieșire $\omega_o$. Totuși, o metodă mult mai eficientă pentru 
+direcția de ieșire $\omega_o$. Totuși, o metodă mult mai eficientă pentru
 unghiuri de incidență mari o reprezintă eșantionarea normalelor vizibile.
 Reamintim că ecuația~\ref{eq:ndf} trebuie să fie satisfăcută pentru a obține
 o distribuție corectă. Această ecuație descria proporția microfațetelor vizibile
@@ -1607,19 +1602,384 @@ metode se pot observa în Figura~\ref{fig:nee}.
 Ideea de bază este de a combina cele două contribuții (directă și indirectă)
 cu o pondere în $[0, 1]$. Aceasta poate fi ori constantă (e.g., 0 sau 1) ori
 bazată pe o euristică (precum cele studiate de Veach - balance sau power~\cite{Veach,VeachPower}).
-
+Formula generală pentru a combina cele două contribuții este:
+\begin{equation}\label{eq:nee}
+	L(\mathbf{x}, \omega_i, \omega_o) = w\cdot f_{r}(\mathbf{x}, \omega_i, \omega_o) L_e(\mathbf{x}, \omega_i, \omega_o),
+\end{equation}
+unde $w$ este factorul de ponderare, $f_{r}$ este BRDF-ul materialului și $L_e$
+este radianța emisă de sursa de lumină (normalizată cu probabilitatea de eșantionare).
 \section{Accelerare Hardware}
+
+Până acum am discutat despre aspectele teoretice ale domeniului. În practică,
+algoritmii de tip Monte Carlo precum Path Tracing sunt foarte costisitori din
+punct de vedere computațional. Prin natura lor, aceștia sunt algoritmi paraleli
+și pot beneficia de accelerare hardware precum GPU-urile, care sunt fundamental
+concepute în jurul unei arhitecturi SIMD. În mod tradițional, totuși, algoritmii
+offline folosiți în motoarele grafice de producție (Blender Cycles\footnote{\url{https://www.cycles-renderer.org/}. Accesat 24.06.2024.},
+Autodesk Arnold\footnote{\url{https://www.autodesk.co.uk/products/arnold/overview?term=1-YEAR&tab=subscription}. Accesat 24.06.2024.},
+Chaos V-Ray\footnote{\url{https://www.chaos.com/3d-rendering-software}. Accesat 24.06.2024.})
+sunt rulați pe CPU-uri, în parte deoarece este
+mult mai facil de dezvoltat și extins un program care rulează pe CPU. De pildă,
+un framework multi-vendor, OpenCL\footnote{\url{https://www.khronos.org/api/opencl}. Accesat 24.06.2024.},
+nu a primit prea mult suport în motoarele grafice de producție precum Cycles sau Arnold
+(dar tool-uri noi precum HIP\footnote{\url{https://github.com/ROCm/HIP}. Accesat 24.06.2024.}
+încep să primească suport\footnote{\url{https://code.blender.org/2021/11/next-level-support-for-amd-gpus/}. Accesat 24.06.2024.}).
+Povestea este puțin mai
+fericită în tabăra verde (Nvidia), care are suport mai răspândit pentru framework-ul
+CUDA. Totuși, într-un context de randare în timp real, CUDA este o opțiune ce
+aduce un overhead sesizabil.
+
+În industria real-time (specific jocurilor video), accelerarea hardware este
+esențială. Totodată, se preferă să se folosească un API cât mai aproape de driver
+și cu o amprentă cât mai mică asupra sistemului. De aceea, se folosesc API-uri
+precum Vulkan sau DirectX 12 în defavoarea CUDA sau OpenCL. Acestea din urmă sunt
+mai degrabă folosite în aplicații de tip offline, unde timpul de randare nu este
+atât de critic.
+
+\subsection{Vulkan}
+
+Vulkan a fost dezvoltat cu scopul de a fi un succesor al OpenGL și de a utiliza
+eficient hardware-ul modern, oferind uneltele de optimizare necesare
+pentru a distribui sarcini pe mai multe fire de execuție\footnote{\url{https://www.vulkan.org/}. Accesat 24.06.2024.}.
+A fost adoptat la scară largă în industria jocurilor video\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_Vulkan_games}. Accesat 24.06.2024.}
+și continuă să se dezvolte spre a fi un standard în industrie.
+De remarcat că acest API oferă suport pentru Ray Tracing accelerat hardware\footnote{\url{https://docs.vulkan.org/guide/latest/extensions/ray_tracing.html}. Accesat 24.06.2024.}.
+
+\subsection{DirectX 12}
+
+DirectX 12 este cel mai popular API modern de grafică în industria jocurilor video\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_Direct3D_12_games}. Accesat 24.06.2024.}.
+dezvoltat de Microsoft pentru a fi folosit pe platformele Windows și Xbox\footnote{\url{https://learn.microsoft.com/en-us/windows/win32/direct3d12/what-is-directx-12-}. Accesat 24.06.2024.}.
+Acesta oferă avantaje similare cu cele oferite de Vulkan, însă și acesta este
+un API de nivel scăzut, notoriu pentru dificultatea de a fi folosit la potențialul său maxim.
+Acesta oferă suport pentru Ray Tracing accelerat hardware
+prin intermediul extensiei DirectX Raytracing (DXR).\footnote{\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 24.06.2024.}.
+Acesta a devenit standardul în industrie pentru randarea în timp real și este
+adoptat în majoritatea noilor lansări AAA de pe piață\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_games_that_support_ray_tracing}. Accesat 24.06.2024.}.
+Acest API, împreună cu extensia DXR, este folosit în acest proiect pentru
+a accelera randarea Path Tracing pe GPU (vezi capitolul~\ref{sec:implementare}).
 
 \chapter{\label{sec:solutie}Soluția Propusă}
 
-//TODO
+\section{Comparație cu Ray Tracing Whitted}
 
-Capitolul conține o privire de ansamblu a soluției ce rezolvă problema, prin prezentarea structurii / arhitecturii acesteia. În funcție de tipul lucrării acest capitol poate conține diagrame (clase, distribuție, workflow, entitate-relație), demonstrații de corectitudine pentru algoritmii propuși de autor, abordări teoretice (modelare matematică), structura hardware, arhitectura aplicației.
+Proiectul de față dezvoltă un motor de randare bazat pe Ray Tracing Whitted și Path Tracing, cu suport
+pentru accelerare hardware folosind API-ul DirectX 12. Acesta este scris în C++20,
+iar algoritmii de Ray Tracing sunt implementați în cadrul HLSL. Proiectul a fost
+dezvoltat pornind de un exemplu oferit public de Microsoft~\cite{Schelet},
+care oferă un schelet bun de DirectX 12 și este un punct de plecare ce oferă
+majoritatea boilerplate-ului necesar pentru a începe dezvoltarea. A fost modificat acest cod
+suport pentru a extinde funcționalitatea cu încă un set de shadere pentru Path Tracing și
+a suporta noi tipuri de suprafețe (e.g., unghi solid - Figura~\ref{fig:solid-angle}). De asemenea,
+acesta a fost extins cu multe alte funcționalități, pe care le vom detalia în acest
+capitol.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/solid-angle.png}
+	\caption{Unghi solid reprezentat drept câmp de distanță\protect\footnotemark}
+	\label{fig:solid-angle}
+\end{figure}
+\footnotetext{Formula câmpului a fost preluată de la adresa~\url{https://www.shadertoy.com/view/Xds3zN}. Accesat 24.06.2024.}
 
-Criterii pentru calificativul \textit{Bine}:
+Algoritmul integrat deja în schelet este un Ray Tracer recursiv simplu, de tip Whitted,
+care folosește un model de iluminare Phong. Acesta nu suportă transmisie, iar
+reflexiile sunt perfect geometrice. O randare realizată cu acest algoritm se poate
+vedea în Figura~\ref{fig:demo_whitted}. Torusul de tip inel și cele 3 sfere
+au un material ce simulează cromul și este reflectiv. Se pot observa și umbre
+geometrice, cauzate de două surse de lumină punctiforme.
+\begin{figure}[ht]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_whitted.png}
+	\caption{Randare folosing Ray Tracing Whitted}
+	\label{fig:demo_whitted}
+\end{figure}
+Aceeași scenă, dar randată folosind Path Tracing, se poate vedea în Figura~\ref{fig:demo_pathtracing}.
+Condițiile de iluminare nu pot fi replicate perfect. Observăm imediat o diferență
+majoră - această randare ține cont de iluminarea globală. Scena este iluminată
+conform fundalului, iar contribuția reflectanței fiecărui obiect este vizibilă
+pe podea. În acest caz, lumina nu este destul de puternică să lupte cu fundalul,
+de aceea umbrele sunt destul de puțin pronunțate. În randarea din Figura~\ref{fig:demo_pathtracing2}
+culoarea de fundal a fost coborâtă - se observă astfel contribuțiile celor două surse
+de lumină - una de tip suprafață și una direcțională. Umbrele lăsate de zonele
+obstrucționate din perspectiva luminii de suprafață au un aspect natural, cu penumbre
+ce tranziționează lin între umbra completă și lumina directă.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_pathtracing.png}
+	\caption{Randare folosind Path Tracing}
+	\label{fig:demo_pathtracing}
+\end{figure}
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_pathtracing2.png}
+	\caption{Randare folosind Path Tracing cu fundal mai întunecat}
+	\label{fig:demo_pathtracing2}
+\end{figure}
+
+Așa cum este descris în secțiunea~\ref{sec:disney}, sistemul de materiale
+folosit este physically based și modelează efecte complexe precum reflexii și
+refracții. Un exemplu de material care dă dovadă de ambele comportamente se află
+în figura Figura~\ref{fig:demo_refraction}. Acesta este un material dielectric, cu
+un indice de refracție de 1.5. Se observă refracții către obiectele din spate
+în zonele centrale ale sferelor și reflexii către mediul înconjurător către
+margini, unde unghiul de incidență este mare. Acest comportament este consistent
+cu legile lui Fresnel.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/demo_refraction.png}
+	\caption{Randare folosind Path Tracing cu sticlă dielectrică}
+	\label{fig:demo_refraction}
+\end{figure}
+
+\section{Tehnici de accelerare a convergenței}
+Algoritmul de bază prezentat în pseudocodul~\ref{alg:path_tracing} a fost
+augmentat cu mai multe tehnici de accelerare a convergenței, majoritatea fiind
+descrise în secțiunea~\ref{sec:path_tracing}. Multe dintre acestea sunt configurabile
+din meniu, iar unele sunt activate implicit.
 \begin{itemize}
-	\item 	Descriere + diagrame de baze de date, workflow, clase, algoritmi + descrierea unui proces prin care s-a realizat arhitectura/structura soluției.
+	\item \textbf{Next Event Estimation} - la fiecare pas se selectează o lumină (sau toate)
+	      din scenă și se eșantionează cu importanță multiplă contribuția directă și indirectă.
+	      În formula~\ref{eq:nee} s-a folosit pentru calculul ponderii $w$ euristica puterii 2:
+	      \begin{equation}
+		      w = \dfrac{pdf_L^2}{pdf_f^2 + pdf_L^2}.
+	      \end{equation}
+	      Această optimizare se efectuează implicit și nu este configurabilă.
+	\item \textbf{Eșantionare a unei singure lumini} - pentru ca algoritmul să nu piardă
+	      performanță dramatic în cazul în care există multe surse de lumină, se poate alege
+	      aleator o singură sursă de lumină la fiecare pas pe care să se aplice NEE. Rezultatul
+	      final este ponderat apoi cu probabilitatea de eșantionare a sursei de lumină (în acest
+	      caz, $1/N$, unde $N$ este numărul de surse de lumină). Această optimizare poate
+	      fi dezactivată din meniu (este activată implicit).
+	\item \textbf{Eșantionare bazată pe importanță} - alegerea unei noi direcții de ieșire
+	      pentru pasul recursiv se face folosind o eșantionare concepută pentru a aproxima
+	      distribuția de probabilitate a normalelor microfațetelor (vezi secțiunile~\ref{sec:is}, \ref{sec:pbr} și \ref{sec:disney}).
+	      Această optimizare este activată implicit și poate fi schimbată cu alte două
+	      tehnici de eșantionare: uniformă sferică, respectiv ponderată de cosinusul unghiului
+	      de ieșire.
+	\item \textbf{Ruleta rusească} - o tehnică unbiased care termină prematur
+	      recursivitatea pentru a evita pierderea de timp în cazul în care contribuția pe o cale
+	      este foarte mică. Probabilitatea de eliminare este invers proporțională cu
+	      contribuția acumulată până la acel pas. Pentru a nu introduce bias din cauza
+	      energiei pierdute în terminarea prematură, contribuția acumulată se
+	      ponderează la fiecare pas cu probabilitatea de terminare.
+	      Această optimizare este activată implicit și poate fi configurată
+	      prin modificarea adâncimii de la care se aplică.
 \end{itemize}
+
+\section{Suport pentru suprafețe implicite și analitice}
+Motorul grafic suportă, pe lângă suprafețele tradiționale definite prin primitive
+geometrice (e.g., triunghiuri), și suprafețe definite implicit (vezi secțiunea~\ref{sec:raymarching}) sau analitic.
+Acestea se încadrează în AABB-uri care se folosesc în structura de accelerare BVH
+oferită de DXR. Astfel, API-ul se ocupă de intersecția cu aceste încadrări, iar
+mai departe se utilizează rutine specifice pentru a calcula intersecția precisă
+cu suprafața definită. Pentru cele implicite, se folosesc funcții de distanță cu semn
+și se aplică Ray Marching local (vezi secțiunea~\ref{sec:raymarching}). Pentru
+suprafețele analitice, precum sferele și paralelipipedul, se folosesc formule
+analitice pentru a calcula intersecția. Rutinele de intersecție pentru suprafețele
+analitice sunt mult mai rapide decât cele de Ray Marching, dar nu oferă la fel
+de multă flexibilitate creativă.
+
+Ofer credite lui Inigo Quilez~\cite{iq} și Microsoft~\cite{Schelet} pentru formulele care definesc aceste
+suprafețe. Exemple de cod pot fi găsite în capitolul~\ref{sec:implementare}.
+
+\section{Sistemul de materiale}\label{sec:disney}
+
+Sistemul de materiale este un BSDF compus ce combină mai mulți lobi definiți
+de BRDF-uri și BTDF-uri. Modelul particular este denumit Disney Principled BSDF
+și a fost introdus de Burley în 2012~\cite{Disney} ca un BRDF și extins în 2015~\cite{DisneyBSDF}
+cu o serie de îmbunătățiri, precum un lob de transmisie. Acesta este modelul care
+a fost folosit în producția cinematografică, începând cu filmul Wreck-It Ralph.
+
+Modelul este principiat în sensul că deviază în mod subtil de la modelele fizice
+pentru a oferi un control și o intuiție mai bună artistului. Astfel, acesta expune
+o interfață simplă, cu parametri normalizați (în $[0, 1]$) care să se coreleze
+cu proprietățile fizice ale materialelor, uneori alegând să nu aibe corespondență perfectă
+cu realitatea ci mai degrabă un impact artistic. O ilustrație a parametrilor
+disponibili în modelul din 2012 se poate vedea în Figura~\ref{fig:disney_params}.
+\begin{figure}[!htb]
+	\centering
+	\includegraphics[width=\textwidth]{pics/disneybsdf.png}
+	\caption{Compunerea BSDF-ului Disney Principled~\cite{DisneyBSDF}}
+	\label{fig:disneybsdf}
+\end{figure}
+
+În lucrarea de față am ales să implementăm modelul din 2015, cu câteva modificări
+care să ușureze dezvoltarea. Câteva implementări de referință sunt~\cite{DisneyHomework,DisneySchutte,GlslPathTracer}.
+Menționăm faptul că distribuțiile prezentate în continuare vor folosi calcule
+într-un sistem de coordonate local $(\mathbf{t}, \mathbf{b}, \mathbf{n})$,
+pe când în implementare se folosește un sistem de coordonate local $(\mathbf{t}, \mathbf{n}, \mathbf{b})$,
+unde $\mathbf{t}$ este tangenta, $\mathbf{n}$ este normala și $\mathbf{b}$ este bitangenta la suprafață.
+
+\subsubsection*{Lobul difuz}
+Reprezintă un model empiric ce încearcă să modeleze efectele
+observate de Burley în setul de date MERL~\cite{MERL}: la unghiuri de incidență
+mari, materialele lucioase au reflectanța scăzută, în timp ce materialele
+dure au reflectanța crescută față de unghiul normal de incidență. Aceste
+observații sunt prezise de reflexia Fresnel, motiv pentru care modelul propus
+ține cont de aceasta:
+\begin{equation}\label{eq:brdf_diffuse}
+	f_d = \dfrac{albedo}{\pi}F_D(\omega_i, \omega_h)F_D(\omega_o, \omega_h),
+\end{equation}
+unde $F_D(\omega, \omega_h)$ este o modificare a aproximației lui Schlick~\cite{Schlick} a
+reflexiei Fresnel pentru direcția de incidență $\omega$ și micronormala $\omega_h$
+\begin{equation}
+	\begin{aligned}\label{eq:f_d}
+		F_D(\omega, \omega_h) & = 1 + (F_{D90} - 1)(1 - |\omega \cdot \omega_h|)^5,      \\
+		F_{D90}               & = 0.5 + 2\cdot roughness\cdot |\omega_o \cdot \omega_h|.
+	\end{aligned}
+\end{equation}
+Această modificare ignoră indicele de refracție al materialului și presupune
+că nu există pierderi de energie incidentă la difuzie, ceea ce permite
+BRDF-ului să depindă direct de o culoare $albedo$ specificată. De asemenea, termenul $F_{D90}$ este
+ales astfel încât contribuția de tip retroreflexie să fie modulată, în funcție
+de $roughness$, între 0.5 ($roughness = 1$) și 2.5 ($roughness = 0$). Această
+modificare este strict empirică și, conform lui Burley, are un feedback pozitiv
+din partea artiștilor.
+
+Versiunea din 2015 transformă $f_d$ într-un BSDF cu componentă de dispersie
+sub suprafață, care este simulată prin Path Tracing Volumetric (introdusă prima oară de Lafortune și Willems~\cite{Volumetric}),
+dar acest algoritm este prea costisitor pentru randare în timp real.
+Așadar, rămânem la BRDF-ul~\ref{eq:brdf_diffuse} și îl complementăm cu o aproximație
+a acestui fenomen bazată pe legea Lommel-Seeliger\footnote{\url{https://phys.libretexts.org/Bookshelves/Astronomy__Cosmology/Planetary_Photometry_(Tatum_and_Fairbairn)/03\%3A_A_Brief_History_of_the_Lommel-Seeliger_Law}. Accesat 24.06.2024.}, așa cum este descris în~\cite{DisneyHomework}:
+\begin{equation}
+	f_{ss} = \dfrac{1.25\cdot albedo}{\pi} \left(F_{SS}(\omega_i, \omega_h)F_{SS}(\omega_o, \omega_h) \left(\dfrac{1}{|\omega_i \cdot \omega_h| + |\omega_o \cdot \omega_h|} - 0.5\right) + 0.5 \right),
+\end{equation}
+unde $F_{SS}$ este aceeași aproximare folosită pentru $F_D$ (\ref{eq:f_d}), dar cu o remapare $F_{SS90} = roughness\cdot (\omega_o\cdot \omega_h)^2$.
+
+Într-un final, cele două componente sunt interpolate liniar de parametrul $subsurface$:
+\begin{equation}\label{eq:disney_diffuse}
+	f_{d} = (1 - subsurface)\cdot f_d + subsurface\cdot f_{ss}.
+\end{equation}
+
+\subsubsection*{Componenta de luciu (sheen)}
+
+Materialele textile precum catifeaua sau mătasea au un luciu pronunțat la unghiuri
+mari de incidență, cauzat de retroreflexie. Pentru a compensa pentru acest efect,
+Burley a adăugat o componentă aditivă de luciu la BRDF-ul difuz (aceasta nu este
+evaluată ca un lob separat). La fel cum a procedat și la difuz, Burley a folosit
+un termen Fresnel modificat pentru a accentua retroreflexia:
+\begin{equation}
+	\begin{aligned}\label{eq:disney_sheen}
+		f_{sheen} & = sheen\cdot C_{sheen}(1 - |\omega\cdot\omega_h|^5), \\
+		C_{sheen} & = (1 - sheenTint) + sheenTint\cdot C_{tint},         \\
+		C_{tint}  & = albedo/luminance(albedo),
+	\end{aligned}
+\end{equation}
+unde $sheenTint$ este un parametru care controlează contribuția culorii materialului
+la luciu. Reflexia speculară a unui dielectric este totuși acromatică, însă această
+componentă modelează structura complexă a textilei și deci este lăsată la latitudinea
+artistului cât de colorată să fie.
+
+\subsubsection*{Lobul de reflexie speculară}
+
+Reprezintă este un model BRDF de microfațete de tipul Torrance-Sparrow (vezi ecuația~\ref{eq:ts}):
+\begin{equation}\label{eq:disney_specular}
+	f_{sp} = \dfrac{D(\omega_h)G(\omega_i, \omega_o)F(\omega_o)}{4|\omega_i \cdot \mathbf{n} ||\omega_o \cdot \mathbf{n}|},
+\end{equation}
+Pentru distribuția microfațetelor $D$, Burley folosește distribuția anizotropică GGX~\cite{WalterSmithG2}:
+\begin{equation}
+	D_{specular} = \dfrac{1}{\pi\alpha_x\alpha_y\left(\dfrac{h_x^2}{\alpha_x^2} + \dfrac{h_y^2}{\alpha_y^2} + h_z^2\right)^2},
+\end{equation}
+unde $\mathbf{h} = (h.x, h.y, h.z)$ este normala microfațetei proiectată în planul de referință tangent,
+iar $\alpha_x$ și $\alpha_y$ sunt parametri de modelare a anizotropiei. Burley i-a definit
+cu o mapare în funcție de parametrii materialului $roughness$ și $anisotropic$:
+\begin{equation}
+	\begin{aligned}
+		aspect   & = \sqrt{1 - 0.9\cdot anisotropic},         \\
+		\alpha_x & = \max(0.0001, roughness^2 / aspect),     \\
+		\alpha_y & = \max(0.0001, roughness^2 \cdot aspect).
+	\end{aligned}
+\end{equation}
+Această mapare asigură un raport de aspect maxim de 10:1 și nu lasă rugozitatea
+să ajungă la 0 (altfel materialul este invizibil).
+
+Pentru funcția de mascare și umbrirei $G$, Burley folosește varianta separabilă cu funcția Smith G1 (vezi ecuația~\ref{eq:g1}) derivată
+pentru distribuția GGX, care implică următoarea expresie a funcției $\Lambda$:
+\begin{equation}\label{eq:gamma}
+	\Lambda(\omega, \omega_h) = \dfrac{\sqrt{1 + \dfrac{(w^l.x\cdot \alpha_x)^2 + (w^l.y\cdot \alpha_y)^2}{w^l.z^2}}}{2},
+\end{equation}
+unde $w^l = (w^l.x, w^l.y, w^l.z)$ este proiecția lui $\omega$ pe planul tangent.
+
+Pentru termenul specular $F$, trebuie să modelăm și din perspectiva materialelor
+dielectrice dar și a celor conductoare. Pentru partea conductoare o să folosim
+aproximarea lui Schlick, dar pentru parte dielectrică Burley a propus folosirea
+ecuației exacte a lui Fresnel, deoarece aproximarea introducea erori semnificative
+pentru indecși de refracție foarte mici. În contrast, ecuația lui Fresnel pentru
+conductoare este mai complexă și depinde de parametri neintuitivi, de aceea
+s-a decis să se rămână la aproximarea lui Schlick folosită în 2012.
+
+Pentru completitudine, definim ecuația lui Fresnel pentru dielectrice:
+\begin{equation}
+	F_{dielectric}(\theta_i, \theta_t, \eta) = 0.5 * \left(\left(\dfrac{\cos \theta_i - \eta\cos \theta_t}{\cos \theta_i + \eta\cos \theta_t}\right)^2 + \left(\dfrac{\cos \theta_t - \eta\cos \theta_i}{\cos \theta_t + \eta\cos \theta_i}\right)^2 \right),
+\end{equation}
+unde $\eta$ este indicele de refracție relativ al materialului, iar $\theta_i$ și $\theta_t$
+sunt unghiurile de incidență și transmisie, respectiv. Trebuie avută grijă la
+cazul de reflexie totală, când legea lui Snell nu are soluție reală pentru $\theta_t$, i.e., $\sin \theta_t > 1$.
+În acest caz, se consideră $F_{dielectric} = 1$.
+
+Aproximarea lui Schlick se definește astfel:
+\begin{equation}
+	F_{Schlick}(\theta, n_1, n_2) = F_0 + (1 - F_0)(1 - \cos \theta)^5,
+\end{equation}
+unde $F_0 = \left(\dfrac{n_1 - n_2}{n_1 + n_2}\right)^2$ este reflectanța la unghiul normal de incidență.
+Remarcăm faptul că în această aproximare $\theta$ se măsoară relativ la micronormala $\omega_h$.
+
+Acum că avem definiți termenii necesari, putem defini funcția de mixaj a reflexiei
+speculare pentru dielectrice și conductoare:
+\begin{equation}
+	F_{mix} = (1 - metallic)\cdot F_{dielectric} + metallic\cdot F_{Schlick},
+\end{equation}
+
+Reflectanța obținută este acromatică, ceea ce este reprezentativ pentru dielectrice,
+însă conductoarele au o reflexie speculară influențată de culoarea materialului. Totuși,
+factorul $F_{mix}$ este acromatic, fiind scalar. Așadar, pentru a introduce culoarea în reflexie,
+Burley a propus un amestec similar celui folosit pentru componenta de luciu~\ref{eq:disney_sheen}:
+\begin{equation}
+	specularColor = (1 - metallic)\cdot f_{sheen}\cdot F_0 + metallic\cdot albedo.
+\end{equation}
+În concluzie, termenul Fresnel al reflexiei speculare este:
+\begin{equation}
+	F_{specular} = F_{mix} + (1 - F_{mix})\cdot specularColor,
+\end{equation}
+unde termenul liber $F_{mix}$ este de fapt o culoare cu toate componentele egale cu valoarea
+$F_{mix}$.
+
+\subsubsection*{Lobul de transmisie speculară}
+
+Acesta este un lob modificat cu multiple corecții care să țină cont de schimbările
+care au loc la transmisie. Vom enunța formula lui Burley, cu observația că se omite
+un factor de $\dfrac{1}{\eta^2}$ care să anuleze creșterea luminozității excesive
+când observatorul este plasat într-un mediu cu indice de refracție diferit de al aerului
+(e.g. în apă):
+\begin{equation}\label{eq:disney_transmission}
+	f_{t} = \dfrac{D(\omega_{h_t})G(\omega_i, \omega_o)(1 - F(\omega_o))|\omega_i\cdot\omega_{h_t}||\omega_o\cdot\omega_{h_t}|\cdot\eta^2}{((\omega_o\cdot\omega_{h_t}) + \eta(\omega_i\cdot\omega_{h_t}))|\omega_i\cdot\mathbf{n}||\omega_o\cdot\mathbf{n}|},
+\end{equation}
+unde $\omega_{h_t}$ este normala microfațetelor refractată:
+\begin{equation}
+	\omega_{h_t} = -\dfrac{\omega_i + \eta\omega_o}{||\omega_i + \eta\omega_o||}.
+\end{equation}
+
+\subsubsection*{Lobul de clearcoat}
+
+Este tot un BRDF de tipul Torrance-Sparrow (\ref{eq:disney_specular}). Acesta
+modelează un strat subțire de material transparent și lucios, cu index de refracție 1.5
+(reprezentativ poliuretanului), care acoperă materialul principal. Totuși, formularea
+acestui model nu este fizică, așa că funcțiile de distribuție și mascare/umbrire sunt
+alese ad-hoc.
+
+Pentru termenul de distribuție $D$, Burley a ales următoarea distribuție, care
+are coada mai largă decât cea folosită la lobul de reflexie speculară:
+\begin{equation}
+	D_{clearcoat} = \dfrac{a^2 - 1}{\pi\log(a^2)\cdot (1 + (a^2 - 1)(\omega_h\cdot\mathbf{n})^2)},
+\end{equation}
+unde $a$ este o măsură de rugozitate care remapează parametrul $clearcoatGloss$ invers proporțional:
+\begin{equation}
+	a = (1 - clearcoatGloss)\cdot 0.1 + clearcoatGloss\cdot 0.001.
+\end{equation}
+
+Lobul folosește același termen de mascare
+și umbrire ca și lobul de reflexie speculară (vezi \ref{eq:g1} și \ref{eq:gamma}),
+însă termenii $\alpha_x$ și $\alpha_y$ sunt fixați la valoarea empirică 0.25.
+
 
 \chapter{\label{sec:implementare}Detalii de implementare}
 
@@ -1709,13 +2069,23 @@ Criterii pentru calificativul \textit{Bine}:
 
 \begin{appendices}
 	\label{anexa}
+
 	\chapter{Figuri}
-	\begin{figure}[ht]
+
+	\begin{figure}
+		\centering
+		\includegraphics[width=\textwidth]{pics/disney_params.png}
+		\caption{Parametrii modelului Disney Principled BRDF~\cite{Disney}}
+		\label{fig:disney_params}
+	\end{figure}
+
+	\begin{figure}
 		\centering
 		\includegraphics[width=0.8\textwidth]{pics/pipeline.jpg}
-		\caption{Pipeline-ul de randare Direct3D 11. \copyright~Microsoft, \url{https://learn.microsoft.com/}. Accesat 19.06.2024.}
+		\caption{Pipeline-ul de randare Direct3D 11. \copyright Microsoft, \url{https://learn.microsoft.com/}. Accesat 19.06.2024.}
 		\label{fig:pipeline}
 	\end{figure}
+
 	\chapter{Extrase de cod} % Introduce o nouă anexă
 	\ldots
 
