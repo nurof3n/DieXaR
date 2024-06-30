@@ -378,7 +378,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
     // Diffuse component.
     float Kd = CalculateDiffuseCoefficient(hitPosition, incidentLightRay, normal);
-    float3 diffuseColor = diffuseCoef * Kd * light.emission * light.intensity * albedo;
+    float3 diffuseColor = diffuseCoef * Kd * light.emission * light.intensity * albedo.xyz;
 
     // Specular component.
     float3 lightSpecularColor = light.emission * light.intensity;
@@ -527,7 +527,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, g_sceneCB.backgroundColor, 1.0 - exp(-0.000002 * t * t * t));
+    color = lerp(color, g_sceneCB.backgroundColor * rayPayload.throughput, 1.0 - exp(-0.000002 * t * t * t));
 
     rayPayload.color = color;
 }
