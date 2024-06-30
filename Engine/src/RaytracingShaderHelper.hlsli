@@ -24,6 +24,17 @@ struct Ray
     float3 origin;
     float3 direction;
 };
+ 
+// ACES tonemap
+float3 ACES(const float3 x)
+{
+    const float a = 2.51;
+    const float b = 0.03;
+    const float c = 2.43;
+    const float d = 0.59;
+    const float e = 0.14;
+    return (x * (a * x + b)) / (x * (c * x + d) + e);
+}
 
 // Returns a 32-bit hash of a float2 and a seed.
 uint hash(uint2 p, uint seed)

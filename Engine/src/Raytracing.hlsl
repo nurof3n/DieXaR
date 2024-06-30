@@ -58,7 +58,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = refraction ? 0.1f : 0.0f;
+    rayDesc.TMin = refraction ? 0.01f : 0.0001f;
     rayDesc.TMax = 10000.0f;
     RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, currentRayRecursionDepth + 1};
 
@@ -75,7 +75,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
-bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
+bool TraceShadowRayAndReportIfHit(in Ray ray, in float lightDist, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth || currentRayRecursionDepth >= g_sceneCB.maxShadowRecursionDepth)
     {
@@ -88,8 +88,8 @@ bool TraceShadowRayAndReportIfHit(in Ray ray, in UINT currentRayRecursionDepth)
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable back-face culling so as to avoid surface face fighting.
-    rayDesc.TMin = 0;
-    rayDesc.TMax = 10000;
+    rayDesc.TMin = 0.0001f;
+    rayDesc.TMax = lightDist * 0.999999f; // Avoid self-intersection.
 
     // Initialize shadow ray payload.
     // Set the initial value to true since closest and any hit shaders are skipped.
@@ -129,11 +129,12 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 }
 
 // Samples a light source with a given direction.
+//TODO unused
 bool NextEventEstimation(inout uint rng_state, in float3 L, in LightBuffer light, in float3 hitPosition,
                          in uint recursionDepth, out LightSample lightSample)
 {
     float angle;
-    switch(light.type)
+    switch (light.type)
     {
     case LightType::Square:
         lightSample.L = L;
@@ -151,13 +152,13 @@ bool NextEventEstimation(inout uint rng_state, in float3 L, in LightBuffer light
 
     // Check if the light is occluded.
     Ray shadowRay = {hitPosition, lightSample.L};
-    bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, recursionDepth);
+    bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightSample.dist, recursionDepth);
     return !shadowRayHit;
 }
 
 // Samples a light source.
-bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition,
-                             in uint recursionDepth, out LightSample lightSample)
+bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
+                         in uint recursionDepth, out LightSample lightSample)
 {
     float angle;
     float2 eps;
@@ -175,30 +176,34 @@ bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 h
         if (angle <= 0.0f)
             return false;
         lightSample.emission = light.intensity * light.emission;
-        lightSample.pdf = (sq(lightSample.dist)) / (sq(light.size) * angle);
+        lightSample.pdf = sq(lightSample.dist) / sq(light.size);
         break;
     case LightType::Directional:
         lightSample.L = -normalize(light.direction);
-        lightSample.dist = INFINITY;
+        lightSample.dist = 10000.0f;
         lightSample.emission = light.intensity * light.emission;
         lightSample.pdf = 1.0f;
         break;
     }
 
+    // Check correct side of the normal.
+    if (dot(normal, lightSample.L) <= 0.0f)
+        return false;
+
     // Check if the light is occluded.
     Ray shadowRay = {hitPosition, lightSample.L};
-    bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, recursionDepth);
+    bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightSample.dist, recursionDepth);
     return !shadowRayHit;
 }
 
 float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float eta,
-    in float3 hitPosition, in LightBuffer light, in float3 N, in uint recursionDepth)
+           in float3 hitPosition, in LightBuffer light, in float3 N, in uint recursionDepth)
 {
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
 
     // Sample the light source.
     LightSample lightSample;
-    if (NextEventEstimation(rng_state, light, hitPosition, recursionDepth, lightSample))
+    if (NextEventEstimation(rng_state, light, hitPosition, N, recursionDepth, lightSample))
     {
         // Evaluate the BSDF.
         float bsdfPdf;
@@ -237,7 +242,7 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
 
     //         // Calculate the final color.
     //         reflectance += weight * bsdf * lightEmission / bsdfPdf;
-    //     }       
+    //     }
     // }
 
     return reflectance;
@@ -247,6 +252,10 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
 {
     bool inside = dot(WorldRayDirection(), N) > 0.0f;
     float3 normalSide = inside ? -N : N;
+
+    // Checkerboard pattern for the floor.
+    if (material.materialIndex == 0)
+        material.roughness = fmod(abs(floor(hitPosition.x / 2.0f) + floor(hitPosition.z / 2.0f)), 2.0f) * 0.25f + 0.25f;
 
     // Set IOR.
     float eta = inside ? material.eta : 1.0f / material.eta;
@@ -323,7 +332,8 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
         absorption = -log(material.extinction) / material.atDistance;
 
     // Update throughput and continue only if the pdf is non-zero.
-    if (bsdfPdf > 0.0f) {
+    if (bsdfPdf > 0.0f)
+    {
         throughput *= reflectance / bsdfPdf;
 
         // Apply the Russian roulette pdf.
@@ -349,38 +359,36 @@ float CalculateDiffuseCoefficient(in float3 hitPosition, in float3 incidentLight
 }
 
 // Phong lighting specular component
-float4 CalculateSpecularCoefficient(in float3 hitPosition, in float3 incidentLightRay, in float3 normal, in float specularPower)
+float3 CalculateSpecularCoefficient(in float3 hitPosition, in float3 incidentLightRay, in float3 normal, in float specularPower)
 {
     float3 reflectedLightRay = normalize(reflect(incidentLightRay, normal));
     return pow(saturate(dot(reflectedLightRay, normalize(-WorldRayDirection()))), specularPower);
 }
 
 // Phong lighting model = diffuse + specular components.
-float4 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 normal,
-                              in bool isInShadow, in float diffuseCoef = 1.0, in float specularCoef = 1.0, in float specularPower = 50)
+float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 normal,
+                              in float diffuseCoef = 1.0, in float specularCoef = 1.0, in float specularPower = 50)
 {
     float3 hitPosition = HitWorldPosition();
-    float shadowFactor = isInShadow ? InShadowRadiance : 1.0;
-    float3 incidentLightRay = normalize(hitPosition - light.position);
+    float3 incidentLightRay;
+    if (light.type == LightType::Directional)
+        incidentLightRay = normalize(light.direction);
+    else
+        incidentLightRay = normalize(hitPosition - light.position);
 
     // Diffuse component.
-    // TODO: investigate inShadowRadiance
     float Kd = CalculateDiffuseCoefficient(hitPosition, incidentLightRay, normal);
-    float4 diffuseColor = shadowFactor * diffuseCoef * Kd * float4(light.emission * light.intensity, 1.0f) * albedo;
-
-    if (light.type == LightType::Square)
-        diffuseColor *= sq(light.size);
+    float3 diffuseColor = diffuseCoef * Kd * light.emission * light.intensity * albedo;
 
     // Specular component.
-    float4 specularColor = float4(0, 0, 0, 0);
-    if (!isInShadow)
-    {
-        float4 lightSpecularColor = float4(light.emission * light.intensity, 1.0f) * sq(light.size);
-        float4 Ks = CalculateSpecularCoefficient(hitPosition, incidentLightRay, normal, specularPower);
-        specularColor = specularCoef * Ks * lightSpecularColor;
-    }
+    float3 lightSpecularColor = light.emission * light.intensity;
+    float3 Ks = CalculateSpecularCoefficient(hitPosition, incidentLightRay, normal, specularPower);
+    float3 specularColor = specularCoef * Ks * lightSpecularColor;
 
-    return diffuseColor + specularColor;
+    float3 color = diffuseColor + specularColor;
+    if (light.type != LightType::Directional)
+        color *= sq(light.size) / length_toPow2(light.position - hitPosition);
+    return color;
 }
 
 //***************************************************************************
@@ -397,10 +405,12 @@ float4 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
 
     // Write the raytraced color to the output texture.
+    const float gammaPow = 1.0f / 2.2f;
+    color.xyz = pow(ACES(color.xyz), float3(gammaPow, gammaPow, gammaPow));
     g_renderTarget[DispatchRaysIndex().xy] = color;
 }
 
-[shader("raygeneration")] void RaygenShader_PathTracingTemporal()
+    [shader("raygeneration")] void RaygenShader_PathTracingTemporal()
 {
     // Initialize the random number generator.
     uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
@@ -423,7 +433,10 @@ float4 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
     // Accumulate the color.
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
-    g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(color.xyz, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
+    float3 finalColor = lerp(color.xyz, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor);
+    const float gammaPow = 1.0f / 2.2f;
+    // finalColor = pow(ACES(finalColor), float3(gammaPow, gammaPow, gammaPow));
+    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor, 1.0f);
 }
 
 [shader("raygeneration")] void RaygenShader_PathTracing()
@@ -457,7 +470,9 @@ float4 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
         }
 
     // Average the accumulated color.
-    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
+    const float gammaPow = 1.0f / 2.2f;
+    finalColor = pow(ACES(finalColor / numSamples), float3(gammaPow, gammaPow, gammaPow));
+    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor, 1.0f);
 }
 
 //***************************************************************************
@@ -477,7 +492,6 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     else // Whitted-style ray tracing
     {
         // Reflected component.
-        float4 reflectedColor = float4(0, 0, 0, 0);
         if (l_materialCB.reflectanceCoef > 0.001)
         {
             // Trace a reflection ray.
@@ -485,22 +499,29 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.recursionDepth);
 
             float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, l_materialCB.albedo.xyz);
-            reflectedColor = l_materialCB.reflectanceCoef * float4(fresnelR, 1) * reflectionColor;
+            color.xyz += l_materialCB.reflectanceCoef * fresnelR * reflectionColor.xyz;
         }
 
-        color.xyz += reflectedColor.xyz;
         for (uint i = 0; i < g_sceneCB.numLights; i++)
         {
             // Shadow component.
             // Trace a shadow ray only if recursion depth allows it.
-            Ray shadowRay = {hitPosition, normalize(g_lights[i].position - hitPosition)};
-            bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, rayPayload.recursionDepth);
+            float3 shadowRayDir;
+            float lightDist;
+            if (g_lights[i].type == LightType::Directional) {
+                lightDist = 10000.0f;
+                shadowRayDir = -normalize(g_lights[i].direction);
+            }
+            else {
+                lightDist = length(g_lights[i].position - hitPosition);
+                shadowRayDir = (g_lights[i].position - hitPosition) / lightDist;
+            }
+            Ray shadowRay = {hitPosition, shadowRayDir};
+            bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightDist, rayPayload.recursionDepth);
 
             // Calculate final color.
-            float4 phongColor = CalculatePhongLighting(g_lights[i], l_materialCB.albedo, normal,
-                                                       shadowRayHit, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower) /
-                                (1.0f + 0.001f * length_toPow2(g_lights[i].position - hitPosition));
-            color.xyz += phongColor.xyz;
+            float3 phongColor = shadowRayHit ? float3(0, 0, 0) : CalculatePhongLighting(g_lights[i], l_materialCB.albedo, normal, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
+            color.xyz += phongColor;
         }
     }
 
@@ -528,7 +549,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition());
 }
 
-[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
@@ -545,7 +566,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     rayPayload.color = g_sceneCB.backgroundColor * rayPayload.throughput;
 }
 
-[shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+    [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }
@@ -584,7 +605,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     }
 }
 
-[shader("intersection")] void IntersectionShader_SignedDistancePrimitive()
+    [shader("intersection")] void IntersectionShader_SignedDistancePrimitive()
 {
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
     SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum)l_aabbCB.primitiveType;

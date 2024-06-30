@@ -152,6 +152,9 @@ private:
 
 	void UpdateCameraMatrices();
 	void UpdateAABBPrimitiveAttributes(float animationTime);
+	void UpdateAABBPrimitiveAttributesDemo(float animationTime);
+	void UpdateAABBPrimitiveAttributesCornellBox(float animationTime);
+	void UpdateAABBPrimitiveAttributesPbrShowcase(float animationTime);
 	void InitializeScene();
 	void InitializeCornellBox();
 	void InitializeDemo();

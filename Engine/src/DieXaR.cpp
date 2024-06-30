@@ -18,6 +18,8 @@
 #include "imgui_impl_win32.h"
 #include "imgui_impl_dx12.h"
 
+#include <random>
+
 using namespace std;
 using namespace DX;
 
@@ -72,7 +74,7 @@ void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 	m_eye = eye;
 	m_at = at;
 	XMVECTOR forward = XMVector4Normalize(at - eye);
-	
+
 	// Compute up and right vectors.
 	XMVECTOR right = XMVector3Normalize(XMVector3Cross(forward, XMVectorSet(0, 1, 0, 0)));
 	m_up = XMVector3Normalize(XMVector3Cross(right, forward));
@@ -194,6 +196,76 @@ void DieXaR::UpdateCameraMatrices()
 // Update AABB primitive attributes buffers passed into the shader.
 void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 {
+	switch (m_crtScene)
+	{
+	case SceneTypes::CornellBox:
+		UpdateAABBPrimitiveAttributesCornellBox(animationTime);
+		break;
+	case SceneTypes::Demo:
+		UpdateAABBPrimitiveAttributesDemo(animationTime);
+		break;
+	case SceneTypes::PbrShowcase:
+		UpdateAABBPrimitiveAttributesPbrShowcase(animationTime);
+		break;
+	}
+}
+
+void DieXaR::UpdateAABBPrimitiveAttributesDemo(float animationTime)
+{
+	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
+
+	XMMATRIX mIdentity = XMMatrixIdentity();
+
+	XMMATRIX mScale15y = XMMatrixScaling(1, 1.5, 1);
+	XMMATRIX mScale15 = XMMatrixScaling(1.5, 1.5, 1.5);
+	XMMATRIX mScale2 = XMMatrixScaling(2, 2, 2);
+	XMMATRIX mScale3 = XMMatrixScaling(5, 5, 5);
+
+	XMMATRIX mRotation = XMMatrixRotationY(-2 * animationTime);
+
+	// Apply scale, rotation and translation transforms.
+	// The intersection shader tests in this sample work with local space, so here
+	// we apply the BLAS object space translation that was passed to geometry descs.
+	auto SetTransformForAABB = [&](UINT primitiveIndex, XMMATRIX& mScale, XMMATRIX& mRotation)
+		{
+			XMVECTOR vTranslation =
+				0.5f * (XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MinX))
+					+ XMLoadFloat3(reinterpret_cast<XMFLOAT3*>(&m_aabbs[primitiveIndex].MaxX)));
+			XMMATRIX mTranslation = XMMatrixTranslationFromVector(vTranslation);
+
+			XMMATRIX mTransform = mScale * mRotation * mTranslation;
+			m_aabbPrimitiveAttributeBuffer[primitiveIndex].localSpaceToBottomLevelAS = mTransform;
+			m_aabbPrimitiveAttributeBuffer[primitiveIndex].bottomLevelASToLocalSpace = XMMatrixInverse(nullptr, mTransform);
+		};
+
+	UINT offset = 0;
+	// Analytic primitives.
+	{
+		using namespace AnalyticPrimitive;
+		SetTransformForAABB(offset + AABB, mScale15y, mIdentity);
+		SetTransformForAABB(offset + Spheres, mScale15, mRotation);
+		offset += AnalyticPrimitive::Count;
+	}
+
+	// Signed distance primitives.
+	{
+		using namespace SignedDistancePrimitive;
+
+		SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
+		SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
+		SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
+		SetTransformForAABB(offset + Cog, mIdentity, mRotation);
+		SetTransformForAABB(offset + Cylinder, mScale15y, mIdentity);
+		SetTransformForAABB(offset + SolidAngle, mScale3, mIdentity);
+	}
+}
+
+void DieXaR::UpdateAABBPrimitiveAttributesCornellBox(float animationTime)
+{
+}
+
+void DieXaR::UpdateAABBPrimitiveAttributesPbrShowcase(float animationTime)
+{
 	auto frameIndex = m_deviceResources->GetCurrentFrameIndex();
 
 	XMMATRIX mIdentity = XMMatrixIdentity();
@@ -245,10 +317,18 @@ void DieXaR::UpdateAABBPrimitiveAttributes(float animationTime)
 // Initialize scene rendering parameters.
 void DieXaR::InitializeScene()
 {
-	// Initialize all scenes ahead of time.
-	InitializeCornellBox();
-	InitializeDemo();
-	InitializePbrShowcase();
+	switch (m_crtScene)
+	{
+	case SceneTypes::CornellBox:
+		InitializeCornellBox();
+		break;
+	case SceneTypes::Demo:
+		InitializeDemo();
+		break;
+	case SceneTypes::PbrShowcase:
+		InitializePbrShowcase();
+		break;
+	}
 }
 
 void DieXaR::InitializeCornellBox()
@@ -277,20 +357,23 @@ void DieXaR::InitializeDemo()
 		// Setup plane
 		{
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrPlaneMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.1f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 2.0f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(0, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.4f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 2.0f);
 		}
 
 		UINT offset = 0;
-		m_scenes[SceneTypes::Demo].m_aabbMaterialCB.resize(IntersectionShaderType::TotalPrimitiveCount);
-		m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB.resize(IntersectionShaderType::TotalPrimitiveCount);
+		m_scenes[SceneTypes::Demo].m_primitiveCount[IntersectionShaderType::AnalyticPrimitive] = AnalyticPrimitive::Count;
+		m_scenes[SceneTypes::Demo].m_primitiveCount[IntersectionShaderType::SignedDistancePrimitive] = SignedDistancePrimitive::Count;
+		UINT totalPrimitiveCount = m_scenes[SceneTypes::Demo].GetPrimitiveCount();
+		m_scenes[SceneTypes::Demo].m_aabbMaterialCB.resize(totalPrimitiveCount);
+		m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB.resize(totalPrimitiveCount);
 
 		// Setup analytic primitives
 		{
 			using namespace AnalyticPrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + AABB], orange, 0.3f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + AABB + 1, orange, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Spheres], ruby, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 1.0f, XMFLOAT3(0.3f, 0.0f, 0.0f), 1.0f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Spheres + 1, yellow, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 1.0f, XMFLOAT3(0.3f, 0.0f, 0.0f), 1.0f);
 			offset += AnalyticPrimitive::Count;
 		}
 
@@ -298,28 +381,73 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace SignedDistancePrimitive;
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + MiniSpheres], violet, 0.1f);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + MiniSpheres], violet, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.51f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + MiniSpheres + 1, violet, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + IntersectedRoundCube], green);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + IntersectedRoundCube], green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + IntersectedRoundCube + 1, green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SquareTorus], violet, 0.1f, 0.0f, 0.2f, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f, 1.5f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cog], yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SquareTorus + 1, violet, 0.1f, 0.0f, 0.2f, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f, 1.5f);
+			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Cog + 1, yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + Cylinder], red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Cylinder + 1, red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
 			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], ruby, 0.1);
-			Scene::SetPBRAttributes(m_scenes[SceneTypes::Demo].m_pbrAabbMaterialCB[offset + SolidAngle], ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.2f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SolidAngle + 1, ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.2f);
 		}
 	}
 
 	// Setup Lights
+	m_backgroundColor = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
 	m_scenes[m_crtScene].m_lights.resize(2);
 	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.573f, LightType::Directional, 1.0f, XMFLOAT3(0.2f, -1.0f, 0.3f));
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(1.8f, 10.0f, 5.0f), XMFLOAT3(1.0f, 0.95f, 0.6f), 9.167f, LightType::Square, 6.545f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(1.8f, 10.0f, 5.0f), XMFLOAT3(1.0f, 0.95f, 0.6f), 4.167f, LightType::Square, 3.545f);
 }
 
 void DieXaR::InitializePbrShowcase()
 {
+	m_scenes[SceneTypes::Demo].m_sceneType = SceneTypes::PbrShowcase;
+
+	// Setup Camera
+	m_scenes[SceneTypes::Demo].m_eye = { 1.85f, 2.30f, 1.37f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_at = { 0.29f, -0.2f, -0.94f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_at += m_scenes[SceneTypes::Demo].m_eye;
+	ResetCamera(m_scenes[SceneTypes::Demo].m_eye, m_scenes[SceneTypes::Demo].m_at);
+
+	// Setup materials
+	{
+		std::mt19937 rng(67);
+		std::uniform_real_distribution<float> dist(0.0f, 1.0f);
+
+		UINT sqrtNumSpheres = 5;
+		UINT numSpheres = sqrtNumSpheres * sqrtNumSpheres;
+
+		PBRPrimitiveConstantBuffer baseMaterial;
+		baseMaterial.stepScale = 1.0f;
+		baseMaterial.materialIndex = 0;
+		baseMaterial.albedo = XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f);
+		baseMaterial.anisotropic = 0.0f;
+		baseMaterial.atDistance = 1.0f;
+		baseMaterial.extinction = XMFLOAT3(0.0f, 0.0f, 0.0f);
+		baseMaterial.eta = 1.5f;
+		baseMaterial.metallic = 0.0f;
+		baseMaterial.roughness = 0.0f;
+		baseMaterial.sheen = 0.0f;
+		baseMaterial.sheenTint = 0.0f;
+		baseMaterial.specularTint = 0.0f;
+		baseMaterial.specularTransmission = 0.0f;
+		baseMaterial.subsurface = 0.0f;
+		baseMaterial.clearcoat = 0.0f;
+		baseMaterial.clearcoatGloss = 0.0f;
+
+		m_scenes[SceneTypes::PbrShowcase].m_primitiveCount[IntersectionShaderType::AnalyticPrimitive] = numSpheres;
+		m_scenes[SceneTypes::PbrShowcase].m_primitiveCount[IntersectionShaderType::SignedDistancePrimitive] = 0;
+		UINT totalPrimitiveCount = m_scenes[SceneTypes::PbrShowcase].GetPrimitiveCount();
+		m_scenes[SceneTypes::PbrShowcase].m_aabbMaterialCB.resize(totalPrimitiveCount);
+		m_scenes[SceneTypes::PbrShowcase].m_pbrAabbMaterialCB.resize(totalPrimitiveCount);
+	}
+
+	// Setup Lights
+	m_scenes[m_crtScene].m_lights.resize(1);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.573f, LightType::Directional, 1.0f, XMFLOAT3(0.9f, -0.1f, 0.25f));
 }
 
 // Create constant buffers.
@@ -344,7 +472,7 @@ void DieXaR::CreateAABBPrimitiveAttributesBuffers()
 {
 	auto device = m_deviceResources->GetD3DDevice();
 	auto frameCount = m_deviceResources->GetBackBufferCount();
-	m_aabbPrimitiveAttributeBuffer.Create(device, IntersectionShaderType::TotalPrimitiveCount, frameCount, L"AABB primitive attributes");
+	m_aabbPrimitiveAttributeBuffer.Create(device, m_scenes[SceneTypes::Demo].GetPrimitiveCount(), frameCount, L"AABB primitive attributes");
 }
 
 // Create resources that depend on the device.
@@ -687,7 +815,8 @@ void DieXaR::BuildProceduralGeometryAABBsDemo()
 					basePosition.z + offsetIndex.z * stride.z + size.z,
 				};
 			};
-		m_aabbs.resize(IntersectionShaderType::TotalPrimitiveCount);
+
+		m_aabbs.resize(m_scenes[SceneTypes::Demo].GetPrimitiveCount());
 		UINT offset = 0;
 
 		// Analytic primitives.
@@ -702,11 +831,11 @@ void DieXaR::BuildProceduralGeometryAABBsDemo()
 		{
 			using namespace SignedDistancePrimitive;
 			m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
-			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMINT3(0, 0, 1.5), XMFLOAT3(2, 2, 2));
+			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMFLOAT3(0, 0, 1), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
 			m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 3, 2));
-			m_aabbs[offset + SolidAngle] = InitializeAABB(XMINT3(1.2, 0, 1.2), XMFLOAT3(10, 10, 10));
+			m_aabbs[offset + SolidAngle] = InitializeAABB(XMFLOAT3(1.2, 0, 1.2), XMFLOAT3(10, 10, 10));
 		}
 		AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size() * sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
 	}
@@ -792,12 +921,12 @@ void DieXaR::BuildGeometryDescsForBottomLevelAS(array<vector<D3D12_RAYTRACING_GE
 		aabbDescTemplate.Flags = geometryFlags;
 
 		// One AABB primitive per geometry.
-		geometryDescs[BottomLevelASType::AABB].resize(IntersectionShaderType::TotalPrimitiveCount, aabbDescTemplate);
+		geometryDescs[BottomLevelASType::AABB].resize(m_scenes[SceneTypes::Demo].GetPrimitiveCount(), aabbDescTemplate);
 
 		// Create AABB geometries. 
 		// Having separate geometries allows of separate shader record binding per geometry.
 		// In this sample, this lets us specify custom hit groups per AABB geometry.
-		for (UINT i = 0; i < IntersectionShaderType::TotalPrimitiveCount; i++)
+		for (UINT i = 0; i < m_scenes[SceneTypes::Demo].GetPrimitiveCount(); ++i)
 		{
 			auto& geometryDesc = geometryDescs[BottomLevelASType::AABB][i];
 			geometryDesc.AABBs.AABBs.StartAddress = m_aabbBuffer.resource->GetGPUVirtualAddress() + i * sizeof(D3D12_RAYTRACING_AABB);
@@ -1145,7 +1274,7 @@ void DieXaR::BuildShaderTables()
 
 	// Hit group shader table.
 	{
-		UINT numShaderRecords = RayType::Count + IntersectionShaderType::TotalPrimitiveCount * RayType::Count;
+		UINT numShaderRecords = RayType::Count + m_scenes[SceneTypes::Demo].GetPrimitiveCount() * RayType::Count;
 		UINT shaderRecordSize = shaderIDSize + LocalRootSignature::MaxRootArgumentsSize();
 		ShaderTable hitGroupShaderTable(device, numShaderRecords, shaderRecordSize, L"HitGroupShaderTable");
 
@@ -1169,7 +1298,7 @@ void DieXaR::BuildShaderTables()
 			// Create a shader record for each primitive.
 			for (UINT iShader = 0, instanceIndex = 0; iShader < IntersectionShaderType::Count; iShader++)
 			{
-				UINT numPrimitiveTypes = IntersectionShaderType::PerPrimitiveTypeCount(static_cast<IntersectionShaderType::Enum>(iShader));
+				UINT numPrimitiveTypes = m_scenes[SceneTypes::Demo].m_primitiveCount[iShader];
 
 				// Primitives for each intersection shader.
 				for (UINT primitiveIndex = 0; primitiveIndex < numPrimitiveTypes; primitiveIndex++, instanceIndex++)
@@ -1528,9 +1657,9 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
 
 		// Anisotropic BSDF
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
-		ImGui::Checkbox("Anisotropic BSDF", &m_anisotropicBSDF);
-		ImGui::SameLine(); HelpMarker("Enable anisotropy model");
+		//ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
+		//ImGui::Checkbox("Anisotropic BSDF", &m_anisotropicBSDF);
+		//ImGui::SameLine(); HelpMarker("Enable anisotropy model");
 
 		// Ray Tracing Type
 		const char* options[] = { "Whitted", "Path Tracing", "Progressive Path Tracing" };
@@ -1656,17 +1785,20 @@ void DieXaR::ShowUI()
 				ImGui::EndCombo();
 			}
 
-			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+			{
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
+
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
+			}
 
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 			{
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
 			}
-
-			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
 
 			float maxIntensity;
 			if (m_raytracingType == RaytracingType::Whitted ||

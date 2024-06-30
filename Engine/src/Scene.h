@@ -1,6 +1,7 @@
 #pragma once
 
 #include "RayTracingHlslCompat.h"
+#include "RaytracingSceneDefines.h"
 
 namespace SceneTypes
 {
@@ -22,7 +23,12 @@ public:
 		std::vector<PBRPrimitiveConstantBuffer> pbrMaterialCB);
 
 	UINT GetLightCount() const { return static_cast<UINT>(m_lights.size()); }
-	UINT GetAABBCount() const { return static_cast<UINT>(m_aabbMaterialCB.size()); }
+	UINT GetPrimitiveCount() const {
+		UINT totalPrimitiveCount = 0;
+		for (UINT i = 0; i < m_primitiveCount.size(); ++i)
+			totalPrimitiveCount += m_primitiveCount[i];
+		return totalPrimitiveCount;
+	}
 	UINT GetMeshCount() const { return static_cast<UINT>(m_materialCB.size()); }
 
 	static void SetLight(
@@ -39,7 +45,8 @@ public:
 		light.intensity = intensity;
 		light.type = type;
 		light.size = size;
-		light.direction = direction;
+		XMVECTOR dir = XMLoadFloat3(&direction);
+		XMStoreFloat3(&light.direction, XMVector3Normalize(dir));
 	};
 
 	static void SetAttributes(
@@ -59,8 +66,8 @@ public:
 		attributes.stepScale = stepScale;
 	};
 
-	static void SetPBRAttributes(
-		PBRPrimitiveConstantBuffer& attributes,
+	void SetPBRAttributes(
+		UINT materialIndex,
 		const XMFLOAT4& albedo,
 		float roughness = 0.0f,
 		float metallic = 0.0f,
@@ -77,6 +84,8 @@ public:
 		float subsurface = 0.0f
 	)
 	{
+		PBRPrimitiveConstantBuffer attributes;
+		attributes.materialIndex = materialIndex;
 		attributes.albedo = albedo;
 		attributes.roughness = roughness;
 		attributes.metallic = metallic;
@@ -91,6 +100,11 @@ public:
 		attributes.atDistance = atDistance;
 		attributes.extinction = extinction;
 		attributes.subsurface = subsurface;
+
+		if (materialIndex == 0)
+			m_pbrPlaneMaterialCB = attributes;
+		else
+			m_pbrAabbMaterialCB[materialIndex - 1] = attributes;
 	};
 
 public:
@@ -102,7 +116,7 @@ public:
 	std::vector<LightBuffer> m_lights{};
 
 	// Geometry
-
+	std::vector<UINT> m_primitiveCount{ IntersectionShaderType::Count, 0 };
 
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB{};

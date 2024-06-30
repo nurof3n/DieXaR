@@ -14,83 +14,83 @@
 #include "RayTracingHlslCompat.h"
 
 namespace GlobalRootSignature {
-    namespace Slot {
-        enum Enum {
-            OutputView = 0,
-            AccelerationStructure,
-            SceneConstant,
-            AABBattributeBuffer,
-            VertexBuffers,
-            LightBuffer,
-            Count
-        };
-    }
+	namespace Slot {
+		enum Enum {
+			OutputView = 0,
+			AccelerationStructure,
+			SceneConstant,
+			AABBattributeBuffer,
+			VertexBuffers,
+			LightBuffer,
+			Count
+		};
+	}
 }
 
 namespace LocalRootSignature {
-    namespace Type {
-        enum Enum {
-            Triangle = 0,
-            AABB,
-            Count
-        };
-    }
+	namespace Type {
+		enum Enum {
+			Triangle = 0,
+			AABB,
+			Count
+		};
+	}
 }
 
 namespace LocalRootSignature {
-    namespace Triangle {
-        namespace Slot {
-            enum Enum {
-                MaterialConstant = 0,
-                PbrConstant,
-                Count
-            };
-        }
-        struct RootArguments {
-            PrimitiveConstantBuffer materialCb;
-            PBRPrimitiveConstantBuffer pbrCb;
-        };
-    }
+	namespace Triangle {
+		namespace Slot {
+			enum Enum {
+				MaterialConstant = 0,
+				PbrConstant,
+				Count
+			};
+		}
+		struct RootArguments {
+			PrimitiveConstantBuffer materialCb;
+			PBRPrimitiveConstantBuffer pbrCb;
+		};
+	}
 }
 
 namespace LocalRootSignature {
-    namespace AABB {
-        namespace Slot {
-            enum Enum {
-                MaterialConstant = 0,
-                GeometryIndex,
-                PbrConstant,
-                Count
-            };
-        }
-        struct RootArguments {
-            PrimitiveConstantBuffer materialCb;
-            PrimitiveInstanceConstantBuffer aabbCB;
-            PBRPrimitiveConstantBuffer pbrCb;
-        };
-    }
+	namespace AABB {
+		namespace Slot {
+			enum Enum {
+				MaterialConstant = 0,
+				GeometryIndex,
+				PbrConstant,
+				Count
+			};
+		}
+		struct RootArguments {
+			PrimitiveConstantBuffer materialCb;
+			PrimitiveInstanceConstantBuffer aabbCB;
+			PBRPrimitiveConstantBuffer pbrCb;
+		};
+	}
 }
 
 namespace LocalRootSignature {
-    inline UINT MaxRootArgumentsSize()
-    {
-        return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
-    }
+	inline UINT MaxRootArgumentsSize()
+	{
+		return max(sizeof(Triangle::RootArguments), sizeof(AABB::RootArguments));
+	}
 }
 
 namespace GeometryType {
-    enum Enum {
-        Triangle = 0,
-        AABB,       // Procedural geometry with an application provided AABB.
-        Count
-    };
+	enum Enum {
+		Triangle = 0,
+		AABB,       // Procedural geometry with an application provided AABB.
+		Count
+	};
 }
 
 namespace GpuTimers {
-    enum Enum {
-        Raytracing = 0,
-        Count
-    };
+	enum Enum {
+		Raytracing = 0,
+		Count
+	};
 }
 
 // Bottom-level acceleration structures (BottomLevelASType).
@@ -98,25 +98,10 @@ namespace GpuTimers {
 // Mixing of geometry types within a BLAS is not supported.
 namespace BottomLevelASType = GeometryType;
 
-
 namespace IntersectionShaderType {
-    enum Enum {
-        AnalyticPrimitive = 0,
-        SignedDistancePrimitive,
-        Count
-    };
-    inline UINT PerPrimitiveTypeCount(Enum type)
-    {
-        switch (type)
-        {
-        case AnalyticPrimitive: return AnalyticPrimitive::Count;
-        case SignedDistancePrimitive: return SignedDistancePrimitive::Count;
-        }
-        return 0;
-    }
-    static const UINT MaxPerPrimitiveTypeCount =
-        max(AnalyticPrimitive::Count, SignedDistancePrimitive::Count);
-    static const UINT TotalPrimitiveCount =
-        AnalyticPrimitive::Count + SignedDistancePrimitive::Count;
+	enum Enum {
+		AnalyticPrimitive = 0,
+		SignedDistancePrimitive,
+		Count
+	};
 }
-
