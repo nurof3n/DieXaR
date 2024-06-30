@@ -125,7 +125,7 @@ COMPUTER SCIENCE AND ENGINEERING DEPARTMENT\\}
 {\Large #1}  % header (university, faculty, department)
 \vspace{50pt}
 \begin{tabular}{p{6cm}p{4cm}}
-\includegraphics[scale=0.8]{pics/upb-logo.jpg} &
+\includegraphics[scale=0.13]{pics/unstpb.png} &
 	\includegraphics[scale=0.5,trim={14cm 11cm 2cm 5cm},clip=true]{pics/cs-logo.pdf}
 \end{tabular}
 
@@ -221,7 +221,7 @@ sa în aplicații interactive, precum jocurile video. Totuși, cu avansul tehnol
 utilizarea acestuia a devenit tot mai accesibilă și pentru
 aceste aplicații. Suport hardware pentru Ray Tracing în contextul consumatorilor a fost
 introdus de NVIDIA în 2018, prin intermediul arhitecturii Turing\footnote{\label{turing}\url{https://images.nvidia.com/aem-dam/en-zz/Solutions/design-visualization/technologies/turing-architecture/NVIDIA-Turing-Architecture-Whitepaper.pdf}. Accesat 10.06.2024.}.
-Tot în același an, Microsoft a anunțat DirectX Raytracing\footnote{\label{dxr}\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 10.06.2024.} (DXR),
+Tot în același an, Microsoft a anunțat lansarea DirectX Raytracing\footnote{\label{dxr}\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 10.06.2024.} (DXR),
 o extensie a API-ului DirectX 12 care permite programatorilor să folosească
 Ray Tracing în aplicațiile lor, utilizând hardware-ul compatibil.
 
@@ -440,10 +440,9 @@ de-a lungul unei direcții de vizualizare, dându-se o funcție de distribuție 
 suprafață. Ecuația conține o integrală de suprafață (peste emisfera unitate), care
 integrează contribuțiile din toate direcțiile. Pentru eficiență, această integrală
 este eșantionată folosind tehnici de eșantionare bazate pe importanță, descrise în capitolul \ref{sec:stateoftheart}.
-Totuși, numărul de eșantioane per pixel rămâne în continuare foarte limitat, din
-cauza bugetului de calcul (nu depășește 16 eșantioane per pixel). Pentru a reduce
+Totuși, numărul de eșantioane per pixel trebuie să rămână în continuare limitat din cauza bugetului de calcul. Pentru a reduce
 în continuare varianța (manifestată prin zgomot în imaginea finală), se folosește
-un algoritm de denoising în faza de post procesare. Mai multe detalii tehnice
+o variantă progresivă a algoritmului, care acumulează contribuția din mai multe cadre. Mai multe detalii tehnice
 despre implementare sunt prezentate în capitolul \ref{sec:implementare}.
 
 Algoritmul de Path Tracing folosește un sistem de materiale diferit de cel folosit
@@ -457,7 +456,7 @@ având la bază un BSDF (Bidirectional Scattering Distribution Function - oferă
 o componentă de transmisie a luminii prin materiale) care descrie cum un material
 interacționează cu lumina incidentă. Fiind totuși folosit în producția cinematografică,
 modelul se concentrează pe a avea o interfață cât mai intuitivă pentru artistul
-grafic, deviând puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
+grafic, deviind puțin de la un model fizic strict. Bazele teoretice și implementarea acestui model
 PBR sunt descrise în secțiunile \ref{sec:stateoftheart} și \ref{sec:implementare}.
 
 Pentru evaluare se va
@@ -474,6 +473,8 @@ stabilitatea imaginii generate pentru diferite setări ale algoritmului de Path 
 Rezultatele obținute sunt încurajatoare, deși mai este loc de multe îmbunătățiri.
 În primul rând, aplicația este ușor de folosit, este stabilă și destul de configurabilă.
 Algoritmul implementat are o fidelitate bună, iar sistemul de materiale este de calitate.
+În al doilea rând, imaginile generate sunt foarte plăcute și realistice, mai ales
+datorită sistemului de materiale de calitate.
 
 Din păcate, obiectivul de performanță nu este atins decât pentru un număr foarte
 mic de eșantioane per pixel (1-4). Situația se imbunătățește semnificativ dacă
@@ -483,7 +484,7 @@ mai multor cadre, ceea ce duce la un efect de blur pronunțat pentru obiectele �
 Implementarea unei astfel de soluții este primul lucru pe lista de îmbunătățiri
 viitoare.
 
-Rezultate calitative și interpretarea acestora sunt prezentate în capitolul \ref{sec:evaluare}.
+Rezultatele și interpretarea acestora sunt prezentate în capitolul \ref{sec:evaluare}.
 
 \section{Structura lucrării}
 
@@ -496,7 +497,7 @@ este de a experimenta și de a înțelege mai bine tehnologiile existente, precu
 care se concentrează pe utilizarea API-ului DirectX12 pentru a implementa algoritmul
 cu accelerare hardware. Conceptele tehnice din urmă nu vor fi prezentate
 într-o lumină precisă, ci mai degrabă într-un mod simplificat și intuitiv, din
-perspectiva unui tool care folosit pentru implementarea algoritmului în sine.
+perspectiva unui tool care este folosit pentru implementarea algoritmului în sine.
 
 În capitolul~\ref{sec:motivatie} este descris contextul actual în care se plasează
 eforturile din domeniu, din perspectiva industriilor de gaming și de cinematografie,
@@ -527,7 +528,7 @@ performanțele sistemului, fidelitatea imaginilor generate și se fac comparați
 între cei doi algoritmi de Ray Tracing. De asemenea, se analizează impactul pe
 care îl au diferitele optimizări asupra stabilității imaginilor generate.
 
-Ultimul capitol ~\ref{sec:concluzii} conține concluziile trase din
+Ultimul capitol~(\ref{sec:concluzii}) conține concluziile trase din
 rezultatele obținute și se analizează calitativ produsul final. De asemenea, se
 discută posibile direcții de dezvoltare pe termen scurt și termen lung și se oferă o perspectivă asupra
 importanței acestei lucrări în contextul cercetării în domeniul graficii pe calculator.
@@ -537,8 +538,8 @@ Extrase de cod și imagini detaliate sunt oferite în \hyperref[anexa]{anexă}.
 \chapter{\label{sec:motivatie}Motivație de cercetare}
 
 Proiectul de față cercetează tehnici de randare a imaginilor în timp real. Acest
-domeniu este de mare interes pentru industria jocurilor video, care investesc
-resurse semnificative în dezvoltarea de motoare grafice puternice.
+domeniu este de mare interes pentru industria jocurilor video, în care se investesc
+resurse semnificative pentru dezvoltarea de motoare grafice puternice.
 
 Un studiu de caz
 recent\footnote{\label{vnextglobal}\url{https://vnextglobal.com/category/blog/game-development-cost-an-in-depth-analysis}. Accesat 19.06.2024.}
@@ -741,7 +742,7 @@ care îl diferențiază de celelalte este faptul că nu calculează intersecții
 În schimb, fiecare rază mărșăluiește treptat în spațiu, apropiindu-se din ce în ce mai mult
 de suprafețele definite, dar fără a le intersecta.
 La fiecare pas, algoritmul se folosește de aceste câmpuri de distanță pentru a
-calcula o rază minimă în jurul punctului curent, care reprezinte sfera de dimensiune
+calcula o rază minimă în jurul punctului curent, care reprezintă sfera de dimensiune
 maximă care nu intersectează cu certitudine nicio suprafață. Această rază este
 numită pas de marșăluire (marching step) și este folosită pentru a avansa
 în spațiu. Algoritmul se oprește când distanța minimă calculată este mai mică
@@ -752,7 +753,7 @@ sub numele de Sphere Tracing.
 O ilustrație a funcționării acestuia se poate vedea în Figura~\ref{fig:raymarching}.
 
 O aplicație naturală a acestui algoritm este randarea suprafețelor implicite.
-Acestea sunt suprafețe în spațiul Euclidian definite prin ecuații de forma
+Acestea sunt suprafețe în spațiul Euclidian definite prin ecuații de forma:
 \begin{equation}
 	f(x, y, z) = 0.
 \end{equation}
@@ -845,18 +846,18 @@ de eșantionare.
 
 Să luăm un exemplu de problemă. Dându-se o funcție $$f: \mathbb{D} \to \mathbb{R}$$
 și o variabilă aleatoare continuă $X$ cu distribuția de probabilitate $p(x)$, vrem să calculăm
-valoarea medie (expected value)
+valoarea medie (expected value):
 \begin{equation}\label{eq:expected_value}
 	\mathbb{E}_p(f(X)) = \int_{\mathbb{D}} f(x) p(x)\diff x.
 \end{equation}
 
-Valoarea medie se poate aproxima prin eșantionare, folosind formula
+Valoarea medie se poate aproxima prin eșantionare, folosind formula:
 \begin{equation}
 	\mathbb{E}_p(f(X)) \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i),
 \end{equation}
 aproximarea devenind mai bună cu creșterea numărului de eșantioane $N$.
 
-Așadar, putem aproxima integrala~(\ref{eq:expected_value}) prin
+Așadar, putem aproxima integrala~(\ref{eq:expected_value}) prin:
 \begin{equation}\label{eq:estimator}
 	\int_{\mathbb{D}} f(x) p(x)\diff x \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i).
 \end{equation}
@@ -899,27 +900,27 @@ Obținem astfel un nou estimator Monte Carlo, notat cu $f_q$, care își păstre
 	\mathbb{E}_q(f_q) = \mathbb{E}_p(f(X)) \approx \frac{1}{N} \sum_{i=1}^{N} f(x_i) \frac{p(x_i)}{q(x_i)}.
 \end{equation}
 
-Varianța acestui estimator, este dată de
+Varianța acestui estimator, este dată de:
 \begin{equation}
 	Var_q(f_q) = \frac{1}{N}Var_q\left(f(X) \frac{p(X)}{q(X)}\right).
 \end{equation}
 
 Scopul este de a alege distribuția $q(x)$ astfel încât varianța estimatorului să fie
-mai mică decât varianța inițială, i.e.
+mai mică decât varianța inițială, i.e.:
 \begin{equation}
 	\frac{1}{N}Var_q\left(f(X) \frac{p(X)}{q(X)}\right) < \frac{1}{N}Var_p(f(X)).
 \end{equation}
 
 Pentru a minimiza varianța noului estimator, în mod ideal, vrem ca funcția
 $f(x) \dfrac{p(x)}{q(x)}$ să fie constantă, pentru orice $x$ eșantionat, ceea
-ce ar duce la o varianță nulă. Acest lucru se întamplă dacă
+ce ar duce la o varianță nulă. Acest lucru se întamplă dacă:
 \begin{equation}\label{eq:optimal_q}
 	q(x) = c \cdot f(x)p(x),
 \end{equation}
 unde $c$ este o constantă de normalizare. Pentru a păstra imparțialitatea, $c$ trebuie
 să fie egal cu $\dfrac{1}{\mathbb{E}_p(f(X))}$, însă această valoare este necunoscută
-(altfel nu am mai avea nevoie de estimator!). Așadar, nu este fezabilă alegerea
-optimă pentru $q(x)$. Totuși, ecuația~(\ref{eq:optimal_q}) ne arată că distribuția
+(altfel nu am mai avea nevoie de estimator!). Așadar, nu este fezabilă această alegere
+pentru $q(x)$. Totuși, ecuația~(\ref{eq:optimal_q}) ne arată că distribuția
 optimă este proporțională cu funcția $f(x)p(x)$. Acest produs măsoară fix
 importanța fiecărui eșantion în estimarea mediei, de unde și numele tehnicii.
 
@@ -954,7 +955,7 @@ numite straturi, iar evaluarea integralei se face pe fiecare strat în parte:
 	Var(f_s) = \sum_{i=1}^{n} Var(f_i).
 \end{equation}
 
-Se poate demonstra că, în cazul în care toate straturile au aceeași măsură, i.e.
+Se poate demonstra că, în cazul în care toate straturile au aceeași măsură, i.e.:
 \begin{equation}
 	\int_{\mathbb{D}_i} p(x)\diff x = \frac{1}{n}\int_{\mathbb{D}} p(x)\diff x, \quad \forall i \in \{1, 2, \ldots, n\},
 \end{equation}
@@ -1044,7 +1045,7 @@ cât de bine se văd două petice între ele.
 
 Într-o variantă brută a algoritmului, factorii sunt folosiți drept coeficienți pentru a rezolva
 un sistem de ecuații liniare (unde ecuațiile sunt variante simplificate ale ecuației
-de transport al luminii). Soluția acestui sistem oferă radiozitatea fiecărui petice
+de transport al luminii). Soluția acestui sistem oferă radiozitatea fiecărui petic
 (i.e., luminozitatea). O ilustrație a rezultatului algoritmului într-o scenă
 de tip Cornell Box se poate vedea în Figura~\ref{fig:radiosity}.
 
@@ -1295,7 +1296,7 @@ BTDF. Cel mai adesea în producție se folosește o generalizare care include am
 modele, numită BSDF, însă aceasta nu are o definiție precisă și de obicei se referă
 la combinarea a două modele separate de BRDF și BTDF. Totuși, nici aceste modele nu sunt
 suficiente pentru a descrie complet interacțiunile de lumină. De pildă, într-un fenomen
-de transmisie, lumina poate fi absorbată sau dispersată pe mai multe căi până când
+de transmisie, lumina poate fi absorbită sau dispersată pe mai multe căi până când
 părăsește complet materialul. Astfel, o aparentă transmisie poate rezulta în ieșirea
 luminii în același mediu, dar din alt punct. Acest fenomen este cunoscut drept
 subsurface scattering (dispersie sub suprafață), iar o ilustrație se află în Figura~\ref{fig:sss}.
@@ -1315,7 +1316,7 @@ este supus unor constrângeri care s-au standardizat în literatura de specialit
 
 \begin{enumerate}
 	\item \textbf{Pozitivitatea}: $f_r(\mathbf{x}, \omega_i, \omega_o) \geq 0$, pentru orice $\mathbf{x}$, $\omega_i$ și $\omega_o$.
-	\item \textbf{Conservarea energiei}: $\int_{\Omega_+} f_r(\mathbf{x}, \omega_i, \omega_o) (\omega_i \cdot \mathbf{n}) \diff \omega_i \leq 1$, pentru orice $\mathbf{x}$ și $\omega_o$.
+	\item \textbf{Conservarea energiei}: $\int_{\Omega_+} f_r(\mathbf{x}, \omega_i, \omega_o) (\omega_i \cdot \mathbf{n}) \diff \omega_i \leq 1$, pentru orice $\mathbf{x}$, $\omega_i$ și $\omega_o$.
 	\item \textbf{Reciprocitatea Helmholtz}: $f_r(\mathbf{x}, \omega_i, \omega_o) = f_r(\mathbf{x}, \omega_o, \omega_i)$, pentru orice $\mathbf{x}$, $\omega_i$ și $\omega_o$.
 \end{enumerate}
 
@@ -1335,14 +1336,14 @@ spre literatura de specialitate.
 
 Modelul Lambertian modelează reflectanța difuză a unui material. Dându-se o normală
 la suprafață $\mathbf{n}$ și o direcție de incidență $\omega_i$, reflectanța Lambertiană
-se calculează ca produsul dintre albedo-ul materialului, normala și direcția de incidență:
+se calculează ca produsul dintre albedo-ul materialului și cosinusul unghiului dintre normală și direcția de incidență:
 $L = \rho \cdot (\omega_i \cdot \mathbf{n})$. Acest model trebuie totuși normalizat pentru
 a fi transformat într-un BRDF - o derivare folosind concepte de bază se găsește în~\cite{LambertBRDF}.
 BRDF-ul rezultat este:
 \begin{equation}\label{eq:lambert}
 	f_{Lambert}(\mathbf{x}, \omega_i, \omega_o) = \frac{\rho}{\pi},
 \end{equation}
-unde $\rho$ este culoarea materialului (albedo). Observăm că termenul de $\cos$ cu
+unde $\rho$ este culoarea materialului (albedo). Observăm că termenul de cosinus
 nu apare aici. Acesta este inclus implicit în ecuația de randare~\ref{eq:light_transport}.
 
 Definiția exactă pentru albedo
@@ -1365,9 +1366,9 @@ Definiția BRDF-ului din publicație este:
 	f_{Phong}(\mathbf{x}, \omega_i, \omega_o) = k_d\frac{1}{\pi} + k_s\frac{n + 2}{2\pi}(\omega_r \cdot \omega_o)^n,
 \end{equation}
 unde $k_d$ și $k_s$ sunt coeficienții de reflexie difuză și speculară, definiți
-în intervalul $[0, 1]$, $n$ este exponentul de reflexie speculară iar $\omega_r$ este
-direcția de reflexie perfect speculară a luminii. De remarcat că termenul de $\cos$
-este restricționat să nu fie mai mic decât zero. Un exponent $n$ mare va duce la o
+în intervalul $[0, 1]$, $n$ este exponentul de reflexie speculară, iar $\omega_r$ este
+direcția de reflexie perfect speculară a luminii. Menționăm faptul că termenul de $\cos$
+este restricționat de obicei să nu fie mai mic decât 0. Un exponent $n$ mare va duce la o
 reflexie mai concentrată, în timp ce unul mic va duce la o reflexie mai difuză.
 Ideal, pentru a nu viola legea conservării a energiei, trebuie să nu reflectăm mai multă lumină
 decât am primit. Acest lucru se poate obține prin condiția $k_d + k_s \leq 1$.
@@ -1398,7 +1399,7 @@ mai departe categorizat în două:
 \end{itemize}
 
 De asemenea, un alt fenomen extrem ce trebuie luat în considerare este cel al
-retroreflexiei. Acesta este manifestat drept o reflexie a luminii înapoit pe direcția
+retroreflexiei. Acesta este manifestat drept o reflexie a luminii înapoi pe direcția
 incidentă (spre deosebire de o reflexie speculară), preponderent mai ales la unghiuri
 de incidență mari. Totuși, există materiale care prezintă acest fenomen mai pronunțat,
 precum cele reflectorizante sau textile.
@@ -1431,7 +1432,7 @@ O să concluzionăm prin a prezenta unul dintre primele și cele mai cunoscute B
 bazate pe teoria microfațetelor - descris de Torrance și Sparrow în 1967~\cite{TorranceOld}.
 În continuare, vom nota cu $\omega_i$ direcția de incidență, cu $\omega_o$ direcția de ieșire,
 și cu $\omega_h$ normala microfațetei. Notăm funcția de distribuție a normalelor ca
-$D(\omega_h)$. De notat că această funcție este normalizată, adică
+$D(\omega_h)$. De notat că această funcție este normalizată, adică:
 \begin{equation}\label{eq:d_norm}
 	\int_{\Omega} D(\omega_h)\cos \theta_h \diff \omega_h = 1.
 \end{equation}
@@ -1479,8 +1480,7 @@ Deși nu este o soluție perfectă, căci nu ține cont de corelațiile dintre m
 această aproximare este suficient de bună pentru a fi folosită în practică.
 
 În final, modelul Torrance-Sparrow are și o componentă speculară modelată de legea
-lui Fresnel. Presupunerea modelului este că microfațetele sunt perfect reflectante
-și că reflexia speculară este dată de reflexia totală a luminii pe suprafață.
+lui Fresnel, iar presupunerea modelului este că microfațetele sunt perfect speculare.
 BRDF-ul Torrance-Sparrow este definit ca:
 \begin{equation}
 	f_{TS}(\mathbf{x}, \omega_i, \omega_o) = \frac{D(\omega_h)G_2(\omega_i, \omega_o, \omega_h)F(\omega_o)}{4(\omega_i \cdot \mathbf{n})(\omega_o \cdot \mathbf{n})},
@@ -1495,7 +1495,7 @@ Frumusețea acestui model generalizat este faptul că acceptă diferite distribu
 de microfațete și funcții Fresnel, deci poate fi folosit atât pentru metale cât
 și pentru materiale dielectrice. În plus, modelul este destul de simplu pentru a
 putea fi folosit în practică, dar suficient de complex pentru a modela fenomene
-fizice complexe.
+fizice sofisticate.
 
 \subsection{Strategii de eșantionare a direcțiilor de ieșire}
 
@@ -1579,7 +1579,7 @@ modelarea unei distribuții de eșantionare care să aproximeze cât mai bine di
 BRDF-ului.
 
 În cazul unui material Lambertian, definit de ecuația~\ref{eq:lambert}, observăm
-că distribuția BRDF-ului este constantă are aceeași formă uniformă ca eșantionarea
+că distribuția BRDF-ului are aceeași formă ca eșantionarea
 uniformă. Astfel, am fi tentați să concluzionăm că putem folosi
 ecuațiile~\ref{eq:uniform_sampling} pentru a genera direcții de ieșire. Totuși,
 am omite factorul de $\cos$ care apare în ecuația de randare~\ref{eq:light_transport}.
@@ -1670,7 +1670,9 @@ esențială. Totodată, se preferă să se folosească un API cât mai aproape d
 și cu o amprentă cât mai mică asupra sistemului. De aceea, se folosesc API-uri
 precum Vulkan sau DirectX 12 în defavoarea CUDA sau OpenCL. Acestea din urmă sunt
 mai degrabă folosite în aplicații de tip offline, unde timpul de randare nu este
-atât de critic.
+atât de critic. Totuși, nivelul jos de abstractizare al acestor API-uri face
+dezvoltarea mai dificilă și necesită un nivel mai înalt de expertiză - de aceea
+nu vedem în multe cazuri folosirea acestora la potențialul maxim.
 
 \subsection{Vulkan}
 
@@ -1683,12 +1685,12 @@ De remarcat că acest API oferă suport pentru Ray Tracing accelerat hardware\fo
 
 \subsection{DirectX 12}
 
-DirectX 12 este cel mai popular API modern de grafică în industria jocurilor video\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_Direct3D_12_games}. Accesat 24.06.2024.}.
+DirectX 12 este cel mai popular API modern de grafică în industria jocurilor video\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_Direct3D_12_games}. Accesat 24.06.2024.},
 dezvoltat de Microsoft pentru a fi folosit pe platformele Windows și Xbox\footnote{\url{https://learn.microsoft.com/en-us/windows/win32/direct3d12/what-is-directx-12-}. Accesat 24.06.2024.}.
 Acesta oferă avantaje similare cu cele oferite de Vulkan, însă și acesta este
 un API de nivel scăzut, notoriu pentru dificultatea de a fi folosit la potențialul său maxim.
 Acesta oferă suport pentru Ray Tracing accelerat hardware
-prin intermediul extensiei DirectX Raytracing (DXR).\footnote{\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 24.06.2024.}.
+prin intermediul extensiei DirectX Raytracing (DXR)\footnote{\url{https://devblogs.microsoft.com/directx/announcing-microsoft-directx-raytracing/}. Accesat 24.06.2024.}.
 Acesta a devenit standardul în industrie pentru randarea în timp real și este
 adoptat în majoritatea noilor lansări AAA de pe piață\footnote{\url{https://www.pcgamingwiki.com/wiki/List_of_games_that_support_ray_tracing}. Accesat 24.06.2024.}.
 Acest API, împreună cu extensia DXR, este folosit în acest proiect pentru
@@ -1748,8 +1750,8 @@ din meniu, iar unele sunt activate implicit.
 	\item \textbf{Eșantionare a unei singure lumini} - pentru ca algoritmul să nu piardă
 	      performanță dramatic în cazul în care există multe surse de lumină, se poate alege
 	      aleator o singură sursă de lumină la fiecare pas pe care să se aplice NEE. Rezultatul
-	      final este ponderat apoi cu probabilitatea de eșantionare a sursei de lumină (în acest
-	      caz, $1/N$, unde $N$ este numărul de surse de lumină). Această optimizare poate
+	      final este ponderat apoi cu inversul probabilității de eșantionare a sursei de lumină (în acest
+	      caz, $N$ - numărul de surse de lumină). Această optimizare poate
 	      fi dezactivată din meniu (este activată implicit).
 	\item \textbf{Eșantionare bazată pe importanță} - alegerea unei noi direcții de ieșire
 	      pentru pasul recursiv se face folosind o eșantionare concepută pentru a aproxima
@@ -1819,31 +1821,31 @@ dure au reflectanța crescută față de unghiul normal de incidență. Aceste
 observații sunt prezise de reflexia Fresnel, motiv pentru care modelul propus
 ține cont de aceasta:
 \begin{equation}\label{eq:brdf_diffuse}
-	f_d = \dfrac{albedo}{\pi}F_D(\omega_i, \omega_h)F_D(\omega_o, \omega_h),
+	f_d = \dfrac{albedo}{\pi}F_D(\omega_i)F_D(\omega_o),
 \end{equation}
 unde $F_D(\omega, \omega_h)$ este o modificare a aproximației lui Schlick~\cite{Schlick} a
-reflexiei Fresnel pentru direcția de incidență $\omega$ și micronormala $\omega_h$
+reflexiei Fresnel pentru direcția de incidență $\omega$ și micronormala $\omega_h$:
 \begin{equation}
 	\begin{aligned}\label{eq:f_d}
-		F_D(\omega, \omega_h) & = 1 + (F_{D90} - 1)(1 - |\omega \cdot \omega_h|)^5,      \\
-		F_{D90}               & = 0.5 + 2\cdot roughness\cdot |\omega_o \cdot \omega_h|.
+		F_D(\omega) & = 1 + (F_{D90} - 1)(1 - |\mathbf{n} \cdot \omega|)^5,      \\
+		F_{D90}               & = 0.5 + 2\cdot roughness\cdot (\omega_o \cdot \omega_h)^2.
 	\end{aligned}
 \end{equation}
 Această modificare ignoră indicele de refracție al materialului și presupune
 că nu există pierderi de energie incidentă la difuzie, ceea ce permite
 BRDF-ului să depindă direct de o culoare $albedo$ specificată. De asemenea, termenul $F_{D90}$ este
 ales astfel încât contribuția de tip retroreflexie să fie modulată, în funcție
-de $roughness$, între 0.5 ($roughness = 1$) și 2.5 ($roughness = 0$). Această
+de $roughness$, între 0.5 ($roughness = 0$) și 2.5 ($roughness = 1$). Această
 modificare este strict empirică și, conform lui Burley, are un feedback pozitiv
 din partea artiștilor.
 
-Versiunea din 2015 transformă $f_d$ într-un BSDF cu componentă de dispersie
-sub suprafață, care este simulată prin Path Tracing Volumetric (introdusă prima oară de Lafortune și Willems~\cite{Volumetric}),
+Versiunea din 2015~\cite{DisneyBSDF} transformă $f_d$ într-un BSDF cu componentă de dispersie
+sub suprafață, care este simulată prin Path Tracing Volumetric (introdus prima oară de Lafortune și Willems~\cite{Volumetric}),
 dar acest algoritm este prea costisitor pentru randare în timp real.
 Așadar, rămânem la BRDF-ul~\ref{eq:brdf_diffuse} și îl complementăm cu o aproximație
 a acestui fenomen bazată pe legea Lommel-Seeliger\footnote{\url{https://phys.libretexts.org/Bookshelves/Astronomy__Cosmology/Planetary_Photometry_(Tatum_and_Fairbairn)/03\%3A_A_Brief_History_of_the_Lommel-Seeliger_Law}. Accesat 24.06.2024.}, așa cum este descris în~\cite{DisneyHomework}:
 \begin{equation}
-	f_{ss} = \dfrac{1.25\cdot albedo}{\pi} \left(F_{SS}(\omega_i, \omega_h)F_{SS}(\omega_o, \omega_h) \left(\dfrac{1}{|\omega_i \cdot \omega_h| + |\omega_o \cdot \omega_h|} - 0.5\right) + 0.5 \right),
+	f_{ss} = \dfrac{1.25\cdot albedo}{\pi} \left(F_{SS}(\omega_i)F_{SS}(\omega_o) \left(\dfrac{1}{|\mathbf{n} \cdot \omega_i| + |\mathbf{n} \cdot \omega_o|} - 0.5\right) + 0.5 \right),
 \end{equation}
 unde $F_{SS}$ este aceeași aproximare folosită pentru $F_D$ (\ref{eq:f_d}), dar cu o remapare $F_{SS90} = roughness\cdot (\omega_o\cdot \omega_h)^2$.
 
@@ -1897,7 +1899,7 @@ să ajungă la 0 (altfel materialul este invizibil).
 Pentru funcția de mascare și umbrirei $G$, Burley folosește varianta separabilă cu funcția Smith G1 (vezi ecuația~\ref{eq:g1}) derivată
 pentru distribuția GGX, care implică următoarea expresie a funcției $\Lambda$:
 \begin{equation}\label{eq:gamma}
-	\Lambda(\omega, \omega_h) = \dfrac{\sqrt{1 + \dfrac{(w^l.x\cdot \alpha_x)^2 + (w^l.y\cdot \alpha_y)^2}{w^l.z^2}}}{2},
+	\Lambda(\omega, \omega_h) = \dfrac{-1 + \sqrt{1 + \dfrac{(w^l.x\cdot \alpha_x)^2 + (w^l.y\cdot \alpha_y)^2}{w^l.z^2}}}{2},
 \end{equation}
 unde $w^l = (w^l.x, w^l.y, w^l.z)$ este proiecția lui $\omega$ pe planul tangent.
 
@@ -1953,7 +1955,7 @@ un factor de $\dfrac{1}{\eta^2}$ care să anuleze creșterea luminozității exc
 când observatorul este plasat într-un mediu cu indice de refracție diferit de al aerului
 (e.g. în apă):
 \begin{equation}\label{eq:disney_transmission}
-	f_{t} = \dfrac{D(\omega_{h_t})G(\omega_i, \omega_o)(1 - F(\omega_o))|\omega_i\cdot\omega_{h_t}||\omega_o\cdot\omega_{h_t}|\cdot\eta^2}{((\omega_o\cdot\omega_{h_t}) + \eta(\omega_i\cdot\omega_{h_t}))|\omega_i\cdot\mathbf{n}||\omega_o\cdot\mathbf{n}|},
+	f_{t} = \dfrac{D(\omega_{h_t})G(\omega_i, \omega_o)(1 - F(\omega_i))|\omega_i\cdot\omega_{h_t}||\omega_o\cdot\omega_{h_t}|\cdot\eta^2}{((\omega_o\cdot\omega_{h_t}) + \eta(\omega_i\cdot\omega_{h_t}))|\omega_i\cdot\mathbf{n}||\omega_o\cdot\mathbf{n}|},
 \end{equation}
 unde $\omega_{h_t}$ este normala microfațetelor refractată:
 \begin{equation}
@@ -2133,7 +2135,7 @@ putând fi activat sau dezactivat jittering-ul.
 Pentru algoritmul normal de Path Tracing, se așteaptă să se calculeze
 contribuția pentru fiecare eșantion și la final se stochează în buffer
 media aritmetică a acestora. În schimb, pentru algoritmul progresiv, se
-calculează contribuția pentru un singur eșantion și acumulează în buffer
+calculează contribuția pentru un singur eșantion și se acumulează în buffer
 folosind un factor de interpolare care asignează o pondere dependentă de
 indexul eșantionului curent. Implementările pentru aceste rutine se află în
 shadere de tip Ray Generation și sunt ilustrate în listările~\ref{lst:raygen} și~\ref{lst:raygen-progresiv}.
@@ -2203,7 +2205,7 @@ shadere de tip Ray Generation și sunt ilustrate în listările~\ref{lst:raygen}
 \end{lstlisting}
 
 \section{Closest Hit shader}
-Sunt două shadere de acest tip - unul pentru primitive și unul pentru suprafețele bounding box-urile
+Sunt două shadere de acest tip - unul pentru primitive și unul pentru bounding box-urile
 suprafețelor implicite și analitice. Ambele apelează aceeași funcție helper care alege
 dintre algoritmul de Ray Tracing Whitted și Path Tracing pentru a calcula reflectanța în punctul
 de intersecție. Iluminarea pentru Ray Tracing era deja implementată în schelet, așa că nu o mai
@@ -2238,7 +2240,7 @@ ilustrează implementarea algoritmului.
 
 Observăm la liniile \ref{line:absorption1},~\ref{line:absorption2} și~\ref{line:absorption3}
 prezența unui termen de absorbție. Acesta modelează absorbția volumetrică a luminii
-când parcurge un mediu. Acesta se aplică doar în cazul în care raza se află
+când parcurge un mediu și se aplică doar în cazul în care raza se află
 în interiorul unui obiect. Modelul este bazat pe legea Beer-Lambert:
 \begin{equation}\label{eq:absorption}
 	T = e^{-\sigma_a d},
@@ -2409,7 +2411,7 @@ de denoising, așadar algoritmul este limitat în acest aspect.
 Rezultatele din tabela~\ref{tab:depth} arată că adâncimea maximă a recursivității
 are și ea un impact semnificativ asupra performanței. Pentru a avea reflexii convingătoare,
 o adâncime de 3 este suficientă, pe când în cazul refracțiilor, o adâncime de 5 este
-ma potrivită. Observăm totuși că impactul scade odată cu creșterea adâncimii, ceea ce
+mai potrivită. Observăm totuși că impactul scade odată cu creșterea adâncimii, ceea ce
 este un efect al ruletei rusești.
 
 \subsection{Adâncimea minimă pentru ruleta rusească}
@@ -2449,7 +2451,7 @@ Tabela~\ref{tab:onelight} arată că eșantionarea unei singure lumini are un im
 bun asupra performanței, fără a sacrifica deloc calitatea imaginii. Acest test s-a
 efectuat cu doar 2 lumini în scenă - scene mai complexe vor avea un impact imens
 asupra performanței dacă se eșantionează toate luminile deodată (spre deosebire
-de niciun impact în setarea cealaltă, însă asta aduce o reducere a calității imaginii).
+de niciun impact în setarea cealaltă, însă asta ar putea aduce o reducere a calității imaginii în acest caz extrem).
 
 \subsection{Strategia de eșantionare a direcției următoare}
 \begin{table}[!bth]\small\linespread{1}
@@ -2464,9 +2466,11 @@ de niciun impact în setarea cealaltă, însă asta aduce o reducere a calităț
 	\label{tab:bsdf}
 \end{table}
 Tabela~\ref{tab:bsdf} arată că eșantionarea bazată pe BSDF este, surprinzător, cea mai eficientă
-dar și cea mai calitativă (vezi Figurile~\ref{fig:eval-bsdf}, \ref{fig:eval-cosine} și \ref{fig:eval-uniform}). Presupunerea mea este că, deoarece podeaua are un material specular,
-eșantionarea BSDF-ului va conduce rapid la ieșirea razelor din scenă și la oprirea
-recursivității. Eșantionarea uniformă a sferei este cea mai lentă, deoarece implică și
+dar și cea mai calitativă (vezi Figurile~\ref{fig:eval-bsdf}, \ref{fig:eval-cosine} și \ref{fig:eval-uniform}).
+Motivul care stă în spatele scăderii performanței este faptul că celelalte două metode
+evaluează complet BSDF-ul (toți lobii), în timp ce eșantionarea bazată pe BSDF alege
+un singur lob de evaluat.
+Eșantionarea uniformă a sferei este cea mai lentă, deoarece implică și
 o componentă de transmisie.
 
 \section{Evaluare calitativă}
@@ -2490,8 +2494,10 @@ Condițiile de iluminare nu pot fi replicate perfect. Observăm imediat o difere
 majoră - această randare ține cont de iluminarea globală. Scena este iluminată
 conform fundalului, iar contribuția reflectanței fiecărui obiect este vizibilă
 pe podea. În acest caz, lumina nu este destul de puternică să lupte cu fundalul,
-de aceea umbrele sunt destul de puțin pronunțate. În randarea din Figura~\ref{fig:demo_pathtracing2}
-culoarea de fundal a fost coborâtă - se observă astfel contribuțiile celor două surse
+de aceea umbrele sunt destul de puțin pronunțate.
+
+În randarea din Figura~\ref{fig:demo_pathtracing2},
+culoarea de fundal a fost coborâtă. Se observă astfel contribuțiile celor două surse
 de lumină - una de tip suprafață și una direcțională. Umbrele lăsate de zonele
 obstrucționate din perspectiva luminii de suprafață au un aspect natural, cu penumbre
 ce tranziționează lin între umbra completă și lumina directă.

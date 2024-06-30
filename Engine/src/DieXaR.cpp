@@ -71,13 +71,14 @@ void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 	// Initialize the view and projection inverse matrices.
 	m_eye = eye;
 	m_at = at;
+	XMVECTOR forward = XMVector4Normalize(at - eye);
 	
 	// Compute up and right vectors.
-	XMVECTOR right = XMVector3Normalize(XMVector3Cross(m_at - m_eye, XMVectorSet(0, 1, 0, 0)));
-	m_up = XMVector3Normalize(XMVector3Cross(right, m_at - m_eye));
+	XMVECTOR right = XMVector3Normalize(XMVector3Cross(forward, XMVectorSet(0, 1, 0, 0)));
+	m_up = XMVector3Normalize(XMVector3Cross(right, forward));
 
 
-	//// Rotate camera around Y axis.
+	// Rotate camera around Y axis.
 	//XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(45.0f));
 	//m_eye = XMVector3Transform(m_eye, rotate);
 	//m_up = XMVector3Transform(m_up, rotate);
@@ -259,8 +260,9 @@ void DieXaR::InitializeDemo()
 	m_scenes[SceneTypes::Demo].m_sceneType = SceneTypes::Demo;
 
 	// Setup Camera
-	m_scenes[SceneTypes::Demo].m_eye = { 2.38f, 2.71f, -17.0f, 1.0f };
-	m_scenes[SceneTypes::Demo].m_at =  XMVECTOR{ 0.0f, -0.0f, 0.0f, 1.0f };
+	m_scenes[SceneTypes::Demo].m_eye = { 1.85f, 2.30f, 1.37f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_at = { 0.29f, -0.2f, -0.94f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_at += m_scenes[SceneTypes::Demo].m_eye;
 	ResetCamera(m_scenes[SceneTypes::Demo].m_eye, m_scenes[SceneTypes::Demo].m_at);
 
 	// Setup Materials
