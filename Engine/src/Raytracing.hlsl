@@ -40,6 +40,46 @@ ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1); // Sample m
 ConstantBuffer<PrimitiveInstanceConstantBuffer> l_aabbCB : register(b2);
 ConstantBuffer<PBRPrimitiveConstantBuffer> l_pbrCB : register(b3); // PBR material constant buffer
 
+// ##################################################################### //
+// ########################## Special Effects ########################## //
+// ##################################################################### //
+
+// https://www.shadertoy.com/view/lt2SR1
+float3 SkyColor(in float3 rd, in LightBuffer light)
+{
+    float3 sundir = -normalize(light.direction);
+
+    float yd = min(rd.y, 0.);
+    rd.y = max(rd.y, 0.);
+
+    float3 col = float3(0., 0., 0.);
+
+    col += sqrt(light.intensity) * float3(.4, .4 - exp(-rd.y * 20.) * .15, .0) * exp(-rd.y * 9.); // Red / Green
+    col += sqrt(light.intensity) * float3(.3, .5, .6) * (1. - exp(-rd.y * 8.)) * exp(-rd.y * .9); // Blue
+
+    col = sqrt(light.intensity) * lerp(col * 1.2, float3(.34, .44, .4), 1. - exp(yd * 100.)); // Fog
+    col += sqrt(light.intensity) * pow(saturate(dot(rd, sundir)), 150.0);
+
+    col += light.intensity * float3(1.0, .8, .55) * pow(max(dot(rd, sundir), 0.), 15.) * .6; // Sun
+    col += pow(max(dot(rd, sundir), 0.), 150.0) * .15;
+
+    return pow(col, 2.2f);
+}
+
+float4 ComputeBackground()
+{
+    switch (g_sceneCB.sceneIndex)
+    {
+    case SceneTypes::CornellBox:
+    case SceneTypes::Demo:
+        return g_sceneCB.backgroundColor;
+    case SceneTypes::PbrShowcase:
+        return float4(SkyColor(WorldRayDirection(), g_lights[0]), 1.0f);
+    default:
+        return float4(0, 0, 0, 1);
+    }
+}
+
 //***************************************************************************
 //*****------ TraceRay wrappers for radiance and shadow rays. -------********
 //***************************************************************************
@@ -129,7 +169,7 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
 }
 
 // Samples a light source with a given direction.
-//TODO unused
+// TODO unused
 bool NextEventEstimation(inout uint rng_state, in float3 L, in LightBuffer light, in float3 hitPosition,
                          in uint recursionDepth, out LightSample lightSample)
 {
@@ -274,18 +314,19 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
 
     // 1. Sample direct lighting.
 
-    if (g_sceneCB.onlyOneLightSample)
-    {
-        // If one light at a time, choose randomly and adjust pdf
-        uint idx = random(rng_state) * g_sceneCB.numLights;
-        color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[idx], normalSide, rayPayload.recursionDepth) * g_sceneCB.numLights;
-    }
-    else
-    {
-        // Sample all lights at once
-        for (uint i = 0; i < g_sceneCB.numLights; i++)
-            color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
-    }
+    if (g_sceneCB.sceneIndex != SceneTypes::PbrShowcase)
+        if (g_sceneCB.onlyOneLightSample)
+        {
+            // If one light at a time, choose randomly and adjust pdf
+            uint idx = random(rng_state) * g_sceneCB.numLights;
+            color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[idx], normalSide, rayPayload.recursionDepth) * g_sceneCB.numLights;
+        }
+        else
+        {
+            // Sample all lights at once
+            for (uint i = 0; i < g_sceneCB.numLights; i++)
+                color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
+        }
 
     // Apply Russian roulette.
     float russianRoulettePdf = 1.0f;
@@ -503,7 +544,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
             float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.recursionDepth);
 
-            float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, l_materialCB.albedo.xyz);
+            float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, float3(1, 1, 1));
             color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
         }
 
@@ -513,11 +554,13 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             // Trace a shadow ray only if recursion depth allows it.
             float3 shadowRayDir;
             float lightDist;
-            if (g_lights[i].type == LightType::Directional) {
+            if (g_lights[i].type == LightType::Directional)
+            {
                 lightDist = 10000.0f;
                 shadowRayDir = -normalize(g_lights[i].direction);
             }
-            else {
+            else
+            {
                 lightDist = length(g_lights[i].position - hitPosition);
                 shadowRayDir = (g_lights[i].position - hitPosition) / lightDist;
             }
@@ -532,8 +575,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
     // Apply visibility falloff.
     float t = RayTCurrent();
-    color = lerp(color, g_sceneCB.backgroundColor * rayPayload.throughput, 1.0 - exp(-0.000002 * t * t * t));
-
+    color = lerp(color, ComputeBackground() * rayPayload.throughput, 1.0 - exp(-0.000002 * t * t * t));
     rayPayload.color = color;
 }
 
@@ -568,7 +610,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
 [shader("miss")] void MissShader(inout RayPayload rayPayload)
 {
-    rayPayload.color = g_sceneCB.backgroundColor * rayPayload.throughput;
+    rayPayload.color = ComputeBackground() * rayPayload.throughput;
 }
 
     [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)

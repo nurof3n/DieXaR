@@ -84,7 +84,7 @@ private:
 	std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
 	// Scene description
-	UINT m_crtScene{ SceneTypes::Demo };
+	UINT m_crtScene{ SceneTypes::PbrShowcase };
 	Scene m_scenes[SceneTypes::Count];
 
 	// Geometry
@@ -189,12 +189,6 @@ private:
 	void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
 	template <class InstanceDescType, class BLASPtrType>
 	void BuildBotomLevelASInstanceDescs(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
-	template <class InstanceDescType, class BLASPtrType>
-	void BuildBotomLevelASInstanceDescsDemo(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
-	template <class InstanceDescType, class BLASPtrType>
-	void BuildBotomLevelASInstanceDescsCornellBox(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
-	template <class InstanceDescType, class BLASPtrType>
-	void BuildBotomLevelASInstanceDescsPbrShowcase(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
 	AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	void BuildAccelerationStructures();
