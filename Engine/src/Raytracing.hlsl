@@ -85,7 +85,7 @@ float4 ComputeBackground()
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT currentRayRecursionDepth, in bool refraction = false)
+float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT rngState, in UINT currentRayRecursionDepth, in bool refraction = false)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth)
     {
@@ -100,7 +100,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.0001f;
     rayDesc.TMax = 10000.0f;
-    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, currentRayRecursionDepth + 1};
+    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, rngState, currentRayRecursionDepth + 1};
 
     uint flag = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
     TraceRay(g_scene,
@@ -168,24 +168,33 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
     return sqf / (sqf + sq(g));
 }
 
-// Samples a light source with a given direction.
-// TODO unused
-bool NextEventEstimation(inout uint rng_state, in float3 L, in LightBuffer light, in float3 hitPosition,
-                         in uint recursionDepth, out LightSample lightSample)
+// Samples a light source with a given direction, according to the bsdf.
+bool NextEventEstimationBsdf(inout uint rng_state, in float3 L, in LightBuffer light, in float3 hitPosition, in float3 normal,
+                             in uint recursionDepth, out LightSample lightSample)
 {
-    float angle;
+    float angleL, angleN, t;
     switch (light.type)
     {
     case LightType::Square:
-        lightSample.L = L;
-        lightSample.dist = length(lightSample.L);
-        lightSample.L /= lightSample.dist;
-        lightSample.emission = light.intensity * light.emission;
-        angle = dot(lightSample.L, float3(0.0f, 1.0f, 0.0f));
-        if (angle <= 0.0f)
+        // bail out if the sample is on the wrong side of the light
+        angleL = dot(L, float3(0.0f, 1.0f, 0.0f));
+        if (angleL <= 0.0f)
             return false;
-        lightSample.pdf = (sq(lightSample.dist)) / (sq(light.size) * angle);
-        break;
+        // check correct side of the normal
+        angleN = dot(normal, L);
+        if (angleN <= 0.0f)
+            return false;
+        // check that we intersect the light
+        t = IntersectWithYSquare(hitPosition, L, light.position, light.size);
+        if (t != INFINITY && t > 0.0f)
+        {
+            lightSample.L = L;
+            lightSample.dist = t;
+            lightSample.emission = angleN * light.intensity * light.emission * sq(light.size);
+            lightSample.pdf = sq(lightSample.dist) / angleL;
+            break;
+        }
+        return false;
     case LightType::Directional:
         return false;
     }
@@ -197,10 +206,10 @@ bool NextEventEstimation(inout uint rng_state, in float3 L, in LightBuffer light
 }
 
 // Samples a light source.
-bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
-                         in uint recursionDepth, out LightSample lightSample)
+bool NextEventEstimationLight(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
+                              in uint recursionDepth, out LightSample lightSample)
 {
-    float angle;
+    float angleL, angleN;
     float2 eps;
     float3 samplePos;
     switch (light.type)
@@ -212,23 +221,28 @@ bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 h
         lightSample.dist = length(lightSample.L);
         lightSample.L /= lightSample.dist;
         // bail out if the sample is on the wrong side of the light
-        angle = dot(lightSample.L, float3(0.0f, 1.0f, 0.0f));
-        if (angle <= 0.0f)
+        angleL = dot(lightSample.L, float3(0.0f, 1.0f, 0.0f));
+        if (angleL <= 0.0f)
             return false;
-        lightSample.emission = light.intensity * light.emission;
-        lightSample.pdf = sq(lightSample.dist) / sq(light.size);
+        // check correct side of the normal
+        angleN = dot(normal, lightSample.L);
+        if (angleN <= 0.0f)
+            return false;
+        // compute contribution and pdf
+        lightSample.emission = angleN * light.intensity * light.emission * sq(light.size);
+        lightSample.pdf = sq(lightSample.dist) / angleL;
         break;
     case LightType::Directional:
         lightSample.L = -normalize(light.direction);
         lightSample.dist = 10000.0f;
-        lightSample.emission = light.intensity * light.emission;
+        // check correct side of the normal
+        angleN = dot(normal, lightSample.L);
+        if (angleN <= 0.0f)
+            return false;
+        lightSample.emission = angleN * light.intensity * light.emission;
         lightSample.pdf = 1.0f;
         break;
     }
-
-    // Check correct side of the normal.
-    if (dot(normal, lightSample.L) <= 0.0f)
-        return false;
 
     // Check if the light is occluded.
     Ray shadowRay = {hitPosition, lightSample.L};
@@ -243,16 +257,14 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
 
     // Sample the light source.
     LightSample lightSample;
-    if (NextEventEstimation(rng_state, light, hitPosition, N, recursionDepth, lightSample))
+    if (NextEventEstimationLight(rng_state, light, hitPosition, N, recursionDepth, lightSample))
     {
         // Evaluate the BSDF.
         float bsdfPdf;
         reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), lightSample.L, N, bsdfPdf);
 
         // Calculate the MIS weight.
-        float weight = 1.0f;
-        if (light.type != LightType::Directional)
-            weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
+        float weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
 
         // Calculate the final color.
         if (bsdfPdf > 0.0f)
@@ -261,29 +273,25 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
             reflectance = float3(0.0f, 0.0f, 0.0f);
     }
 
-    // Sample the BSDF
-    // float3 L;
-    // float bsdfPdf;
-    // float3 bsdf = SampleDisneyBSDF(rng_state, material, eta, -WorldRayDirection(), N, L, bsdfPdf);
-    // if (bsdfPdf > 0.0f)
-    // {
-    //     // Evaluate the light source.
-    //     float3 lightEmission = float3(0.0f, 0.0f, 0.0f);
-    //     float lightPdf = 0.0f;
-    //     if (NextEventEstimation(rng_state, L, light, hitPosition, recursionDepth, lightSample))
-    //     {
-    //         lightEmission = lightSample.emission;
-    //         lightPdf = lightSample.pdf;
+    // Sample the BSDF (if the light is not a directional light, because in that case the chances of hitting it are almost zero)
+    if (light.type == LightType::Square)
+    {
+        float3 L;
+        float bsdfPdf;
+        float3 bsdf = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), N, L, bsdfPdf);
+        if (bsdfPdf > 0.0f)
+        {
+            // Evaluate the light source.
+            if (NextEventEstimationBsdf(rng_state, L, light, hitPosition, N, recursionDepth, lightSample))
+            {
+                // Calculate the MIS weight.
+                float weight = PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightSample.pdf);
 
-    //         // Calculate the MIS weight.
-    //         float weight = 1.0f;
-    //         if (light.type != LightType::Directional)
-    //             weight = PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightPdf);
-
-    //         // Calculate the final color.
-    //         reflectance += weight * bsdf * lightEmission / bsdfPdf;
-    //     }
-    // }
+                // Calculate the final color.
+                reflectance += weight * bsdf * lightSample.emission / bsdfPdf;
+            }
+        }
+    }
 
     return reflectance;
 }
@@ -306,9 +314,6 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     // Add absorption.
     float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
 
-    // Initialize the random number generator.
-    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + rayPayload.recursionDepth * 1337 + hash(hitPosition));
-
     //--- Multiple importance sampling.
     float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
 
@@ -318,14 +323,14 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
         if (g_sceneCB.onlyOneLightSample)
         {
             // If one light at a time, choose randomly and adjust pdf
-            uint idx = random(rng_state) * g_sceneCB.numLights;
-            color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[idx], normalSide, rayPayload.recursionDepth) * g_sceneCB.numLights;
+            uint idx = random(rayPayload.rngState) * g_sceneCB.numLights;
+            color += throughput * MIS(rayPayload.rngState, material, eta, hitPosition, g_lights[idx], normalSide, rayPayload.recursionDepth) * g_sceneCB.numLights;
         }
         else
         {
             // Sample all lights at once
             for (uint i = 0; i < g_sceneCB.numLights; i++)
-                color += throughput * MIS(rng_state, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
+                color += throughput * MIS(rayPayload.rngState, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
         }
 
     // Apply Russian roulette.
@@ -333,7 +338,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     if (rayPayload.recursionDepth >= g_sceneCB.russianRouletteDepth)
     {
         russianRoulettePdf = max(throughput.x, max(throughput.y, throughput.z));
-        if (random(rng_state) > russianRoulettePdf)
+        if (random(rayPayload.rngState) > russianRoulettePdf)
             return color;
     }
 
@@ -349,15 +354,15 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
 
     if (g_sceneCB.importanceSamplingType == 0)
     {
-        L = UniformSampleSphere(random(rng_state), random(rng_state), samplePdf);
+        L = UniformSampleSphere(random(rayPayload.rngState), random(rayPayload.rngState), samplePdf);
         L = normalize(GetTangentToWorld(N, T, B, L));
         reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
         bsdfPdf = samplePdf;
     }
     else if (g_sceneCB.importanceSamplingType == 1)
     {
-        L = CosineSampleHemisphere(random(rng_state), random(rng_state), samplePdf);
-        if (random(rng_state) < 0.5f)
+        L = CosineSampleHemisphere(random(rayPayload.rngState), random(rayPayload.rngState), samplePdf);
+        if (random(rayPayload.rngState) < 0.5f)
             L = -L;
         L = normalize(GetTangentToWorld(N, T, B, L));
         reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), L, normalSide, bsdfPdf);
@@ -365,7 +370,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     }
     else
     {
-        reflectance = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), normalSide, L, bsdfPdf);
+        reflectance = SampleDisneyBSDF(rayPayload.rngState, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), normalSide, L, bsdfPdf);
     }
 
     // Update absorption.
@@ -382,7 +387,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
 
         // Shoot the next ray and accumulate the color.
         Ray newRay = {hitPosition, L};
-        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.recursionDepth, dot(N, L) < 0.0f).xyz;
+        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.rngState, rayPayload.recursionDepth, dot(N, L) < 0.0f).xyz;
     }
 
     return color;
@@ -441,9 +446,12 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
     Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld, float2(0.5f, 0.5f));
 
+    // Initialize the random number generator.
+    UINT rngState = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Write the raytraced color to the output texture.
     const float gammaPow = 1.0f / 2.2f;
@@ -451,10 +459,10 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     g_renderTarget[DispatchRaysIndex().xy] = color;
 }
 
-    [shader("raygeneration")] void RaygenShader_PathTracingTemporal()
+[shader("raygeneration")] void RaygenShader_PathTracingTemporal()
 {
     // Initialize the random number generator.
-    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
+    uint rngState = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
 
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
 
@@ -462,7 +470,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2(((g_sceneCB.pathFrameCacheIndex - 1) % g_sceneCB.pathSqrtSamplesPerPixel + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (floor((g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathSqrtSamplesPerPixel) + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
     // Apply jittering if enabled.
-    float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
+    float2 jitter = select(g_sceneCB.applyJitter, float2(random(rngState), random(rngState)), float2(0.5f, 0.5f)); // in [0, 1)
     offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
     // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -470,7 +478,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Accumulate the color.
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
@@ -482,9 +490,6 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
 [shader("raygeneration")] void RaygenShader_PathTracing()
 {
-    // Initialize the random number generator.
-    uint rng_state = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
-
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
 
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
@@ -492,11 +497,14 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     for (uint i = 0; i < g_sceneCB.pathSqrtSamplesPerPixel; i++)
         for (uint j = 0; j < g_sceneCB.pathSqrtSamplesPerPixel; j++)
         {
+            // Initialize the random number generator.
+            uint rngState = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks + 67 * i * g_sceneCB.pathSqrtSamplesPerPixel + j);
+
             // Compute the ray offset inside the pixel (for stratified sampling), between 0 and 1.
             float2 offset = numSamples == 1 ? float2(0.5f, 0.5f) : float2((i + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel, (j + 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel);
 
             // Apply jittering if enabled.
-            float2 jitter = select(g_sceneCB.applyJitter, float2(random(rng_state), random(rng_state)), float2(0.5f, 0.5f)); // in [0, 1)
+            float2 jitter = select(g_sceneCB.applyJitter, float2(random(rngState), random(rngState)), float2(0.5f, 0.5f)); // in [0, 1)
             offset += (jitter - 0.5f) / g_sceneCB.pathSqrtSamplesPerPixel;
 
             // Generate a ray for a camera pixel corresponding to an index from the dispatched 2D grid.
@@ -504,7 +512,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
             // Cast a ray into the scene and retrieve a shaded color.
             UINT currentRecursionDepth = 0;
-            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), currentRecursionDepth);
+            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
             // Accumulate the color.
             finalColor += color.xyz;
@@ -542,7 +550,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
         {
             // Trace a reflection ray.
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
-            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.recursionDepth);
+            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth);
 
             float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, float3(1, 1, 1));
             color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;

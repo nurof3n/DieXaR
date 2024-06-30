@@ -39,12 +39,11 @@ float3 ACES(const float3 x)
 // Returns a 32-bit hash of a float2 and a seed.
 uint hash(uint2 p, uint seed)
 {
-    p = (p >> 16u) ^ p;
-    p = (p * 0x45d9f3b) ^ seed;
-    p = (p >> 16u) ^ p;
-    p = (p * 0x45d9f3b) ^ seed;
-    p = (p >> 16u) ^ p;
-    return p.x;
+    uint hash = uint(2166136261);
+    hash = (hash ^ p.x) * 16777619;
+    hash = (hash ^ p.y) * 16777619;
+    hash = (hash ^ seed) * 16777619;
+    return hash;
 }
 
 uint hash(float3 vec)
@@ -217,6 +216,18 @@ float3 GetWorldToTangent(in float3 N, in float3 T, in float3 B, in float3 V)
 float GetLuminance(in float3 color)
 {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+
+float IntersectWithYSquare(float3 origin, float3 direction, float3 squareOrigin, float squareSize)
+{
+    float t = (squareOrigin.y - origin.y) / direction.y;
+    float3 p = origin + t * direction;
+    float halfSize = squareSize * 0.5f;
+
+    if (p.x < squareOrigin.x - halfSize || p.x > squareOrigin.x + halfSize || p.z < squareOrigin.z - halfSize || p.z > squareOrigin.z + halfSize)
+        t = INFINITY;
+
+    return t;
 }
 
 #endif // RAYTRACINGSHADERHELPER_H

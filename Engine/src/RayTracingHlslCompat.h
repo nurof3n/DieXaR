@@ -57,6 +57,7 @@ struct RayPayload
 	XMFLOAT4 color;			// Accumulated color value of the ray.
 	XMFLOAT4 throughput;	// Accumulated throughput of the ray. Only used in path tracing.
 	XMFLOAT4 absorption;	// Accumulated absorption of the ray. Only used in path tracing.
+	UINT rngState;			// Random number generator state.
 	UINT recursionDepth;	// Current recursion depth of the ray.
 };
 

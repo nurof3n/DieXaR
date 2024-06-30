@@ -1089,7 +1089,8 @@ void DieXaR::BuildBotomLevelASInstanceDescs(BLASPtrType* bottomLevelASaddresses,
 		instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::AABB];
 
 		// Move all AABBS above the ground plane and center them inside the checkerboard.
-		XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(c_aabbWidth * 2.0f, c_aabbWidth / 2 - 0.2f, c_aabbWidth * 0.5f)));
+		float yOffset = m_crtScene == SceneTypes::PbrShowcase ? 0.2f : 0.0f;
+		XMMATRIX mTranslation = XMMatrixTranslationFromVector(XMLoadFloat3(&XMFLOAT3(c_aabbWidth * 2.0f, c_aabbWidth / 2 - yOffset, c_aabbWidth * 0.5f)));
 		XMStoreFloat3x4(reinterpret_cast<XMFLOAT3X4*>(instanceDesc.Transform), mTranslation);
 	}
 	UINT64 bufferSize = static_cast<UINT64>(instanceDescs.size() * sizeof(instanceDescs[0]));

@@ -84,7 +84,7 @@ private:
 	std::vector<D3D12_RAYTRACING_AABB> m_aabbs;
 
 	// Scene description
-	UINT m_crtScene{ SceneTypes::PbrShowcase };
+	UINT m_crtScene{ SceneTypes::Demo };
 	Scene m_scenes[SceneTypes::Count];
 
 	// Geometry
