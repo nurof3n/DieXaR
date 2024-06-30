@@ -23,6 +23,18 @@
 using namespace std;
 using namespace DX;
 
+// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
+static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
+static const XMFLOAT4 green = XMFLOAT4(0.1f, 0.6f, 0.41f, 1.0f);
+static const XMFLOAT4 red = XMFLOAT4(0.6f, 0.2f, 0.23f, 1.0f);
+static const XMFLOAT4 yellow = XMFLOAT4(0.7f, 0.6f, 0.2f, 1.0f);
+static const XMFLOAT4 violet = XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f);
+static const XMFLOAT4 orange = XMFLOAT4(0.7f, 0.2f, 0.0f, 1.0f);
+static const XMFLOAT4 ruby = XMFLOAT4(0.6f, 0.0f, 0.0f, 1.0f);
+static const XMFLOAT4 silver = XMFLOAT4(0.972f, 0.960f, 0.915f, 1.0f);
+static const XMFLOAT4 gold = XMFLOAT4(1.022f, 0.782f, 0.344f, 1.0f);
+static const XMFLOAT4 copper = XMFLOAT4(0.955f, 0.638f, 0.538f, 1.0f);
+
 // Shader entry points.
 const wchar_t* DieXaR::c_raygenShaderNames[] =
 {
@@ -113,6 +125,7 @@ void DieXaR::ResetSettingsCB()
 	m_sceneCB->russianRouletteDepth = m_russianRouletteDepth;
 	m_sceneCB->anisotropicBSDF = m_anisotropicBSDF;
 	m_sceneCB->backgroundColor = m_backgroundColor;
+	m_sceneCB->sceneIndex = m_crtScene;
 }
 
 void DieXaR::AdvancePathTracing()
@@ -251,7 +264,7 @@ void DieXaR::UpdateAABBPrimitiveAttributesDemo(float animationTime)
 	{
 		using namespace SignedDistancePrimitive;
 
-		SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
+		//SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
 		SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
 		SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
 		SetTransformForAABB(offset + Cog, mIdentity, mRotation);
@@ -305,7 +318,7 @@ void DieXaR::UpdateAABBPrimitiveAttributesPbrShowcase(float animationTime)
 	{
 		using namespace SignedDistancePrimitive;
 
-		SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
+		//SetTransformForAABB(offset + MiniSpheres, mIdentity, mIdentity);
 		SetTransformForAABB(offset + IntersectedRoundCube, mIdentity, mIdentity);
 		SetTransformForAABB(offset + SquareTorus, mScale15, mIdentity);
 		SetTransformForAABB(offset + Cog, mIdentity, mRotation);
@@ -340,24 +353,17 @@ void DieXaR::InitializeDemo()
 	m_scenes[SceneTypes::Demo].m_sceneType = SceneTypes::Demo;
 
 	// Setup Camera
-	m_scenes[SceneTypes::Demo].m_eye = { 1.85f, 2.30f, 1.37f, 0.0f };
-	m_scenes[SceneTypes::Demo].m_at = { 0.29f, -0.2f, -0.94f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_eye = { 10.63f, 5.21f, 4.13f, 0.0f };
+	m_scenes[SceneTypes::Demo].m_at = { -0.89f, -0.24f, -0.38f, 0.0f };
 	m_scenes[SceneTypes::Demo].m_at += m_scenes[SceneTypes::Demo].m_eye;
 	ResetCamera(m_scenes[SceneTypes::Demo].m_eye, m_scenes[SceneTypes::Demo].m_at);
 
 	// Setup Materials
 	{
-		XMFLOAT4 green = XMFLOAT4(0.1f, 0.6f, 0.41f, 1.0f);
-		XMFLOAT4 red = XMFLOAT4(0.6f, 0.2f, 0.23f, 1.0f);
-		XMFLOAT4 yellow = XMFLOAT4(0.7f, 0.6f, 0.2f, 1.0f);
-		XMFLOAT4 violet = XMFLOAT4(0.5f, 0.5f, 1.0f, 1.0f);
-		XMFLOAT4 orange = XMFLOAT4(0.7f, 0.2f, 0.0f, 1.0f);
-		XMFLOAT4 ruby = XMFLOAT4(0.6f, 0.0f, 0.0f, 1.0f);
-
 		// Setup plane
 		{
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_planeMaterialCB, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(0, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.4f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 2.0f);
+			m_scenes[SceneTypes::Demo].SetAttributes(0, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.25f, 1, 0.7f, 50, 1);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(0, XMFLOAT4(0.9f, 0.9f, 0.9f, 1.0f), 0.4f, 0.1f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 2.0f);
 		}
 
 		UINT offset = 0;
@@ -370,36 +376,36 @@ void DieXaR::InitializeDemo()
 		// Setup analytic primitives
 		{
 			using namespace AnalyticPrimitive;
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + AABB], orange, 0.3f, 0.8f, 0.6f);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + AABB + 1, orange, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.4f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Spheres], ChromiumReflectance, 1);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Spheres + 1, yellow, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f, 1.0f, XMFLOAT3(0.3f, 0.0f, 0.0f), 1.0f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + AABB + 1, orange, 0.3f, 0.8f, 0.6f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + AABB + 1, orange, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f, 1.7f, 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 1.0f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + Spheres + 1, yellow, 1.0f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Spheres + 1, yellow, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.5f, 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f);
 			offset += AnalyticPrimitive::Count;
 		}
 
 		// Setup signed distance primitives
 		{
 			using namespace SignedDistancePrimitive;
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + MiniSpheres], violet, 0.1f);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + MiniSpheres + 1, violet, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + IntersectedRoundCube], green);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + IntersectedRoundCube + 1, green, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SquareTorus], ChromiumReflectance, 1);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SquareTorus + 1, violet, 0.1f, 0.0f, 0.2f, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.8f, 1.5f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cog], yellow, 0.1f);
+			/*m_scenes[SceneTypes::Demo].SetAttributes(offset + MiniSpheres + 1, violet, 0.1f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + MiniSpheres + 1, violet, 0.4f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.3f, 1.51f);*/
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + IntersectedRoundCube + 1, green);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + IntersectedRoundCube + 1, green, 0.8f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.5f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + SquareTorus + 1, violet, 1);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SquareTorus + 1, violet, 0.1f, 0.0f, 0.2f, 0.0f, 0.0f, 0.7f, 0.0f, 0.0f, 0.0f, 1.5f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + Cog + 1, yellow, 0.1f);
 			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Cog + 1, yellow, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + Cylinder], red);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Cylinder + 1, red, 0.9f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.51f);
-			Scene::SetAttributes(m_scenes[SceneTypes::Demo].m_aabbMaterialCB[offset + SolidAngle], ruby, 0.1);
-			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SolidAngle + 1, ruby, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 0.0f, 0.0f, 2.2f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + Cylinder + 1, silver, 1.0f);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + Cylinder + 1, silver, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.15f);
+			m_scenes[SceneTypes::Demo].SetAttributes(offset + SolidAngle + 1, copper, 0.1);
+			m_scenes[SceneTypes::Demo].SetPBRAttributes(offset + SolidAngle + 1, copper, 0.0f, 1.0f, 0.0f, 0.0f, 0.0f, 0.7f, 1.0f, 0.0f, 0.0f, 1.1f);
 		}
 	}
 
 	// Setup Lights
-	m_backgroundColor = XMFLOAT4(0.1f, 0.1f, 0.1f, 1.0f);
+	m_backgroundColor = XMFLOAT4(0.04f, 0.04f, 0.04f, 1.0f);
 	m_scenes[m_crtScene].m_lights.resize(2);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.573f, LightType::Directional, 1.0f, XMFLOAT3(0.2f, -1.0f, 0.3f));
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(1.8f, 10.0f, 5.0f), XMFLOAT3(1.0f, 0.95f, 0.6f), 4.167f, LightType::Square, 3.545f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.323f, LightType::Directional, 1.0f, XMFLOAT3(0.76f, -0.196f, 0.596f));
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-7.0f, 9.8f, 3.431f), XMFLOAT3(0.09f, 0.047f, 0.266f), 10.0f, LightType::Square, 4.437f);
 }
 
 void DieXaR::InitializePbrShowcase()
@@ -822,20 +828,20 @@ void DieXaR::BuildProceduralGeometryAABBsDemo()
 		// Analytic primitives.
 		{
 			using namespace AnalyticPrimitive;
-			m_aabbs[offset + AABB] = InitializeAABB(XMINT3(3, 0, 0), XMFLOAT3(2, 3, 2));
-			m_aabbs[offset + Spheres] = InitializeAABB(XMFLOAT3(2.25f, 0, 0.75f), XMFLOAT3(3, 3, 3));
+			m_aabbs[offset + AABB] = InitializeAABB(XMFLOAT3(1.7f, 0, 0), XMFLOAT3(2, 3, 2));
+			m_aabbs[offset + Spheres] = InitializeAABB(XMFLOAT3(1.0f, 0, 0.9f), XMFLOAT3(3, 3, 3));
 			offset += AnalyticPrimitive::Count;
 		}
 
 		// Signed distance primitives.
 		{
 			using namespace SignedDistancePrimitive;
-			m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
+			//m_aabbs[offset + MiniSpheres] = InitializeAABB(XMINT3(2, 0, 0), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + IntersectedRoundCube] = InitializeAABB(XMFLOAT3(0, 0, 1), XMFLOAT3(2, 2, 2));
-			m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.25f), XMFLOAT3(3, 3, 3));
-			m_aabbs[offset + Cog] = InitializeAABB(XMINT3(1, 0, 0), XMFLOAT3(2, 2, 2));
+			m_aabbs[offset + SquareTorus] = InitializeAABB(XMFLOAT3(0.75f, -0.1f, 2.0f), XMFLOAT3(3, 3, 3));
+			m_aabbs[offset + Cog] = InitializeAABB(XMFLOAT3(0.5f, 0, 0), XMFLOAT3(2, 2, 2));
 			m_aabbs[offset + Cylinder] = InitializeAABB(XMINT3(0, 0, 2), XMFLOAT3(2, 3, 2));
-			m_aabbs[offset + SolidAngle] = InitializeAABB(XMFLOAT3(1.2, 0, 1.2), XMFLOAT3(10, 10, 10));
+			m_aabbs[offset + SolidAngle] = InitializeAABB(XMFLOAT3(1.0, 0, 1.0), XMFLOAT3(10, 10, 10));
 		}
 		AllocateUploadBuffer(device, m_aabbs.data(), m_aabbs.size() * sizeof(m_aabbs[0]), &m_aabbBuffer.resource);
 	}

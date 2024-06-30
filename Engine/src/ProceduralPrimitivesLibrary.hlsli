@@ -28,7 +28,7 @@
 
 // Analytic geometry intersection test.
 // AABB local space dimensions: <-1,1>.
-bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, inout float thit, inout ProceduralPrimitiveAttributes attr)
+bool RayAnalyticGeometryIntersectionTest(in uint sceneIndex, in Ray ray, in AnalyticPrimitive::Enum analyticPrimitive, inout float thit, inout ProceduralPrimitiveAttributes attr)
 {
     float3 aabb[2] = {
         float3(-1, -1, -1),
@@ -40,7 +40,7 @@ bool RayAnalyticGeometryIntersectionTest(in Ray ray, in AnalyticPrimitive::Enum 
     case AnalyticPrimitive::AABB:
         return RayAABBIntersectionTest(ray, aabb, thit, attr);
     case AnalyticPrimitive::Spheres:
-        return RaySpheresIntersectionTest(ray, thit, attr);
+        return RaySpheresIntersectionTest(sceneIndex, ray, thit, attr);
     default:
         return false;
     }
@@ -54,8 +54,8 @@ float GetDistanceFromSignedDistancePrimitive(in float3 position, in SignedDistan
 {
     switch (signedDistancePrimitive)
     {
-    case SignedDistancePrimitive::MiniSpheres:
-        return opI(sdSphere(opRep(position + 1, (float3)2 / 4), 0.65 / 4), sdBox(position, (float3)1));
+    //case SignedDistancePrimitive::MiniSpheres:
+    //    return opI(sdSphere(opRep(position + 1, (float3)2 / 4), 0.65 / 4), sdBox(position, (float3)1));
 
     case SignedDistancePrimitive::IntersectedRoundCube:
         return opS(opS(udRoundBox(position, (float3)0.75, 0.2), sdSphere(position, 1.20)), -sdSphere(position, 1.32));

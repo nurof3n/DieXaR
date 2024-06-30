@@ -20,7 +20,6 @@
 #ifndef ANALYTICPRIMITIVES_H
 #define ANALYTICPRIMITIVES_H
 
-
 #include "RaytracingShaderHelper.hlsli"
 
 // Solve a quadratic equation.
@@ -28,16 +27,18 @@
 bool SolveQuadraticEqn(float a, float b, float c, inout float x0, inout float x1)
 {
     float discr = b * b - 4 * a * c;
-    if (discr < 0) return false;
-    else if (discr == 0) x0 = x1 = -0.5 * b / a;
-    else {
-        float q = (b > 0) ?
-            -0.5 * (b + sqrt(discr)) :
-            -0.5 * (b - sqrt(discr));
+    if (discr < 0)
+        return false;
+    else if (discr == 0)
+        x0 = x1 = -0.5 * b / a;
+    else
+    {
+        float q = (b > 0) ? -0.5 * (b + sqrt(discr)) : -0.5 * (b - sqrt(discr));
         x0 = q / a;
         x1 = c / q;
     }
-    if (x0 > x1) swap(x0, x1);
+    if (x0 > x1)
+        swap(x0, x1);
 
     return true;
 }
@@ -63,16 +64,18 @@ bool SolveRaySphereIntersectionEquation(in Ray ray, inout float tmin, inout floa
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects a hollow sphere.
 bool RaySphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, out ProceduralPrimitiveAttributes attr, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
-    float t0, t1; // solutions for t if the ray intersects 
+    float t0, t1; // solutions for t if the ray intersects
 
-    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) return false;
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius))
+        return false;
     tmax = t1;
 
     if (t0 < RayTMin())
     {
         // t0 is before RayTMin, let's use t1 instead .
-        if (t1 < RayTMin()) return false; // both t0 and t1 are before RayTMin
-        
+        if (t1 < RayTMin())
+            return false; // both t0 and t1 are before RayTMin
+
         attr.normal = CalculateNormalForARaySphereHit(ray, t1, center);
         if (IsAValidHit(ray, t1, attr.normal))
         {
@@ -103,9 +106,9 @@ bool RaySphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, o
 // Limitation: this test does not take RayFlags into consideration and does not calculate a surface normal.
 bool RaySolidSphereIntersectionTest(in Ray ray, inout float thit, inout float tmax, in float3 center = float3(0, 0, 0), in float radius = 1)
 {
-    float t0, t1; // solutions for t if the ray intersects 
+    float t0, t1; // solutions for t if the ray intersects
 
-    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius)) 
+    if (!SolveRaySphereIntersectionEquation(ray, t0, t1, center, radius))
         return false;
 
     // Since it's a solid sphere, clip intersection points to ray extents.
@@ -116,16 +119,25 @@ bool RaySolidSphereIntersectionTest(in Ray ray, inout float thit, inout float tm
 }
 
 // Test if a ray with RayFlags and segment <RayTMin(), RayTCurrent()> intersects multiple hollow spheres.
-bool RaySpheresIntersectionTest(in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
+bool RaySpheresIntersectionTest(in uint sceneIndex, in Ray ray, out float thit, out ProceduralPrimitiveAttributes attr)
 {
-    const int N = 3;
-    float3 centers[N] =
+    const int N = sceneIndex == SceneTypes::Demo ? 3 : 1;
+    float3 centers[3];
+    float radii[3];
+    if (sceneIndex == SceneTypes::Demo)
     {
-        float3(-0.3, -0.3, -0.3),
-        float3(0.1, 0.1, 0.4),
-        float3(0.35,0.35, 0.0)
-    };
-    float  radii[N] = { 0.6, 0.3, 0.15 };
+        centers[0] = float3(-0.3, -0.3, -0.3);
+        centers[1] = float3(0.1, 0.1, 0.4),
+        centers[2] = float3(0.35, 0.35, 0.0);
+        radii[0] = 0.6;
+        radii[1] = 0.3;
+        radii[2] = 0.15;
+    }
+    else
+    {
+        centers[0] = float3(0, 0, 0);
+        radii[0] = 0.9;
+    }
     bool hitFound = false;
 
     //
@@ -161,12 +173,12 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
     int3 sign3 = ray.direction > 0;
 
     // Handle rays parallel to any x|y|z slabs of the AABB.
-    // If a ray is within the parallel slabs, 
+    // If a ray is within the parallel slabs,
     //  the tmin, tmax will get set to -inf and +inf
     //  which will get ignored on tmin/tmax = max/min.
     // If a ray is outside the parallel slabs, -inf/+inf will
     //  make tmax > tmin fail (i.e. no intersection).
-    // TODO: handle cases where ray origin is within a slab 
+    // TODO: handle cases where ray origin is within a slab
     //  that a ray direction is parallel to. In that case
     //  0 * INF => NaN
     const float FLT_INFINITY = 1.#INF;
@@ -177,13 +189,13 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], out float tmin, out float 
 
     tmin3.y = (aabb[1 - sign3.y].y - ray.origin.y) * invRayDirection.y;
     tmax3.y = (aabb[sign3.y].y - ray.origin.y) * invRayDirection.y;
-    
+
     tmin3.z = (aabb[1 - sign3.z].z - ray.origin.z) * invRayDirection.z;
     tmax3.z = (aabb[sign3.z].z - ray.origin.z) * invRayDirection.z;
-    
+
     tmin = max(max(tmin3.x, tmin3.y), tmin3.z);
     tmax = min(min(tmax3.x, tmax3.y), tmax3.z);
-    
+
     return tmax > tmin && tmax >= RayTMin() && tmin <= RayTCurrent();
 }
 
@@ -203,15 +215,20 @@ bool RayAABBIntersectionTest(Ray ray, float3 aabb[2], inout float thit, inout Pr
         float3 hitPosition = ray.origin + thit * ray.direction;
         float3 distanceToBounds[2] = {
             abs(aabb[0] - hitPosition),
-            abs(aabb[1] - hitPosition)
-        };
+            abs(aabb[1] - hitPosition)};
         const float eps = 0.0001;
-        if (distanceToBounds[0].x < eps) attr.normal = float3(-1, 0, 0);
-        else if (distanceToBounds[0].y < eps) attr.normal = float3(0, -1, 0);
-        else if (distanceToBounds[0].z < eps) attr.normal = float3(0, 0, -1);
-        else if (distanceToBounds[1].x < eps) attr.normal = float3(1, 0, 0);
-        else if (distanceToBounds[1].y < eps) attr.normal = float3(0, 1, 0);
-        else if (distanceToBounds[1].z < eps) attr.normal = float3(0, 0, 1);
+        if (distanceToBounds[0].x < eps)
+            attr.normal = float3(-1, 0, 0);
+        else if (distanceToBounds[0].y < eps)
+            attr.normal = float3(0, -1, 0);
+        else if (distanceToBounds[0].z < eps)
+            attr.normal = float3(0, 0, -1);
+        else if (distanceToBounds[1].x < eps)
+            attr.normal = float3(1, 0, 0);
+        else if (distanceToBounds[1].y < eps)
+            attr.normal = float3(0, 1, 0);
+        else if (distanceToBounds[1].z < eps)
+            attr.normal = float3(0, 0, 1);
 
         return IsAValidHit(ray, thit, attr.normal);
     }

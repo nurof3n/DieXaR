@@ -58,11 +58,11 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     rayDesc.Direction = ray.direction;
     // Set TMin to a zero value to avoid aliasing artifacts along contact areas.
     // Note: make sure to enable face culling so as to avoid surface face fighting.
-    rayDesc.TMin = refraction ? 0.01f : 0.0001f;
+    rayDesc.TMin = 0.0001f;
     rayDesc.TMax = 10000.0f;
     RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, currentRayRecursionDepth + 1};
 
-    uint flag = refraction ? RAY_FLAG_CULL_FRONT_FACING_TRIANGLES : RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+    uint flag = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
     TraceRay(g_scene,
              flag,
              TraceRayParameters::InstanceMask,
@@ -491,15 +491,20 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     }
     else // Whitted-style ray tracing
     {
+        // Checkerboard pattern for the floor.
+        float reflectanceCoef = l_materialCB.reflectanceCoef;
+        if (l_materialCB.materialIndex == 0)
+            reflectanceCoef = fmod(abs(floor(hitPosition.x / 2.0f) + floor(hitPosition.z / 2.0f)), 2.0f) * 0.25f + 0.25f;
+
         // Reflected component.
-        if (l_materialCB.reflectanceCoef > 0.001)
+        if (reflectanceCoef > 0.001)
         {
             // Trace a reflection ray.
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
             float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.recursionDepth);
 
             float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, l_materialCB.albedo.xyz);
-            color.xyz += l_materialCB.reflectanceCoef * fresnelR * reflectionColor.xyz;
+            color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
         }
 
         for (uint i = 0; i < g_sceneCB.numLights; i++)
@@ -595,7 +600,7 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 
     float thit;
     ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
-    if (RayAnalyticGeometryIntersectionTest(localRay, primitiveType, thit, attr))
+    if (RayAnalyticGeometryIntersectionTest(g_sceneCB.sceneIndex, localRay, primitiveType, thit, attr))
     {
         PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);

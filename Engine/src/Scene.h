@@ -3,17 +3,6 @@
 #include "RayTracingHlslCompat.h"
 #include "RaytracingSceneDefines.h"
 
-namespace SceneTypes
-{
-	enum SceneType
-	{
-		CornellBox,
-		Demo,
-		PbrShowcase,
-		Count
-	};
-};
-
 // Represents a scene that embodies lights, materials, and geometry.
 class Scene
 {
@@ -49,8 +38,8 @@ public:
 		XMStoreFloat3(&light.direction, XMVector3Normalize(dir));
 	};
 
-	static void SetAttributes(
-		PrimitiveConstantBuffer& attributes,
+	void SetAttributes(
+		UINT materialIndex,
 		const XMFLOAT4& albedo,
 		float reflectanceCoef = 0.0f,
 		float diffuseCoef = 0.9f,
@@ -58,12 +47,19 @@ public:
 		float specularPower = 20.0f,
 		float stepScale = 1.0f)
 	{
+		PrimitiveConstantBuffer attributes;
+		attributes.materialIndex = materialIndex;
 		attributes.albedo = albedo;
 		attributes.reflectanceCoef = reflectanceCoef;
 		attributes.diffuseCoef = diffuseCoef;
 		attributes.specularCoef = specularCoef;
 		attributes.specularPower = specularPower;
 		attributes.stepScale = stepScale;
+
+		if (materialIndex == 0)
+			m_planeMaterialCB = attributes;
+		else
+			m_aabbMaterialCB[materialIndex - 1] = attributes;
 	};
 
 	void SetPBRAttributes(

@@ -93,12 +93,14 @@ struct SceneConstantBuffer
 	UINT onlyOneLightSample;	  // Use only one light sample at a time.
 	UINT russianRouletteDepth;	  // Max depth for Russian roulette termination.
 	UINT anisotropicBSDF;		  // Use anisotropic BSDF.
+	UINT sceneIndex;			  // Scene index to render.
 };
 
 // Attributes per primitive type.
 struct PrimitiveConstantBuffer
 {
 	XMFLOAT4 albedo;
+	UINT materialIndex;
 	float reflectanceCoef;
 	float diffuseCoef;
 	float specularCoef;
@@ -106,7 +108,7 @@ struct PrimitiveConstantBuffer
 	float stepScale; // Step scale for ray marching of signed distance primitives.
 	// - Some object transformations don't preserve the distances and
 	//   thus require shorter steps.
-	XMFLOAT3 padding;
+	XMFLOAT2 padding;
 };
 
 // Attributes per primitive type, but physically based rendering version.
@@ -151,6 +153,17 @@ struct Vertex
 {
 	XMFLOAT3 position;
 	XMFLOAT3 normal;
+};
+
+namespace SceneTypes
+{
+	enum SceneType
+	{
+		CornellBox,
+		Demo,
+		PbrShowcase,
+		Count
+	};
 };
 
 namespace LightType
@@ -220,9 +233,6 @@ namespace TraceRayParameters
 	}
 }
 
-// From: http://blog.selfshadow.com/publications/s2015-shading-course/hoffman/s2015_pbs_physics_math_slides.pdf
-static const XMFLOAT4 ChromiumReflectance = XMFLOAT4(0.549f, 0.556f, 0.554f, 1.0f);
-
 static const float InShadowRadiance = 0.00f;
 
 namespace AnalyticPrimitive
@@ -239,7 +249,7 @@ namespace SignedDistancePrimitive
 {
 	enum Enum
 	{
-		MiniSpheres = 0,
+		//MiniSpheres = 0,
 		IntersectedRoundCube,
 		SquareTorus,
 		Cog,
