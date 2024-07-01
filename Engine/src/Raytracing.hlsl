@@ -119,7 +119,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
              TraceRayParameters::MissShader::Offset[RayType::Radiance],
              rayDesc, rayPayload);
 
-    return rayPayload.color;
+    return radianceClamp(rayPayload.color);
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
@@ -282,8 +282,10 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
         float bsdfPdf;
         reflectance = EvaluateDisneyBSDF(material, g_sceneCB.anisotropicBSDF, eta, -WorldRayDirection(), lightSample.L, N, bsdfPdf);
 
-        // Calculate the MIS weight.
-        float weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
+        // Calculate the MIS weight (but not for directional lights, because they are sampled with a pdf of 1.0f)
+        float weight = 1.0f;
+        if (light.type != LightType::Directional)
+            weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
 
         // Calculate the final color.
         if (bsdfPdf > 0.0f)
@@ -293,29 +295,29 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
     }
 
     // Sample the BSDF (if the light is not a directional light, because in that case the chances of hitting it are almost zero)
-    // if (light.type == LightType::Square)
-    // {
-    //     float3 L;
-    //     float bsdfPdf;
-    //     float3 bsdf = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), N, L, bsdfPdf);
-    //     if (bsdfPdf > 0.0f)
-    //     {
-    //         // Evaluate the light source.
-    //         if (NextEventEstimationBsdf(rng_state, L, light, hitPosition, N, recursionDepth, lightSample))
-    //         {
-    //             // Calculate the MIS weight.
-    //             float weight = PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightSample.pdf);
+    if (light.type == LightType::Square)
+    {
+        float3 L;
+        float bsdfPdf;
+        float3 bsdf = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), N, L, bsdfPdf);
+        if (bsdfPdf > 0.0f)
+        {
+            // Evaluate the light source.
+            if (NextEventEstimationBsdf(rng_state, L, light, hitPosition, N, recursionDepth, lightSample))
+            {
+                // Calculate the MIS weight.
+                float weight = PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightSample.pdf);
 
-    //             // Calculate the final color.
-    //             reflectance += weight * bsdf * lightSample.emission / bsdfPdf;
-    //         }
-    //     }
-    // }
+                // Calculate the final color.
+                reflectance += weight * bsdf * lightSample.emission / bsdfPdf;
+            }
+        }
+    }
 
     return reflectance;
 }
 
-float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer material, in float3 N, in float3 hitPosition, in float hitDistance)
+float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer material, in float3 N, in float3 hitPosition, in float hitDistance)
 {
     // Compute the corrected normal (that retains the opposite side with V when exiting the object).
     float3 normalSide = dot(WorldRayDirection(), N) < 0.0f ? N : -N;

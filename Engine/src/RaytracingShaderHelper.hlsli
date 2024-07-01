@@ -24,7 +24,7 @@ struct Ray
     float3 origin;
     float3 direction;
 };
- 
+
 // ACES tonemap
 float3 ACES(const float3 x)
 {
@@ -36,19 +36,50 @@ float3 ACES(const float3 x)
     return (x * (a * x + b)) / (x * (c * x + d) + e);
 }
 
-// Returns a 32-bit hash of a float2 and a seed.
-uint hash(uint2 p, uint seed)
+// SuperFastHash, adapated from http://www.azillionmonkeys.com/qed/hash.html
+uint superfast(uint3 data)
 {
-    uint hash = uint(2166136261);
-    hash = (hash ^ p.x) * 16777619;
-    hash = (hash ^ p.y) * 16777619;
-    hash = (hash ^ seed) * 16777619;
+    uint hash = 8u, tmp;
+
+    hash += data.x & 0xffffu;
+    tmp = (((data.x >> 16) & 0xffffu) << 11) ^ hash;
+    hash = (hash << 16) ^ tmp;
+    hash += hash >> 11;
+
+    hash += data.y & 0xffffu;
+    tmp = (((data.y >> 16) & 0xffffu) << 11) ^ hash;
+    hash = (hash << 16) ^ tmp;
+    hash += hash >> 11;
+
+    hash += data.z & 0xffffu;
+    tmp = (((data.z >> 16) & 0xffffu) << 11) ^ hash;
+    hash = (hash << 16) ^ tmp;
+    hash += hash >> 11;
+
+    /* Force "avalanching" of final 127 bits */
+    hash ^= hash << 3;
+    hash += hash >> 5;
+    hash ^= hash << 4;
+    hash += hash >> 17;
+    hash ^= hash << 25;
+    hash += hash >> 6;
+
     return hash;
 }
 
-uint hash(float3 vec)
+// Returns a 32-bit hash from a 32-bit integer.
+unsigned int hash(unsigned int x)
 {
-    return hash(uint2(asuint(vec.x), asuint(vec.y)), asuint(vec.z));
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = ((x >> 16) ^ x) * 0x45d9f3b;
+    x = (x >> 16) ^ x;
+    return x;
+}
+
+// Returns a 32-bit hash of a float2 and a seed.
+inline uint hash(uint2 p, uint seed)
+{
+    return superfast(uint3(p.x, p.y, seed));
 }
 
 // PRNG
@@ -216,6 +247,15 @@ float3 GetWorldToTangent(in float3 N, in float3 T, in float3 B, in float3 V)
 float GetLuminance(in float3 color)
 {
     return dot(color, float3(0.2126f, 0.7152f, 0.0722f));
+}
+                                
+inline float4 radianceClamp(float4 color)
+{
+    // clamp to max 10 luminance to avoid fireflies
+    float lum = GetLuminance(color.xyz);
+    if (lum > 5.0f)
+        color.xyz *= 5.0f / lum;
+    return color;
 }
 
 float IntersectWithYSquare(float3 origin, float3 direction, float3 squareOrigin, float squareSize)
