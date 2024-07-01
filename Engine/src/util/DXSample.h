@@ -59,6 +59,7 @@ protected:
 	void SetCustomWindowText(LPCWSTR text);
 
 	bool m_shouldReload{ false };
+	bool m_shouldRebuildAccelerationStructures{ false };
 
 	// Viewport dimensions.
 	UINT m_width;

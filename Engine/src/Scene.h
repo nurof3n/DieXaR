@@ -12,6 +12,20 @@ public:
 		std::vector<PBRPrimitiveConstantBuffer> pbrMaterialCB);
 
 	UINT GetLightCount() const { return static_cast<UINT>(m_lights.size()); }
+	int CountGeometryLights() const {
+		int count = 0;
+		for (int i = 0; i < m_lights.size(); ++i)
+			if (m_lights[i].type == LightType::Square)
+				count++;
+		return count;
+	}
+	std::vector<int> GetGeometryLightsIndices() const {
+		std::vector<int> geometryLights;
+		for (int i = 0; i < m_lights.size(); ++i)
+			if (m_lights[i].type == LightType::Square)
+				geometryLights.push_back(i);
+		return geometryLights;
+	}
 	UINT GetPrimitiveCount() const {
 		UINT totalPrimitiveCount = 0;
 		for (UINT i = 0; i < m_primitiveCount.size(); ++i)

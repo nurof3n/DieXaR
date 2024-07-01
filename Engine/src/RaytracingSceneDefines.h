@@ -42,12 +42,14 @@ namespace LocalRootSignature {
 		namespace Slot {
 			enum Enum {
 				MaterialConstant = 0,
+				GeometryIndex,
 				PbrConstant,
 				Count
 			};
 		}
 		struct RootArguments {
 			PrimitiveConstantBuffer materialCb;
+			PrimitiveInstanceConstantBuffer primitiveCB;
 			PBRPrimitiveConstantBuffer pbrCb;
 		};
 	}
@@ -65,7 +67,7 @@ namespace LocalRootSignature {
 		}
 		struct RootArguments {
 			PrimitiveConstantBuffer materialCb;
-			PrimitiveInstanceConstantBuffer aabbCB;
+			PrimitiveInstanceConstantBuffer primitiveCB;
 			PBRPrimitiveConstantBuffer pbrCb;
 		};
 	}

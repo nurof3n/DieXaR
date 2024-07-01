@@ -37,7 +37,7 @@ StructuredBuffer<Vertex> g_vertices : register(t2, space0);
 // Procedural geometry resources
 StructuredBuffer<PrimitiveInstancePerFrameBuffer> g_AABBPrimitiveAttributes : register(t3, space0);
 ConstantBuffer<PrimitiveConstantBuffer> l_materialCB : register(b1); // Sample material constant buffer
-ConstantBuffer<PrimitiveInstanceConstantBuffer> l_aabbCB : register(b2);
+ConstantBuffer<PrimitiveInstanceConstantBuffer> l_primitiveCB : register(b2);
 ConstantBuffer<PBRPrimitiveConstantBuffer> l_pbrCB : register(b3); // PBR material constant buffer
 
 // ##################################################################### //
@@ -173,6 +173,15 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
     return sqf / (sqf + sq(g));
 }
 
+// Samples a square light.
+void SampleSquareLight(in LightBuffer light, in float3 hitPosition, in float3 L, in float dist, out LightSample lightSample)
+{
+    lightSample.L = L;
+    lightSample.dist = dist;
+    lightSample.emission = light.intensity * light.emission * sq(light.size);
+    lightSample.pdf = sq(dist) / dot(L, float3(0.0f, 1.0f, 0.0f));
+}
+
 // Samples a light source.
 bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
                          in uint recursionDepth, out LightSample lightSample)
@@ -270,9 +279,6 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
 
     //--- Multiple importance sampling.
     float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
-
-    // TODO: Check if we hit a light source and early return.
-    //return rayPayload.throughput.xyz * lightSample.emission * (rayPayload.recursionDepth <= 1 ? 1.0f : PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f));
 
     // Add absorption.
     float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
@@ -487,7 +493,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 //******************------ Closest hit shaders -------***********************
 //***************************************************************************
 
-void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition)
+void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition, in bool triangleGeometry)
 {
     float4 color = float4(0, 0, 0, 1);
 
@@ -495,7 +501,17 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
     if (g_sceneCB.raytracingType > 0) // path tracing
     {
-        color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
+        // Check if we hit a light source.
+        if (triangleGeometry && l_primitiveCB.primitiveType == 1) {
+            color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
+            // if (rayPayload.recursionDepth > 1) {
+            //     LightSample lightSample;
+            //     SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
+            //     color.xyz *= rayPayload.throughput.xyz * PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f);
+            // }
+        }
+        else
+            color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
     }
     else // Whitted-style ray tracing
     {
@@ -565,15 +581,15 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = g_vertices[indices[0]].normal;
 
-    ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition());
+    ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition(), true);
 }
 
-    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
 
-    ClosestHitHelper(rayPayload, attr.normal, HitWorldPosition());
+    ClosestHitHelper(rayPayload, attr.normal, HitWorldPosition(), false);
 }
 
 //***************************************************************************
@@ -597,7 +613,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 // Get ray in AABB's local space.
 Ray GetRayInAABBPrimitiveLocalSpace()
 {
-    PrimitiveInstancePerFrameBuffer attr = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
+    PrimitiveInstancePerFrameBuffer attr = g_AABBPrimitiveAttributes[l_primitiveCB.instanceIndex];
 
     // Retrieve a ray origin position and direction in bottom level AS space
     // and transform them into the AABB primitive's local space.
@@ -610,13 +626,13 @@ Ray GetRayInAABBPrimitiveLocalSpace()
 [shader("intersection")] void IntersectionShader_AnalyticPrimitive()
 {
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum)l_aabbCB.primitiveType;
+    AnalyticPrimitive::Enum primitiveType = (AnalyticPrimitive::Enum)l_primitiveCB.primitiveType;
 
     float thit;
     ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     if (RayAnalyticGeometryIntersectionTest(g_sceneCB.sceneIndex, localRay, primitiveType, thit, attr))
     {
-        PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
+        PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_primitiveCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = normalize(mul((float3x3)ObjectToWorld3x4(), attr.normal));
 
@@ -627,14 +643,14 @@ Ray GetRayInAABBPrimitiveLocalSpace()
     [shader("intersection")] void IntersectionShader_SignedDistancePrimitive()
 {
     Ray localRay = GetRayInAABBPrimitiveLocalSpace();
-    SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum)l_aabbCB.primitiveType;
+    SignedDistancePrimitive::Enum primitiveType = (SignedDistancePrimitive::Enum)l_primitiveCB.primitiveType;
 
     float thit;
     ProceduralPrimitiveAttributes attr = (ProceduralPrimitiveAttributes)0;
     float stepScale = l_materialCB.stepScale;
     if (RaySignedDistancePrimitiveTest(localRay, primitiveType, thit, attr, stepScale))
     {
-        PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_aabbCB.instanceIndex];
+        PrimitiveInstancePerFrameBuffer aabbAttribute = g_AABBPrimitiveAttributes[l_primitiveCB.instanceIndex];
         attr.normal = mul(attr.normal, (float3x3)aabbAttribute.localSpaceToBottomLevelAS);
         attr.normal = normalize(mul((float3x3)ObjectToWorld3x4(), attr.normal));
 

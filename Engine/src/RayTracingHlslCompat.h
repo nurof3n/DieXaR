@@ -118,9 +118,9 @@ struct PrimitiveConstantBuffer
 struct PBRPrimitiveConstantBuffer
 {
 	XMFLOAT4 albedo;
-	XMFLOAT4 emission;			// Emission color (also used for lights)
+	XMFLOAT4 emission;			// Emission color
 	XMFLOAT3 extinction;		// Extinction color (absorption + scattering)
-	UINT materialIndex;			// 0 = ground, -1 = light, > 0 = object
+	UINT materialIndex;			// 0 = ground
 	float stepScale; // Step scale for ray marching of signed distance primitives.
 
 	// All the following values are in the range [0, 1].
@@ -141,8 +141,10 @@ struct PBRPrimitiveConstantBuffer
 // Attributes per primitive instance.
 struct PrimitiveInstanceConstantBuffer
 {
-	UINT instanceIndex;
-	UINT primitiveType; // Procedural primitive type
+	XMMATRIX transform; // Matrix to transform the primitive from object space to world space.
+	UINT instanceIndex; // Index of the primitive instance.
+	UINT primitiveType; // Procedural primitive type, corresponds to SignedDistancePrimitive::Enum or AnalyticPrimitive::Enum for AABBs
+	// or (0=triangle, 1=square light) for triangle primitives.
 	XMFLOAT2 padding;
 };
 

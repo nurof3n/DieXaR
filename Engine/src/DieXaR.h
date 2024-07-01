@@ -55,13 +55,10 @@ public:
 	virtual void OnDestroy();
 	virtual IDXGISwapChain* GetSwapchain() { return m_deviceResources->GetSwapChain(); }
 
-	bool ShouldReload() const { return m_shouldReload; }
 private:
+	// Constants
 	static const UINT FrameCount = 3;
-
-	// Constants.
-	const UINT NUM_BLAS = 2;          // Triangle + AABB bottom-level AS.
-	const UINT NUM_SCENES = 3;		  // Number of scenes available.
+	static const UINT NUM_BLAS = 2; // Number of bottom-level AS in the scene
 
 	// DirectX Raytracing (DXR) attributes
 	ComPtr<ID3D12Device5> m_dxrDevice;
@@ -187,8 +184,8 @@ private:
 	void BuildGeometry();
 	void BuildPlaneGeometry();
 	void BuildGeometryDescsForBottomLevelAS(std::array<std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>, BottomLevelASType::Count>& geometryDescs);
-	template <class InstanceDescType, class BLASPtrType>
-	void BuildBotomLevelASInstanceDescs(BLASPtrType* bottomLevelASaddresses, ComPtr<ID3D12Resource>* instanceDescsResource);
+	template <class BLASPtrType>
+	void BuildBotomLevelASInstanceDescs(BLASPtrType bottomLevelASaddresses[NUM_BLAS], ComPtr<ID3D12Resource>* instanceDescsResource);
 	AccelerationStructureBuffers BuildBottomLevelAS(const std::vector<D3D12_RAYTRACING_GEOMETRY_DESC>& geometryDesc, D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	AccelerationStructureBuffers BuildTopLevelAS(AccelerationStructureBuffers bottomLevelAS[BottomLevelASType::Count], D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAGS buildFlags = D3D12_RAYTRACING_ACCELERATION_STRUCTURE_BUILD_FLAG_PREFER_FAST_TRACE);
 	void BuildAccelerationStructures();
