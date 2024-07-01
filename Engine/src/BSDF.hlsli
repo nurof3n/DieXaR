@@ -202,8 +202,6 @@ float FSS90(in float roughness, in float dotHL)
 // Note: this distribution is normalized.
 float DGTR1(in float dotNH, in float a)
 {
-    // clamp the roughness
-    a = max(0.001f, a);
     if (abs(a) >= 1.0f)
         return INV_PI;
 
@@ -215,9 +213,7 @@ float DGTR1(in float dotNH, in float a)
 // Result is in the tangent space.
 float3 SampleDGTR1(in float eps0, in float eps1, in float roughness)
 {
-    // clamp the roughness
-    float a = max(0.001f, roughness);
-    float a2 = sq(a);
+    float a2 = sq(roughness);
 
     float phi = eps0 * TWO_PI;
 
@@ -237,8 +233,6 @@ float3 SampleDGTR1(in float eps0, in float eps1, in float roughness)
 // Note: this distribution is normalized.
 float DGTR2(in float dotNH, in float a)
 {
-    // clamp the roughness
-    a = max(0.001f, a);
     float a2 = sq(a);
     float t = 1.0f + (a2 - 1.0f) * sq(dotNH);
     return INV_PI * a2 / sq(t);
@@ -248,9 +242,7 @@ float DGTR2(in float dotNH, in float a)
 // Result is in the tangent space.
 float3 SampleDGTR2(in float eps0, in float eps1, in float roughness)
 {
-    // clamp the roughness
-    float a = max(0.001f, roughness);
-    float a2 = sq(a);
+    float a2 = sq(roughness);
 
     float phi = eps0 * TWO_PI;
 
@@ -300,8 +292,6 @@ float3 SampleDGTR2Anisotropic(in float eps0, in float eps1, in float ax, in floa
 // to prevent energy conservation issues.
 float SmithG1(in float dotWN, in float a)
 {
-    // clamp the roughness
-    a = max(0.001f, a);
     if (dotWN == 0.0f)
         return 0.0f;
     float a2 = sq(a);

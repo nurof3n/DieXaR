@@ -143,7 +143,7 @@ float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in f
     // Precompute dot products.
     float dotLH = dot(L, H);
     float dotVH = dot(V, H);
-    float tmp = 1.0f / sq(dotLH + dotVH * eta);
+    float tmp = 1.0f / sq(abs(dotLH) + dotVH * eta);
 
     // compute distribution term D
     float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
@@ -158,7 +158,7 @@ float3 EvaluateSpecularTransmission(in PBRPrimitiveConstantBuffer material, in f
     // Compute pdf.
     pdf = Gv * max(0.0f, dotVH) * D * tmp * abs(dotLH) / V.y;
 
-    return (1.0f - material.metallic) * material.specularTransmission * sqrt(material.albedo.xyz) * (1.0f - F) * D * G * abs(dotLH) * abs(dotVH) * sq(eta) * tmp / (abs(L.y) * abs(V.y));
+    return (1.0f - material.metallic) * material.specularTransmission * sqrt(material.albedo.xyz) * (1.0f - F) * D * G * abs(dotLH) * abs(dotVH) * sq(eta) * tmp / abs(L.y * V.y);
 }
 
 // Computes the lobes' probability distribution functions for the microfacet model.
@@ -204,7 +204,6 @@ float3 EvaluateDisneyBSDF(in PBRPrimitiveConstantBuffer material, in bool anisot
         H = -H;
 
     // Compute dot products.
-    float dotLH = dot(L, H);
     float dotVH = dot(V, H);
 
     // Compute anisotropic parameters.
@@ -261,6 +260,10 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     pdf = 0.0f;
     float3 reflectance = float3(0.0f, 0.0f, 0.0f);
 
+    // Compute anisotropic parameters.
+    float ax = 0.0f, ay = 0.0f;
+    ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
+
     // Transform V into the tangent space.
     float3 T, B;
     ComputeLocalSpace(N, T, B);
@@ -281,8 +284,8 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     float choice = random(rng_state);
 
     // Pick one of the lobes to sample.
-    float3 H;
     float3 cdf;
+    float3 H;
     cdf.x = pDiffuse;
     cdf.y = cdf.x + pSpecularReflection;
     cdf.z = cdf.y + pClearcoat;
@@ -298,16 +301,11 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     else if (choice < cdf.y)
     {
         // Sample the specular reflection lobe with VNDF for the half vector.
-        float ax = 0.0f, ay = 0.0f;
         if (anisotropic)
-        {
-            ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
             H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
-        }
         else
             H = SampleVNDF(eps0, eps1, material.roughness, V);
         
-
         // Correct the half vector if it is below the surface.
         if (H.y < 0.0f)
             H = -H;
@@ -339,12 +337,8 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
     else
     {
         // Sample the specular refraction lobe with VNDF for the half vector.
-        float ax = 0.0f, ay = 0.0f;
         if (anisotropic)
-        {
-            ComputeAnisotropicAlphas(material.roughness, material.anisotropic, ax, ay);
             H = SampleVNDFAnisotropic(eps0, eps1, ax, ay, V);
-        }
         else
             H = SampleVNDF(eps0, eps1, material.roughness, V);
 
@@ -356,8 +350,10 @@ float3 SampleDisneyBSDF(inout uint rng_state, in PBRPrimitiveConstantBuffer mate
         L = refract(-V, H, eta);
         
         // Check if the refraction is total internal.
-        if (dot(L, L) == 0.0f)
-            L = reflect(-V, H);
+        if (dot(L, L) == 0.0f) {
+            pdf = 0.0f;
+            return float3(0.0f, 0.0f, 0.0f);
+        }
         
         L = normalize(L);
 

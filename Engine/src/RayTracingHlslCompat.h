@@ -59,6 +59,7 @@ struct RayPayload
 	XMFLOAT4 absorption;	// Accumulated absorption of the ray. Only used in path tracing.
 	UINT rngState;			// Random number generator state.
 	UINT recursionDepth;	// Current recursion depth of the ray.
+	UINT inside;			// Inside primitive flag.
 };
 
 struct ShadowRayPayload
