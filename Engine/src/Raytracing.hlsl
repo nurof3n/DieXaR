@@ -44,6 +44,11 @@ ConstantBuffer<PBRPrimitiveConstantBuffer> l_pbrCB : register(b3); // PBR materi
 // ########################## Special Effects ########################## //
 // ##################################################################### //
 
+float Checkerboard(float3 hitPosition)
+{
+    return fmod(abs(floor((hitPosition.x + 1.0f) / 2.0f) + floor(hitPosition.z / 2.0f)), 2.0f);
+}
+
 // https://www.shadertoy.com/view/lt2SR1
 float3 SkyColor(in float3 rd, in LightBuffer light)
 {
@@ -316,17 +321,20 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     float3 normalSide = dot(WorldRayDirection(), N) < 0.0f ? N : -N;
 
     // Checkerboard pattern for the floor.
-    if (material.materialIndex == 0)
-        material.roughness = fmod(abs(floor(hitPosition.x / 2.0f) + floor(hitPosition.z / 2.0f)), 2.0f) * 0.25f + 0.25f;
-    else
-        // clamp roughness
-        material.roughness = max(0.001f, material.roughness);
+    if (material.materialIndex == 0) {
+        float pattern = Checkerboard(hitPosition);
+        material.roughness = pattern * 0.25f;
+        material.albedo.xyz = pattern * 0.5f * material.albedo.xyz + 0.5f * material.albedo.xyz;
+    }
+
+    // Clamp roughness.
+    material.roughness = max(0.001f, material.roughness);
 
     // Set IOR.
     float eta = rayPayload.inside ? material.eta : 1.0f / material.eta;
 
     // Reset absorption if going outside.
-    float3 absorption = rayPayload.inside ? rayPayload.absorption : float3(0.0f, 0.0f, 0.0f);
+    float3 absorption = rayPayload.inside ? rayPayload.absorption.xyz : float3(0.0f, 0.0f, 0.0f);
 
     // Add absorption.
     float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
@@ -560,8 +568,12 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     {
         // Checkerboard pattern for the floor.
         float reflectanceCoef = l_materialCB.reflectanceCoef;
-        if (l_materialCB.materialIndex == 0)
-            reflectanceCoef = fmod(abs(floor(hitPosition.x / 2.0f) + floor(hitPosition.z / 2.0f)), 2.0f) * 0.25f + 0.25f;
+        float4 albedo = l_materialCB.albedo;
+        if (l_materialCB.materialIndex == 0) {
+            float pattern = Checkerboard(hitPosition);
+            reflectanceCoef = pattern * 0.25f + 0.25f;
+            albedo.xyz = pattern * 0.5f * albedo.xyz + 0.5f * albedo.xyz;
+        }
 
         // Reflected component.
         if (reflectanceCoef > 0.001)
@@ -570,7 +582,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
             float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth, rayPayload.inside);
 
-            float3 fresnelR = FresnelReflectanceSchlick(WorldRayDirection(), normal, float3(1, 1, 1));
+            float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f/1.5f);
             color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
         }
 
@@ -594,7 +606,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightDist, rayPayload.recursionDepth);
 
             // Calculate final color.
-            float3 phongColor = shadowRayHit ? float3(0, 0, 0) : CalculatePhongLighting(g_lights[i], l_materialCB.albedo, normal, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
+            float3 phongColor = shadowRayHit ? float3(0, 0, 0) : CalculatePhongLighting(g_lights[i], albedo, normal, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
             color.xyz += phongColor;
         }
     }

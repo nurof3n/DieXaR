@@ -20,10 +20,10 @@ void ComputeAnisotropicAlphas(in float roughness, in float anisotropic, out floa
 }
 
 // Mixes the diffuse and metallic specular components.
-float DisneyFresnelMix(in float dotLH, in float eta, in float metallic)
+float DisneyFresnelMix(in float dotVH, in float eta, in float metallic)
 {
-    float metallicFresnel = FresnelReflectanceSchlick(dotLH);
-    float dielectricFresnel = FresnelDielectric(dotLH, eta);
+    float metallicFresnel = FresnelReflectanceSchlick(dotVH);
+    float dielectricFresnel = FresnelDielectric(dotVH, eta);
     return lerp(dielectricFresnel, metallicFresnel, metallic);
 }
 
@@ -118,7 +118,7 @@ float3 EvaluateSpecularReflection(in PBRPrimitiveConstantBuffer material, in flo
     float D = anisotropic ? DGTR2Anisotropic(H.x, H.z, H.y, ax, ay) : DGTR2(H.y, material.roughness);
 
     // compute Fresnel chromatic component (to account for dielectric specular reflection)
-    float3 F = lerp(specularColor, float3(1.0f, 1.0f, 1.0f), DisneyFresnelMix(dotLH, eta, material.metallic));
+    float3 F = lerp(specularColor, float3(1.0f, 1.0f, 1.0f), DisneyFresnelMix(dotVH, eta, material.metallic));
 
     // compute geometric shadowing term G as product of two G1 terms
     float Gv = anisotropic ? SmithG1Anisotropic(V.x, V.z, V.y, ax, ay) : SmithG1(V.y, material.roughness);

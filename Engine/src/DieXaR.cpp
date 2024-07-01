@@ -435,9 +435,11 @@ void DieXaR::InitializePbrShowcase()
 		// Set random material variations for spheres
 		for (UINT i = 0; i < numSpheres; ++i)
 		{
+			XMFLOAT4 albedo = XMFLOAT4(dist(rng), dist(rng), dist(rng), 1.0f);
+
 			PrimitiveConstantBuffer attributes = baseMaterial;
 			attributes.materialIndex = i + 1;
-			attributes.albedo = XMFLOAT4(dist(rng), dist(rng), dist(rng), 1.0f);
+			attributes.albedo = albedo;
 			attributes.diffuseCoef = dist(rng);
 			attributes.reflectanceCoef = dist(rng);
 			attributes.specularCoef = dist(rng);
@@ -446,14 +448,14 @@ void DieXaR::InitializePbrShowcase()
 
 			PBRPrimitiveConstantBuffer pbrAttributes = pbrBaseMaterial;
 			pbrAttributes.materialIndex = i + 1;
-			pbrAttributes.albedo = XMFLOAT4(dist(rng), dist(rng), dist(rng), 1.0f);
-			//pbrAttributes.anisotropic = dist(rng);
+			pbrAttributes.albedo = albedo;
+			pbrAttributes.anisotropic = dist(rng) > 0.5f ? 1.0f : 0.0f;
 			pbrAttributes.metallic = dist(rng);
 			pbrAttributes.roughness = dist(rng);
 			pbrAttributes.sheen = dist(rng);
 			pbrAttributes.sheenTint = dist(rng);
 			pbrAttributes.specularTint = dist(rng);
-			//pbrAttributes.specularTransmission = dist(rng);
+			//pbrAttributes.specularTransmission = dist(rng) > 0.5f ? 1.0f : 0.0f;
 			pbrAttributes.subsurface = dist(rng);
 			pbrAttributes.clearcoat = dist(rng);
 			pbrAttributes.clearcoatGloss = dist(rng);
