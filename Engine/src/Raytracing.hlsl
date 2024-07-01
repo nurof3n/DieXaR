@@ -502,10 +502,10 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     if (g_sceneCB.raytracingType > 0) // path tracing
     {
         // Check if we hit a light source.
-        if (triangleGeometry && l_primitiveCB.primitiveType == 1) {
-            if (rayPayload.recursionDepth <= 1)
-                color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
-            else
+        if (triangleGeometry && l_primitiveCB.primitiveType == 1)
+        {
+            color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
+            if (rayPayload.recursionDepth > 1)
             {
                 LightSample lightSample;
                 SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
@@ -586,7 +586,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition(), true);
 }
 
-[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
