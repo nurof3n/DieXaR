@@ -503,12 +503,14 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     {
         // Check if we hit a light source.
         if (triangleGeometry && l_primitiveCB.primitiveType == 1) {
-            color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
-            // if (rayPayload.recursionDepth > 1) {
-            //     LightSample lightSample;
-            //     SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
-            //     color.xyz *= rayPayload.throughput.xyz * PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f);
-            // }
+            if (rayPayload.recursionDepth <= 1)
+                color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
+            else
+            {
+                LightSample lightSample;
+                SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
+                color.xyz *= rayPayload.throughput.xyz * PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f);
+            }
         }
         else
             color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
