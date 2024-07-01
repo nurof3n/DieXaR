@@ -60,6 +60,7 @@ struct RayPayload
 	UINT rngState;			// Random number generator state.
 	UINT recursionDepth;	// Current recursion depth of the ray.
 	UINT inside;			// Inside primitive flag.
+	float bsdfPdf;			// Probability density function of the last BSDF sample.
 };
 
 struct ShadowRayPayload
@@ -117,8 +118,9 @@ struct PrimitiveConstantBuffer
 struct PBRPrimitiveConstantBuffer
 {
 	XMFLOAT4 albedo;
+	XMFLOAT4 emission;			// Emission color (also used for lights)
 	XMFLOAT3 extinction;		// Extinction color (absorption + scattering)
-	UINT materialIndex;
+	UINT materialIndex;			// 0 = ground, -1 = light, > 0 = object
 	float stepScale; // Step scale for ray marching of signed distance primitives.
 
 	// All the following values are in the range [0, 1].

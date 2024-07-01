@@ -90,12 +90,11 @@ float4 ComputeBackground()
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT rngState, in UINT currentRayRecursionDepth, in bool inside, in bool refraction = false)
+float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT rngState, in UINT currentRayRecursionDepth,
+                        in float bsdfPdf = 1.0f, in bool inside = false, in bool refraction = false)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth)
-    {
         return float4(0, 0, 0, 0);
-    }
 
     // Set the ray's extents.
     RayDesc rayDesc;
@@ -108,9 +107,9 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     if (refraction)
         inside = !inside;
 
-    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, rngState, currentRayRecursionDepth + 1, inside};
+    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, rngState, currentRayRecursionDepth + 1, inside, bsdfPdf};
 
-    uint flag = RAY_FLAG_NONE;  // because the AABB for example does not work culling faces
+    uint flag = RAY_FLAG_NONE; // because the AABB for example does not work culling faces
     TraceRay(g_scene,
              flag,
              TraceRayParameters::InstanceMask,
@@ -126,9 +125,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
 bool TraceShadowRayAndReportIfHit(in Ray ray, in float lightDist, in UINT currentRayRecursionDepth)
 {
     if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth || currentRayRecursionDepth >= g_sceneCB.maxShadowRecursionDepth)
-    {
         return false;
-    }
 
     // Set the ray's extents.
     RayDesc rayDesc;
@@ -176,57 +173,9 @@ float PowerHeuristic(float nf, float fPdf, float ng, float gPdf)
     return sqf / (sqf + sq(g));
 }
 
-// Samples a light source with a given direction, according to the bsdf.
-bool NextEventEstimationBsdf(inout uint rng_state, in float3 L, in LightBuffer light, in float3 hitPosition, in float3 normal,
-                             in uint recursionDepth, out LightSample lightSample)
-{
-    float angleL, angleN, t;
-    switch (light.type)
-    {
-    case LightType::Square:
-        // bail out if the sample is on the wrong side of the light
-        angleL = dot(L, float3(0.0f, 1.0f, 0.0f));
-        if (angleL <= 0.0f)
-            return false;
-        // check correct side of the normal (but this is factored in the eval bsdf)
-        angleN = dot(normal, L);
-        if (angleN <= 0.0f)
-            return false;
-        // check that we intersect the light
-        t = IntersectWithYSquare(hitPosition, L, light.position, light.size);
-        if (t != INFINITY && t > 0.0f)
-        {
-            lightSample.L = L;
-            lightSample.dist = t;
-            lightSample.emission = light.intensity * light.emission * sq(light.size);
-            lightSample.pdf = sq(lightSample.dist) / angleL;
-            break;
-        }
-        return false;
-    case LightType::Directional:
-        // needs perfect match
-        if (dot(L, -light.direction) < 0.9999f)
-            return false;
-        // check correct side of the normal (but this is factored in the eval bsdf)
-        angleN = dot(normal, L);
-        if (angleN <= 0.0f)
-            return false;
-        lightSample.L = L;
-        lightSample.dist = 10000.0f;
-        lightSample.emission = light.intensity * light.emission;
-        lightSample.pdf = 1.0f;
-        break;
-    }
-
-    // Check if the light is occluded.
-    Ray shadowRay = {hitPosition, lightSample.L};
-    bool shadowRayHit = recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightSample.dist, recursionDepth);
-    return !shadowRayHit;
-}
-
 // Samples a light source.
-bool NextEventEstimationLight(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
-                              in uint recursionDepth, out LightSample lightSample)
+bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 hitPosition, in float3 normal,
+                         in uint recursionDepth, out LightSample lightSample)
 {
     float angleL, angleN;
     float2 eps;
@@ -276,7 +225,7 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
 
     // Sample the light source.
     LightSample lightSample;
-    if (NextEventEstimationLight(rng_state, light, hitPosition, N, recursionDepth, lightSample))
+    if (NextEventEstimation(rng_state, light, hitPosition, N, recursionDepth, lightSample))
     {
         // Evaluate the BSDF.
         float bsdfPdf;
@@ -294,26 +243,6 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
             reflectance = float3(0.0f, 0.0f, 0.0f);
     }
 
-    // Sample the BSDF (if the light is not a directional light, because in that case the chances of hitting it are almost zero)
-    if (light.type == LightType::Square)
-    {
-        float3 L;
-        float bsdfPdf;
-        float3 bsdf = SampleDisneyBSDF(rng_state, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), N, L, bsdfPdf);
-        if (bsdfPdf > 0.0f)
-        {
-            // Evaluate the light source.
-            if (NextEventEstimationBsdf(rng_state, L, light, hitPosition, N, recursionDepth, lightSample))
-            {
-                // Calculate the MIS weight.
-                float weight = PowerHeuristic(1.0f, bsdfPdf, 1.0f, lightSample.pdf);
-
-                // Calculate the final color.
-                reflectance += weight * bsdf * lightSample.emission / bsdfPdf;
-            }
-        }
-    }
-
     return reflectance;
 }
 
@@ -323,7 +252,8 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
     float3 normalSide = dot(WorldRayDirection(), N) < 0.0f ? N : -N;
 
     // Checkerboard pattern for the floor.
-    if (material.materialIndex == 0) {
+    if (material.materialIndex == 0)
+    {
         float pattern = Checkerboard(hitPosition);
         material.roughness = pattern * 0.25f;
         material.albedo.xyz = pattern * 0.5f * material.albedo.xyz + 0.5f * material.albedo.xyz;
@@ -338,13 +268,16 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
     // Reset absorption if going outside.
     float3 absorption = rayPayload.inside ? rayPayload.absorption.xyz : float3(0.0f, 0.0f, 0.0f);
 
-    // Add absorption.
-    float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
-
     //--- Multiple importance sampling.
     float3 color = float3(0.0f, 0.0f, 0.0f); // Accumulated color
 
-    // 1. Next event estimation
+    // TODO: Check if we hit a light source and early return.
+    //return rayPayload.throughput.xyz * lightSample.emission * (rayPayload.recursionDepth <= 1 ? 1.0f : PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f));
+
+    // Add absorption.
+    float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
+
+    // Direct lighting sampling.
 
     if (g_sceneCB.sceneIndex != SceneTypes::PbrShowcase)
     {
@@ -361,17 +294,17 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
                 color += throughput * MIS(rayPayload.rngState, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
         }
     }
-                                
-    // Apply Russian roulette.
+
+    // Apply Russian roulette path termination.
     float russianRoulettePdf = 1.0f;
     if (rayPayload.recursionDepth >= g_sceneCB.russianRouletteDepth)
     {
-        russianRoulettePdf = max(throughput.x, max(throughput.y, throughput.z));
+        russianRoulettePdf = min(max(throughput.x, max(throughput.y, throughput.z)) + 0.001f, 0.95f);
         if (random(rayPayload.rngState) > russianRoulettePdf)
             return color;
     }
 
-    // 2. Sample BSDF.
+    // Indirect lighting sampling.
 
     float3 reflectance;
     float3 L;
@@ -396,9 +329,7 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
         bsdfPdf = samplePdf;
     }
     else
-    {
         reflectance = SampleDisneyBSDF(rayPayload.rngState, material, eta, g_sceneCB.anisotropicBSDF, -WorldRayDirection(), normalSide, L, bsdfPdf);
-    }
 
     // Update absorption if we're changing sides.
     bool refraction = dot(normalSide, L) < 0.0f;
@@ -415,7 +346,7 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
 
         // Shoot the next ray and accumulate the color.
         Ray newRay = {hitPosition, L};
-        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.rngState, rayPayload.recursionDepth, rayPayload.inside, refraction).xyz;
+        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.rngState, rayPayload.recursionDepth, bsdfPdf, rayPayload.inside, refraction).xyz;
     }
 
     return color;
@@ -479,7 +410,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth, false);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Write the raytraced color to the output texture.
     const float gammaPow = 1.0f / 2.2f;
@@ -506,7 +437,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
     // Cast a ray into the scene and retrieve a shaded color.
     UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth, false);
+    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Accumulate the color.
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
@@ -540,7 +471,7 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
             // Cast a ray into the scene and retrieve a shaded color.
             UINT currentRecursionDepth = 0;
-            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth, false);
+            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
             // Accumulate the color.
             finalColor += color.xyz;
@@ -571,7 +502,8 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
         // Checkerboard pattern for the floor.
         float reflectanceCoef = l_materialCB.reflectanceCoef;
         float4 albedo = l_materialCB.albedo;
-        if (l_materialCB.materialIndex == 0) {
+        if (l_materialCB.materialIndex == 0)
+        {
             float pattern = Checkerboard(hitPosition);
             reflectanceCoef = pattern * 0.25f + 0.25f;
             albedo.xyz = pattern * 0.5f * albedo.xyz + 0.5f * albedo.xyz;
@@ -582,9 +514,9 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
         {
             // Trace a reflection ray.
             Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
-            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth, rayPayload.inside);
+            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth);
 
-            float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f/1.5f);
+            float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f / 1.5f);
             color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
         }
 

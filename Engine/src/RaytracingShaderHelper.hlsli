@@ -258,14 +258,17 @@ inline float4 radianceClamp(float4 color)
     return color;
 }
 
-float IntersectWithYSquare(float3 origin, float3 direction, float3 squareOrigin, float squareSize)
+// Intersection with a Y-aligned square. The origin is assumed to be at the center of the square.
+float IntersectWithYSquare(in float maxT, float3 origin, float3 direction, float3 squareOrigin, float squareSize)
 {
     float t = (squareOrigin.y - origin.y) / direction.y;
+    if (t < 0.0f || t > maxT)
+        return t;
     float3 p = origin + t * direction;
     float halfSize = squareSize * 0.5f;
 
     if (p.x < squareOrigin.x - halfSize || p.x > squareOrigin.x + halfSize || p.z < squareOrigin.z - halfSize || p.z > squareOrigin.z + halfSize)
-        t = INFINITY;
+        t = 10000.0f;
 
     return t;
 }
