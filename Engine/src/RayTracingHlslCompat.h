@@ -117,6 +117,7 @@ struct PrimitiveConstantBuffer
 struct PBRPrimitiveConstantBuffer
 {
 	XMFLOAT4 albedo;
+	XMFLOAT3 extinction;		// Extinction color (absorption + scattering)
 	UINT materialIndex;
 	float stepScale; // Step scale for ray marching of signed distance primitives.
 
@@ -133,7 +134,6 @@ struct PBRPrimitiveConstantBuffer
 	float specularTransmission; // Specular transmission factor
 	float eta;					// Fresnel eta factor: internal / external IOR (assumes 1.0 for air)
 	float atDistance;			// Distance at which the transmittance is 
-	XMFLOAT3 extinction;		// Extinction color (absorption + scattering)
 };
 
 // Attributes per primitive instance.

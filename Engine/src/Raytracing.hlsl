@@ -105,7 +105,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
 
     RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, rngState, currentRayRecursionDepth + 1, inside};
 
-    uint flag = RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+    uint flag = RAY_FLAG_NONE;  // because the AABB for example does not work culling faces
     TraceRay(g_scene,
              flag,
              TraceRayParameters::InstanceMask,
@@ -326,7 +326,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     float eta = rayPayload.inside ? material.eta : 1.0f / material.eta;
 
     // Reset absorption if going outside.
-    float3 absorption = rayPayload.inside ? float3(0.0f, 0.0f, 0.0f) : float3(0.0f, 0.0f, 0.0f);
+    float3 absorption = rayPayload.inside ? rayPayload.absorption : float3(0.0f, 0.0f, 0.0f);
 
     // Add absorption.
     float3 throughput = rayPayload.throughput.xyz * exp(-absorption * hitDistance);
@@ -337,6 +337,7 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
     // 1. Next event estimation
 
     if (g_sceneCB.sceneIndex != SceneTypes::PbrShowcase)
+    {
         if (g_sceneCB.onlyOneLightSample)
         {
             // If one light at a time, choose randomly and adjust pdf
@@ -349,7 +350,8 @@ float3 DoPathTracing(in RayPayload rayPayload, in PBRPrimitiveConstantBuffer mat
             for (uint i = 0; i < g_sceneCB.numLights; i++)
                 color += throughput * MIS(rayPayload.rngState, material, eta, hitPosition, g_lights[i], normalSide, rayPayload.recursionDepth);
         }
-
+    }
+                                
     // Apply Russian roulette.
     float russianRoulettePdf = 1.0f;
     if (rayPayload.recursionDepth >= g_sceneCB.russianRouletteDepth)

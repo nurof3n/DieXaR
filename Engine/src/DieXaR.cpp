@@ -346,9 +346,9 @@ void DieXaR::InitializeDemo()
 		{
 			using namespace AnalyticPrimitive;
 			m_scenes[m_crtScene].SetAttributes(offset + AABB + 1, orange, 0.3f, 0.8f, 0.6f);
-			m_scenes[m_crtScene].SetPBRAttributes(offset + AABB + 1, orange, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f, 1.7f, 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 1.0f);
-			m_scenes[m_crtScene].SetAttributes(offset + Spheres + 1, yellow, 1.0f);
-			m_scenes[m_crtScene].SetPBRAttributes(offset + Spheres + 1, yellow, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.5f, 1.0f, XMFLOAT3(1.0f, 1.0f, 1.0f), 0.0f);
+			m_scenes[m_crtScene].SetPBRAttributes(offset + AABB + 1, orange, 0.2f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.7f, 1.7f, 1.0f, XMFLOAT3(1.0f, 0.9f, 1.0f), 1.0f);
+			m_scenes[m_crtScene].SetAttributes(offset + Spheres + 1, red, 1.0f);
+			m_scenes[m_crtScene].SetPBRAttributes(offset + Spheres + 1, red, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f, 1.5f, 1.0f, XMFLOAT3(0.7f, 1.0f, 1.0f), 0.0f);
 			offset += AnalyticPrimitive::Count;
 		}
 
