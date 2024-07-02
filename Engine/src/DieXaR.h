@@ -82,6 +82,7 @@ private:
 
 	// Scene description
 	UINT m_crtScene{ SceneTypes::CornellBox };
+	UINT m_nextScene{ SceneTypes::CornellBox };
 	Scene m_scenes[SceneTypes::Count];
 
 	// Geometry

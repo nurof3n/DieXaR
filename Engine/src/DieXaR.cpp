@@ -156,9 +156,11 @@ void DieXaR::OnInit()
 	m_deviceResources->CreateDeviceResources();
 	m_deviceResources->CreateWindowSizeDependentResources();
 
-	// Only initialize the scene if we are not reloading the application.
-	if (!m_shouldReload)
+	// Only initialize the scene if we are changing it.
+	if (!m_shouldReload || m_crtScene != m_nextScene) {
+		m_crtScene = m_nextScene;
 		InitializeScene();
+	}
 
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
@@ -2048,26 +2050,24 @@ void DieXaR::ShowUI()
 
 		// Change scene
 		const char* sceneOptions[] = { "Cornell Box", "Demo", "PBR Showcase" };
-		UINT prevScene = m_crtScene;
-		UINT newScene;
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
-		if (ImGui::BeginCombo("Scene", sceneOptions[m_crtScene]))
+		if (ImGui::BeginCombo("Select Scene", sceneOptions[m_nextScene]))
 		{
-			bool selected = m_crtScene == SceneTypes::CornellBox;
-			if (ImGui::Selectable(sceneOptions[0], selected))
-				m_crtScene = SceneTypes::CornellBox;
+			bool selected = m_nextScene == SceneTypes::CornellBox;
+			if (ImGui::Selectable("Cornell Box", selected))
+				m_nextScene = SceneTypes::CornellBox;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
 
-			selected = m_crtScene == SceneTypes::Demo;
-			if (ImGui::Selectable(sceneOptions[1], selected))
-				m_crtScene = SceneTypes::Demo;
+			selected = m_nextScene == SceneTypes::Demo;
+			if (ImGui::Selectable("Demo", selected))
+				m_nextScene = SceneTypes::Demo;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
 
-			selected = m_crtScene == SceneTypes::PbrShowcase;
-			if (ImGui::Selectable(sceneOptions[2], selected))
-				m_crtScene = SceneTypes::PbrShowcase;
+			selected = m_nextScene == SceneTypes::PbrShowcase;
+			if (ImGui::Selectable("PBR Showcase", selected))
+				m_nextScene = SceneTypes::PbrShowcase;
 			if (selected)
 				ImGui::SetItemDefaultFocus();
 
@@ -2076,7 +2076,7 @@ void DieXaR::ShowUI()
 		ImGui::SameLine(); HelpMarker("Select the scene to render");
 
 		// Trigger a graphics reload if the scene has changed.
-		if (prevScene != m_crtScene)
+		if (m_nextScene != m_crtScene)
 			m_shouldReload = true;
 
 		ImGui::Spacing();
