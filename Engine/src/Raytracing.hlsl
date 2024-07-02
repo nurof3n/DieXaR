@@ -450,11 +450,11 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Accumulate the color.
-    const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
-    float3 finalColor = lerp(color.xyz, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor);
     const float gammaPow = 1.0f / 2.2f;
-    // finalColor = pow(ACES(finalColor), float3(gammaPow, gammaPow, gammaPow));
-    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor, 1.0f);
+    float3 finalColor = color.xyz;
+    finalColor = pow(ACES(finalColor), float3(gammaPow, gammaPow, gammaPow));
+    const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
+    g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(finalColor, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
 }
 
 [shader("raygeneration")] void RaygenShader_PathTracing()
