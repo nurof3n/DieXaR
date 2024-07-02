@@ -124,7 +124,7 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
 // Trace a shadow ray and return true if it hits any geometry.
 bool TraceShadowRayAndReportIfHit(in Ray ray, in float lightDist, in UINT currentRayRecursionDepth)
 {
-    if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth || currentRayRecursionDepth >= g_sceneCB.maxShadowRecursionDepth)
+    if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth + 1 || currentRayRecursionDepth >= g_sceneCB.maxShadowRecursionDepth)
         return false;
 
     // Set the ray's extents.
@@ -265,7 +265,7 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
     float3 normalSide = dot(WorldRayDirection(), N) < 0.0f ? N : -N;
 
     // Checkerboard pattern for the floor.
-    if (material.materialIndex == 0)
+    if (material.materialIndex == 0 && g_sceneCB.sceneIndex != SceneTypes::CornellBox)
     {
         float pattern = Checkerboard(hitPosition);
         material.roughness = pattern * 0.25f;
@@ -508,13 +508,19 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
         // Check if we hit a light source.
         if (triangleGeometry && l_primitiveCB.primitiveType == 1)
         {
-            color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
-            if (rayPayload.recursionDepth > 1)
+            // Check right side of the light.
+            if (dot(float3(0.0f, 1.0f, 0.0f), WorldRayDirection()) > 0.0f)
             {
-                LightSample lightSample;
-                SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
-                color.xyz *= rayPayload.throughput.xyz * PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f);
+                color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
+                if (rayPayload.recursionDepth > 1)
+                {
+                    LightSample lightSample;
+                    SampleSquareLight(g_lights[l_primitiveCB.instanceIndex], hitPosition, WorldRayDirection(), RayTCurrent(), lightSample);
+                    color.xyz *= rayPayload.throughput.xyz * PowerHeuristic(rayPayload.bsdfPdf, 1.0f, lightSample.pdf, 1.0f);
+                }
             }
+            else
+                color.xyz = float3(0, 0, 0);
         }
         else
             color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
@@ -529,7 +535,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             // Checkerboard pattern for the floor.
             float reflectanceCoef = l_materialCB.reflectanceCoef;
             float4 albedo = l_materialCB.albedo;
-            if (l_materialCB.materialIndex == 0)
+            if (l_materialCB.materialIndex == 0 && g_sceneCB.sceneIndex != SceneTypes::CornellBox)
             {
                 float pattern = Checkerboard(hitPosition);
                 reflectanceCoef = pattern * 0.25f + 0.25f;
@@ -593,6 +599,9 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     // Retrieve corresponding vertex normals for the triangle vertices.
     float3 triangleNormal = g_vertices[indices[0]].normal;
 
+    // Transform the normal to world space.
+    triangleNormal = normalize(mul((float3x3)ObjectToWorld3x4(), triangleNormal));
+
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition(), true);
 }
 
@@ -613,7 +622,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     rayPayload.color = ComputeBackground() * rayPayload.throughput;
 }
 
-[shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+    [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }

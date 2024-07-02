@@ -7,10 +7,6 @@
 class Scene
 {
 public:
-	void Load(std::vector<LightBuffer> lights, PrimitiveConstantBuffer planeMaterialCB,
-		std::vector<PrimitiveConstantBuffer> aabbMaterialCB, std::vector<PBRPrimitiveConstantBuffer> pbrAabbMaterialCB,
-		std::vector<PBRPrimitiveConstantBuffer> pbrMaterialCB);
-
 	UINT GetLightCount() const { return static_cast<UINT>(m_lights.size()); }
 	int CountGeometryLights() const {
 		int count = 0;
@@ -73,7 +69,7 @@ public:
 		if (materialIndex == 0)
 			m_planeMaterialCB = attributes;
 		else
-			m_aabbMaterialCB[materialIndex - 1] = attributes;
+			m_materialCB[materialIndex - 1] = attributes;
 	};
 
 	void SetPBRAttributes(
@@ -114,7 +110,7 @@ public:
 		if (materialIndex == 0)
 			m_pbrPlaneMaterialCB = attributes;
 		else
-			m_pbrAabbMaterialCB[materialIndex - 1] = attributes;
+			m_pbrMaterialCB[materialIndex - 1] = attributes;
 	};
 
 public:
@@ -131,8 +127,6 @@ public:
 	// Root constants
 	PrimitiveConstantBuffer m_planeMaterialCB{};
 	PBRPrimitiveConstantBuffer m_pbrPlaneMaterialCB{};
-	std::vector<PrimitiveConstantBuffer> m_aabbMaterialCB{};
-	std::vector<PBRPrimitiveConstantBuffer> m_pbrAabbMaterialCB{};
 	std::vector<PrimitiveConstantBuffer> m_materialCB{};
 	std::vector<PBRPrimitiveConstantBuffer> m_pbrMaterialCB{};
 };

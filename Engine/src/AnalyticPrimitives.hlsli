@@ -136,7 +136,10 @@ bool RaySpheresIntersectionTest(in uint sceneIndex, in Ray ray, out float thit, 
     else
     {
         centers[0] = float3(0, 0, 0);
-        radii[0] = 0.9;
+        if (sceneIndex == SceneTypes::CornellBox)
+            radii[0] = 1.0;
+        else
+            radii[0] = 0.9;
     }
     bool hitFound = false;
 

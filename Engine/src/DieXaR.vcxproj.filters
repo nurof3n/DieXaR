@@ -167,9 +167,6 @@
     <ClCompile Include="..\external\imgui\imgui_impl_dx12.cpp">
       <Filter>Source Files\ImGui</Filter>
     </ClCompile>
-    <ClCompile Include="Scene.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
