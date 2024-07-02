@@ -211,6 +211,8 @@ bool NextEventEstimation(inout uint rng_state, in LightBuffer light, in float3 h
         break;
     case LightType::Directional:
         lightSample.L = -normalize(light.direction);
+        // // offset the direction inside a solid angle
+        // lightSample.L = OffsetDirectionInSolidAngle(lightSample.L, random(rng_state) * TWO_PI, random(rng_state) * 0.01f);
         lightSample.dist = 10000.0f;
         // check correct side of the normal (but this is factored in the eval bsdf)
         angleN = dot(normal, lightSample.L);
@@ -242,7 +244,9 @@ float3 MIS(inout uint rng_state, PBRPrimitiveConstantBuffer material, in float e
 
         // Calculate the MIS weight (but not for directional lights, because they are sampled with a pdf of 1.0f)
         float weight = 1.0f;
-        if (light.type != LightType::Directional)
+        if (light.type == LightType::Directional)
+            weight = 1.0f;
+        else
             weight = PowerHeuristic(1.0f, lightSample.pdf, 1.0f, bsdfPdf);
 
         // Calculate the final color.
@@ -517,49 +521,55 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     }
     else // Whitted-style ray tracing
     {
-        // Checkerboard pattern for the floor.
-        float reflectanceCoef = l_materialCB.reflectanceCoef;
-        float4 albedo = l_materialCB.albedo;
-        if (l_materialCB.materialIndex == 0)
+        // Check if we hit a light source.
+        if (triangleGeometry && l_primitiveCB.primitiveType == 1)
+            color.xyz = g_lights[l_primitiveCB.instanceIndex].emission * g_lights[l_primitiveCB.instanceIndex].intensity;
+        else
         {
-            float pattern = Checkerboard(hitPosition);
-            reflectanceCoef = pattern * 0.25f + 0.25f;
-            albedo.xyz = pattern * 0.5f * albedo.xyz + 0.5f * albedo.xyz;
-        }
-
-        // Reflected component.
-        if (reflectanceCoef > 0.001)
-        {
-            // Trace a reflection ray.
-            Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
-            float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth);
-
-            float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f / 1.5f);
-            color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
-        }
-
-        for (uint i = 0; i < g_sceneCB.numLights; i++)
-        {
-            // Shadow component.
-            // Trace a shadow ray only if recursion depth allows it.
-            float3 shadowRayDir;
-            float lightDist;
-            if (g_lights[i].type == LightType::Directional)
+            // Checkerboard pattern for the floor.
+            float reflectanceCoef = l_materialCB.reflectanceCoef;
+            float4 albedo = l_materialCB.albedo;
+            if (l_materialCB.materialIndex == 0)
             {
-                lightDist = 10000.0f;
-                shadowRayDir = -normalize(g_lights[i].direction);
+                float pattern = Checkerboard(hitPosition);
+                reflectanceCoef = pattern * 0.25f + 0.25f;
+                albedo.xyz = pattern * 0.5f * albedo.xyz + 0.5f * albedo.xyz;
             }
-            else
-            {
-                lightDist = length(g_lights[i].position - hitPosition);
-                shadowRayDir = (g_lights[i].position - hitPosition) / lightDist;
-            }
-            Ray shadowRay = {hitPosition, shadowRayDir};
-            bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightDist, rayPayload.recursionDepth);
 
-            // Calculate final color.
-            float3 phongColor = shadowRayHit ? float3(0, 0, 0) : CalculatePhongLighting(g_lights[i], albedo, normal, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
-            color.xyz += phongColor;
+            // Reflected component.
+            if (reflectanceCoef > 0.001)
+            {
+                // Trace a reflection ray.
+                Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
+                float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth);
+
+                float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f / 1.5f);
+                color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
+            }
+
+            for (uint i = 0; i < g_sceneCB.numLights; i++)
+            {
+                // Shadow component.
+                // Trace a shadow ray only if recursion depth allows it.
+                float3 shadowRayDir;
+                float lightDist;
+                if (g_lights[i].type == LightType::Directional)
+                {
+                    lightDist = 10000.0f;
+                    shadowRayDir = -normalize(g_lights[i].direction);
+                }
+                else
+                {
+                    lightDist = length(g_lights[i].position - hitPosition);
+                    shadowRayDir = (g_lights[i].position - hitPosition) / lightDist;
+                }
+                Ray shadowRay = {hitPosition, shadowRayDir};
+                bool shadowRayHit = rayPayload.recursionDepth < g_sceneCB.maxShadowRecursionDepth && TraceShadowRayAndReportIfHit(shadowRay, lightDist, rayPayload.recursionDepth);
+
+                // Calculate final color.
+                float3 phongColor = shadowRayHit ? float3(0, 0, 0) : CalculatePhongLighting(g_lights[i], albedo, normal, l_materialCB.diffuseCoef, l_materialCB.specularCoef, l_materialCB.specularPower);
+                color.xyz += phongColor;
+            }
         }
     }
 
@@ -603,7 +613,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     rayPayload.color = ComputeBackground() * rayPayload.throughput;
 }
 
-    [shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
+[shader("miss")] void MissShader_ShadowRay(inout ShadowRayPayload rayPayload)
 {
     rayPayload.hit = false;
 }

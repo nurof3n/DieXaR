@@ -273,4 +273,13 @@ float IntersectWithYSquare(in float maxT, float3 origin, float3 direction, float
     return t;
 }
 
+float3 OffsetDirectionInSolidAngle(in float3 direction, in float theta, in float offset)
+{
+    float3 T, B;
+    ComputeLocalSpace(direction, T, B);
+
+    float3 offsetDirection = direction + offset * (cos(theta) * T + sin(theta) * B);
+    return normalize(offsetDirection);
+}
+
 #endif // RAYTRACINGSHADERHELPER_H

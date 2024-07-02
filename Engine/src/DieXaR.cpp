@@ -371,10 +371,10 @@ void DieXaR::InitializeDemo()
 	}
 
 	// Setup Lights
-	m_backgroundColor = XMFLOAT4(0.04f, 0.04f, 0.04f, 1.0f);
+	m_backgroundColor = XMFLOAT4(0.00f, 0.00f, 0.00f, 1.0f);
 	m_scenes[m_crtScene].m_lights.resize(2);
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(0.0f, 18.0f, -20.0f), XMFLOAT3(0.8f, 0.8f, 0.65f), 0.323f, LightType::Directional, 1.0f, XMFLOAT3(0.76f, -0.196f, 0.596f));
-	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(-7.0f, 9.8f, 3.431f), XMFLOAT3(0.09f, 0.047f, 0.266f), 10.0f, LightType::Square, 4.437f);
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[0], XMFLOAT3(-0.8f, 3.882f, 0.393f), XMFLOAT3(0.474f, 0.376f, 0.75f), 5.885f, LightType::Square, 1.825f, XMFLOAT3(0.76f, -0.196f, 0.596f));
+	Scene::SetLight(m_scenes[m_crtScene].m_lights[1], XMFLOAT3(2.4f, 11.368f, -1.275f), XMFLOAT3(0.78f, 0.815f, 0.65f), 4.792f, LightType::Square, 5.468f, XMFLOAT3(0.76f, -0.196f, 0.596f));
 }
 
 void DieXaR::InitializePbrShowcase()
@@ -1103,7 +1103,7 @@ void DieXaR::BuildBotomLevelASInstanceDescs(BLASPtrType bottomLevelASaddresses[N
 			auto& instanceDesc = instanceDescs[BottomLevelASType::Count + i];
 			instanceDesc = {};
 			instanceDesc.InstanceMask = 1;
-			instanceDesc.InstanceContributionToHitGroupIndex = RayType::Count;
+			instanceDesc.InstanceContributionToHitGroupIndex = RayType::Count * (i + 1);
 			instanceDesc.AccelerationStructure = bottomLevelASaddresses[BottomLevelASType::Triangle];
 
 			// Calculate transformation matrix.
@@ -1911,6 +1911,7 @@ void DieXaR::ShowUI()
 			// Light type
 			if (m_crtScene != SceneTypes::PbrShowcase) {
 				const char* lightTypeOptions[] = { "Area", "Directional" };
+				UINT prevLightType = m_scenes[m_crtScene].m_lights[i].type;
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
 				if (ImGui::BeginCombo("Type", lightTypeOptions[m_scenes[m_crtScene].m_lights[i].type]))
 				{
@@ -1924,6 +1925,10 @@ void DieXaR::ShowUI()
 					}
 					ImGui::EndCombo();
 				}
+
+				// Trigger a graphics reload if the light type has changed.
+				if (prevLightType != m_scenes[m_crtScene].m_lights[i].type)
+					m_shouldReload = true;
 
 				if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
 				{
