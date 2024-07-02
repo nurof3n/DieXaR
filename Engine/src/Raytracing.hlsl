@@ -65,7 +65,7 @@ float3 SkyColor(in float3 rd, in LightBuffer light)
     col = sqrt(light.intensity) * lerp(col * 1.2, float3(.34, .44, .4), 1. - exp(yd * 100.)); // Fog
     col += sqrt(light.intensity) * pow(saturate(dot(rd, sundir)), 150.0);
 
-    col += light.intensity * float3(1.0, .8, .55) * pow(max(dot(rd, sundir), 0.), 15.) * .6; // Sun
+    col += light.intensity * float3(1.0, .8, .55) * pow(max(dot(rd, sundir), 0.), 15.) * 1.6; // Sun
     col += pow(max(dot(rd, sundir), 0.), 150.0) * .15;
 
     return pow(col, 2.2f);
@@ -450,8 +450,8 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
     // Accumulate the color.
-    const float gammaPow = 1.0f / 2.2f;
     float3 finalColor = color.xyz;
+    const float gammaPow = 1.0f / 2.2f;
     finalColor = pow(ACES(finalColor), float3(gammaPow, gammaPow, gammaPow));
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
     g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(finalColor, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
@@ -484,13 +484,12 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
             float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
 
             // Accumulate the color.
-            finalColor += color.xyz;
+            const float gammaPow = 1.0f / 2.2f;
+            finalColor += pow(ACES(color.xyz), float3(gammaPow, gammaPow, gammaPow));
         }
 
     // Average the accumulated color.
-    const float gammaPow = 1.0f / 2.2f;
-    finalColor = pow(ACES(finalColor / numSamples), float3(gammaPow, gammaPow, gammaPow));
-    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor, 1.0f);
+    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
 }
 
 //***************************************************************************
