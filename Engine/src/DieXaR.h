@@ -140,7 +140,7 @@ private:
 	ImportanceSamplingType::Enum m_importanceSamplingType{ ImportanceSamplingType::BSDF };
 	bool m_applyJitter{ true };
 	UINT m_maxRecursionDepth{ 3 };
-	UINT m_maxShadowRecursionDepth{ 3 };	// one shadow pass in first reflection/refraction
+	UINT m_maxShadowRecursionDepth{ 4 };	// should be always greater than the max recursion depth
 	UINT m_pathSqrtSamplesPerPixel{ 1 };	// CAUTION: increasing this value will increase the number of rays per pixel exponentially
 	UINT m_pathFrameCacheIndex{ 1 };		// current frame index for temporal path tracing (ALWAYS >= 1)
 	bool m_onlyOneLightSample{ true };		// if true, only one light is sampled at a time

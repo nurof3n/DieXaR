@@ -162,6 +162,9 @@ void DieXaR::OnInit()
 		InitializeScene();
 	}
 
+	// Reset Path Tracing.
+	ResetPathTracing();
+
 	CreateDeviceDependentResources();
 	CreateWindowSizeDependentResources();
 
@@ -1726,6 +1729,10 @@ void DieXaR::OnMouseMove(UINT x, UINT y)
 	float dy = -XMConvertToRadians(0.25f * static_cast<float>((LONG)y - lastMousePos.y));
 
 	if (!m_cameraLocked && m_cameraFly) {
+		// Reset path tracing if we're moving
+		if (dx != 0.0f || dy != 0.0f)
+			ResetPathTracing();
+
 		// rotate camera
 		XMMATRIX R = XMMatrixRotationY(dx);
 		XMVECTOR eye = m_eye - m_at;
@@ -1770,6 +1777,9 @@ void DieXaR::OnUpdate()
 	// Rotate the camera around Y axis.
 	if (!m_cameraFly)
 	{
+		// Reset path tracing if we're moving
+		if (m_cameraSpeed != 0.0f)
+			ResetPathTracing();
 		float secondsToRotateAround = -48.0f / m_cameraSpeed;
 		float angleToRotateBy = 360.0f * (elapsedTime / secondsToRotateAround);
 		XMMATRIX rotate = XMMatrixRotationY(XMConvertToRadians(angleToRotateBy));
@@ -1781,6 +1791,10 @@ void DieXaR::OnUpdate()
 	// Camera fly mode.
 	else
 	{
+		// Reset Path Tracing if camera is moving.
+		if (m_cameraMovingUp || m_cameraMovingDown || m_cameraMovingLeft || m_cameraMovingRight || m_cameraMovingForward || m_cameraMovingBackward)
+			ResetPathTracing();
+
 		XMVECTOR forward = m_at - m_eye;
 		forward = XMVector3Normalize(forward);
 		XMVECTOR right = -XMVector3Cross(forward, m_up);
@@ -1883,7 +1897,7 @@ void DieXaR::DoRaytracing()
 	commandList->SetComputeRootShaderResourceView(GlobalRootSignature::Slot::AccelerationStructure, m_topLevelAS->GetGPUVirtualAddress());
 	DispatchRays(m_dxrCommandList.Get(), m_dxrStateObject.Get(), &dispatchDesc);
 
-	if (m_raytracingType == RaytracingType::PathTracingTemporal && m_pathFrameCacheIndex < m_pathSqrtSamplesPerPixel * m_pathSqrtSamplesPerPixel)
+	if (m_raytracingType == RaytracingType::PathTracingTemporal)
 	{
 		AdvancePathTracing();
 	}
@@ -1891,6 +1905,8 @@ void DieXaR::DoRaytracing()
 
 void DieXaR::ShowUI()
 {
+	bool m_shouldResetPathTracing = false;
+
 	IM_ASSERT(ImGui::GetCurrentContext() != NULL && "No ImGui context.");
 
 	if (!ImGui::Begin("Settings")) {
@@ -1937,14 +1953,26 @@ void DieXaR::ShowUI()
 		ImGui::Spacing();
 
 		// Jitter
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
-		ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
-		ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
+		if (m_raytracingType != RaytracingType::Whitted)
+		{
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+			bool oldApplyJitter = m_applyJitter;
+			ImGui::Checkbox("Pixel Jitter", &m_applyJitter);
+			ImGui::SameLine(); HelpMarker("Enable pixel jittering for better sampling of the scene");
+			if (oldApplyJitter != m_applyJitter)
+				m_shouldResetPathTracing = true;
+		}
 
 		// Only one light sample
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-		ImGui::Checkbox("Single LightBuffer Sample", &m_onlyOneLightSample);
-		ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
+		if (m_raytracingType != RaytracingType::Whitted)
+		{
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			bool oldOnlyOneLightSample = m_onlyOneLightSample;
+			ImGui::Checkbox("Single LightBuffer Sample", &m_onlyOneLightSample);
+			ImGui::SameLine(); HelpMarker("Whether light sampling should be done one at a time or all at once");
+			if (oldOnlyOneLightSample != m_onlyOneLightSample)
+				m_shouldResetPathTracing = true;
+		}
 
 		// Anisotropic BSDF
 		//ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
@@ -1984,43 +2012,44 @@ void DieXaR::ShowUI()
 			m_shouldReload = true;
 
 		// Importance Sampling type
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
-		const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
-		if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType]))
+		if (m_raytracingType != RaytracingType::Whitted)
 		{
-			bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
-			if (ImGui::Selectable("Uniform Sphere", selected))
-				m_importanceSamplingType = ImportanceSamplingType::Uniform;
-			if (selected)
-				ImGui::SetItemDefaultFocus();
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 12);
+			UINT oldImportanceSamplingType = m_importanceSamplingType;
+			const char* importanceSamplingOptions[] = { "Uniform", "Cosine", "BSDF" };
+			if (ImGui::BeginCombo("Importance Sampling", importanceSamplingOptions[m_importanceSamplingType]))
+			{
+				bool selected = m_importanceSamplingType == ImportanceSamplingType::Uniform;
+				if (ImGui::Selectable("Uniform Sphere", selected))
+					m_importanceSamplingType = ImportanceSamplingType::Uniform;
+				if (selected)
+					ImGui::SetItemDefaultFocus();
 
-			selected = m_importanceSamplingType == ImportanceSamplingType::Cosine;
-			if (ImGui::Selectable("Cosine Hemisphere", selected))
-				m_importanceSamplingType = ImportanceSamplingType::Cosine;
-			if (selected)
-				ImGui::SetItemDefaultFocus();
+				selected = m_importanceSamplingType == ImportanceSamplingType::Cosine;
+				if (ImGui::Selectable("Cosine Hemisphere", selected))
+					m_importanceSamplingType = ImportanceSamplingType::Cosine;
+				if (selected)
+					ImGui::SetItemDefaultFocus();
 
-			selected = m_importanceSamplingType == ImportanceSamplingType::BSDF;
-			if (ImGui::Selectable("BSDF", selected))
-				m_importanceSamplingType = ImportanceSamplingType::BSDF;
-			if (selected)
-				ImGui::SetItemDefaultFocus();
+				selected = m_importanceSamplingType == ImportanceSamplingType::BSDF;
+				if (ImGui::Selectable("BSDF", selected))
+					m_importanceSamplingType = ImportanceSamplingType::BSDF;
+				if (selected)
+					ImGui::SetItemDefaultFocus();
 
-			ImGui::EndCombo();
+				ImGui::EndCombo();
+			}
+			ImGui::SameLine(); HelpMarker("Select the importance sampling type to use");
+			if (oldImportanceSamplingType != m_importanceSamplingType)
+				m_shouldResetPathTracing = true;
 		}
-		ImGui::SameLine(); HelpMarker("Select the importance sampling type to use");
 
 		// Sqrt Samples per pixel
-		int maxSqrtSamplesPerPixel = m_raytracingType == RaytracingType::PathTracingTemporal ? 16 : 4;
-		if (m_raytracingType != RaytracingType::PathTracingTemporal)
-			m_pathSqrtSamplesPerPixel = min(m_pathSqrtSamplesPerPixel, 4);
-		UINT oldPathSqrtSamplesPerPixel = m_pathSqrtSamplesPerPixel;
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
-		ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel),
-			1, maxSqrtSamplesPerPixel);
-		ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
-		if (oldPathSqrtSamplesPerPixel != m_pathSqrtSamplesPerPixel)
-			ResetPathTracing();
+		if (m_raytracingType == RaytracingType::PathTracing) {
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+			ImGui::SliderInt("Sqrt Samples per pixel", reinterpret_cast<int*>(&m_pathSqrtSamplesPerPixel), 1, 4);
+			ImGui::SameLine(); HelpMarker("Sqrt of number of samples per pixel");
+		}
 
 		// Max recursion
 		UINT oldMaxRecursionDepth = m_maxRecursionDepth;
@@ -2033,13 +2062,22 @@ void DieXaR::ShowUI()
 
 		// Max shadow recursion depth
 		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+		UINT oldMaxShadowRecursionDepth = m_maxShadowRecursionDepth;
 		ImGui::SliderInt("Max Shadow Recursion Depth", reinterpret_cast<int*>(&m_maxShadowRecursionDepth), 1, 10);
 		ImGui::SameLine(); HelpMarker("Maximum recursion depth for shooting shadow rays");
+		if (oldMaxShadowRecursionDepth != m_maxShadowRecursionDepth)
+			m_shouldResetPathTracing = true;
 
 		// Russian Roulette
-		ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
-		ImGui::SliderInt("Russian Roulette Depth", reinterpret_cast<int*>(&m_russianRouletteDepth), 1, 10);
-		ImGui::SameLine(); HelpMarker("Depth at which to start Russian Roulette");
+		if (m_raytracingType != RaytracingType::Whitted)
+		{
+			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 8);
+			UINT oldRussianRouletteDepth = m_russianRouletteDepth;
+			ImGui::SliderInt("Russian Roulette Depth", reinterpret_cast<int*>(&m_russianRouletteDepth), 1, 10);
+			ImGui::SameLine(); HelpMarker("Depth at which to start Russian Roulette");
+			if (oldRussianRouletteDepth != m_russianRouletteDepth)
+				m_shouldResetPathTracing = true;
+		}
 
 		ImGui::Spacing();
 	}
@@ -2086,7 +2124,12 @@ void DieXaR::ShowUI()
 		// Background color
 		if (m_crtScene != SceneTypes::PbrShowcase) {
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+			XMFLOAT4 oldBackgroundColor = m_backgroundColor;
 			ImGui::ColorEdit3("Background Color", &m_backgroundColor.x);
+			if (oldBackgroundColor.x != m_backgroundColor.x ||
+				oldBackgroundColor.y != m_backgroundColor.y ||
+				oldBackgroundColor.z != m_backgroundColor.z)
+				m_shouldResetPathTracing = true;
 		}
 
 		// Lights
@@ -2117,45 +2160,58 @@ void DieXaR::ShowUI()
 				// Trigger a graphics reload if the light type has changed.
 				if (prevLightType != m_scenes[m_crtScene].m_lights[i].type)
 					m_shouldReload = true;
+			}
 
-				if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+			if (m_crtScene != SceneTypes::PbrShowcase && m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
+			{
+				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				float lastSize = m_scenes[m_crtScene].m_lights[i].size;
+				const float maxSize = m_crtScene == SceneTypes::Demo ? 10.0f : 5.0f;
+				ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, maxSize);
+				if (lastSize != m_scenes[m_crtScene].m_lights[i].size) {
+					m_shouldRebuildAccelerationStructures = true;
+					m_shouldResetPathTracing = true;
+				}
+
+				if (m_crtScene == SceneTypes::Demo)
 				{
-					ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-					float lastSize = m_scenes[m_crtScene].m_lights[i].size;
-					ImGui::SliderFloat("Size", &m_scenes[m_crtScene].m_lights[i].size, 0.1f, 10.0f);
-					if (lastSize != m_scenes[m_crtScene].m_lights[i].size)
-						m_shouldRebuildAccelerationStructures = true;
-
 					XMFLOAT3 lastPosition = m_scenes[m_crtScene].m_lights[i].position;
 					ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
 					ImGui::SliderFloat3("Position", &m_scenes[m_crtScene].m_lights[i].position.x, -20.0f, 20.0f);
 					if (lastPosition.x != m_scenes[m_crtScene].m_lights[i].position.x ||
 						lastPosition.y != m_scenes[m_crtScene].m_lights[i].position.y ||
-						lastPosition.z != m_scenes[m_crtScene].m_lights[i].position.z)
+						lastPosition.z != m_scenes[m_crtScene].m_lights[i].position.z) {
 						m_shouldRebuildAccelerationStructures = true;
+						m_shouldResetPathTracing = true;
+					}
 				}
 			}
 
 			if (m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
 			{
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				XMFLOAT3 lastDirection = m_scenes[m_crtScene].m_lights[i].direction;
 				ImGui::SliderFloat3("Direction", &m_scenes[m_crtScene].m_lights[i].direction.x, -1.0f, 1.0f);
+				if (lastDirection.x != m_scenes[m_crtScene].m_lights[i].direction.x ||
+					lastDirection.y != m_scenes[m_crtScene].m_lights[i].direction.y ||
+					lastDirection.z != m_scenes[m_crtScene].m_lights[i].direction.z)
+					m_shouldResetPathTracing = true;
 			}
 
-			float maxIntensity;
-			if (m_raytracingType == RaytracingType::Whitted ||
-				m_scenes[m_crtScene].m_lights[i].type == LightType::Directional)
-				maxIntensity = 2.0f;
-			else if (m_scenes[m_crtScene].m_lights[i].type == LightType::Square)
-				maxIntensity = 10.0f;
-			m_scenes[m_crtScene].m_lights[i].intensity = min(m_scenes[m_crtScene].m_lights[i].intensity, maxIntensity);
-
 			ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
-			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, maxIntensity);
+			float lastIntensity = m_scenes[m_crtScene].m_lights[i].intensity;
+			ImGui::SliderFloat("Intensity", &m_scenes[m_crtScene].m_lights[i].intensity, 0.0f, 10.0f);
+			if (lastIntensity != m_scenes[m_crtScene].m_lights[i].intensity)
+				m_shouldResetPathTracing = true;
 
 			if (m_crtScene != SceneTypes::PbrShowcase) {
 				ImGui::SetNextItemWidth(ImGui::GetFontSize() * 16);
+				XMFLOAT3 lastEmission = m_scenes[m_crtScene].m_lights[i].emission;
 				ImGui::ColorEdit3("Emission", &m_scenes[m_crtScene].m_lights[i].emission.x);
+				if (lastEmission.x != m_scenes[m_crtScene].m_lights[i].emission.x ||
+					lastEmission.y != m_scenes[m_crtScene].m_lights[i].emission.y ||
+					lastEmission.z != m_scenes[m_crtScene].m_lights[i].emission.z)
+					m_shouldResetPathTracing = true;
 			}
 
 			if (i < m_scenes[m_crtScene].GetLightCount() - 1)
@@ -2169,6 +2225,10 @@ void DieXaR::ShowUI()
 	}
 
 	ImGui::End();
+
+	// Reset path tracing if needed.
+	if (m_shouldResetPathTracing)
+		ResetPathTracing();
 }
 
 void DieXaR::HelpMarker(const char* desc)
