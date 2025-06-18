@@ -1,6 +1,5 @@
 #pragma once
 
-#include "RayTracingHlslCompat.h"
 #include "RaytracingSceneDefines.h"
 
 // Represents a scene that embodies lights, materials, and geometry.
@@ -87,7 +86,8 @@ public:
 		float eta = 1.5f,
 		float atDistance = 1.0f,
 		const XMFLOAT3& extinction = XMFLOAT3(1.0f, 1.0f, 1.0f),
-		float subsurface = 0.0f
+		float subsurface = 0.0f,
+		const XMFLOAT4& emission = XMFLOAT4(0.0f, 0.0f, 0.0f, 0.0f)
 	)
 	{
 		PBRPrimitiveConstantBuffer attributes;
@@ -106,6 +106,7 @@ public:
 		attributes.atDistance = atDistance;
 		attributes.extinction = extinction;
 		attributes.subsurface = subsurface;
+		attributes.emission = emission;
 
 		if (materialIndex == 0)
 			m_pbrPlaneMaterialCB = attributes;

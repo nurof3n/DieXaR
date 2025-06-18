@@ -27,6 +27,7 @@
 //  l_* - bound via a local root signature.
 RaytracingAccelerationStructure g_scene : register(t0, space0);
 RWTexture2D<float4> g_renderTarget : register(u0);
+RWTexture2D<float4> g_WorldPositionOutput : register(u2);
 ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 StructuredBuffer<LightBuffer> g_lights : register(t4, space0);
 
@@ -65,7 +66,7 @@ float3 SkyColor(in float3 rd, in LightBuffer light)
     col = sqrt(light.intensity) * lerp(col * 1.2, float3(.34, .44, .4), 1. - exp(yd * 100.)); // Fog
     col += sqrt(light.intensity) * pow(saturate(dot(rd, sundir)), 150.0);
 
-    col += light.intensity * float3(1.0, .8, .55) * pow(max(dot(rd, sundir), 0.), 15.) * 1.6; // Sun
+    col += light.intensity * float3(1.0, .8, .55) * pow(max(dot(rd, sundir), 0.), 15.) * .6; // Sun
     col += pow(max(dot(rd, sundir), 0.), 150.0) * .15;
 
     return pow(col, 2.2f);
@@ -90,11 +91,12 @@ float4 ComputeBackground()
 //***************************************************************************
 
 // Trace a radiance ray into the scene and returns a shaded color.
-float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, in UINT rngState, in UINT currentRayRecursionDepth,
-                        in float bsdfPdf = 1.0f, in bool inside = false, in bool refraction = false)
+void TraceRadianceRay(in Ray ray, inout RayPayload rayPayload, in bool refraction = false)
 {
-    if (currentRayRecursionDepth >= g_sceneCB.maxRecursionDepth)
-        return float4(0, 0, 0, 0);
+    if (rayPayload.recursionDepth >= g_sceneCB.maxRecursionDepth) {
+        rayPayload.color = float4(0, 0, 0, 0);
+        return;
+    }
 
     // Set the ray's extents.
     RayDesc rayDesc;
@@ -104,10 +106,12 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
     // Note: make sure to enable face culling so as to avoid surface face fighting.
     rayDesc.TMin = 0.0001f;
     rayDesc.TMax = 10000.0f;
-    if (refraction)
-        inside = !inside;
 
-    RayPayload rayPayload = {float4(0.0f, 0.0f, 0.0f, 0.0f), throughput, absorption, rngState, currentRayRecursionDepth + 1, inside, bsdfPdf};
+    UINT previousInside = rayPayload.inside;
+    if (refraction)
+        rayPayload.inside = !rayPayload.inside;
+
+    rayPayload.recursionDepth++;
 
     uint flag = RAY_FLAG_NONE; // because the AABB for example does not work culling faces
     TraceRay(g_scene,
@@ -118,7 +122,9 @@ float4 TraceRadianceRay(in Ray ray, in float4 throughput, in float4 absorption, 
              TraceRayParameters::MissShader::Offset[RayType::Radiance],
              rayDesc, rayPayload);
 
-    return radianceClamp(rayPayload.color);
+    rayPayload.recursionDepth--;
+    rayPayload.inside = previousInside;
+    rayPayload.color = radianceClamp(rayPayload.color);
 }
 
 // Trace a shadow ray and return true if it hits any geometry.
@@ -354,9 +360,16 @@ float3 DoPathTracing(inout RayPayload rayPayload, in PBRPrimitiveConstantBuffer 
         // Apply the Russian roulette pdf.
         throughput /= russianRoulettePdf;
 
+        // Create a new payload for the recursive ray, copying the current state.
+        RayPayload newPayload = rayPayload;
+        newPayload.throughput = float4(throughput, 1.0f);
+        newPayload.absorption = float4(absorption, 1.0f);
+        newPayload.bsdfPdf = bsdfPdf;
+
         // Shoot the next ray and accumulate the color.
         Ray newRay = {hitPosition, L};
-        color += TraceRadianceRay(newRay, float4(throughput, 1.0f), float4(absorption, 1.0f), rayPayload.rngState, rayPayload.recursionDepth, bsdfPdf, rayPayload.inside, refraction).xyz;
+        TraceRadianceRay(newRay, newPayload, refraction);
+        color += newPayload.color.xyz;
     }
 
     return color;
@@ -418,17 +431,30 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     // Initialize the random number generator.
     UINT rngState = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
 
+    // Create and initialize the payload
+    RayPayload payload;
+    payload.color = float4(0, 0, 0, 0);
+    payload.worldPosition = float4(0, 0, 0, 0);
+    payload.throughput = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    payload.absorption = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    payload.rngState = rngState;
+    payload.recursionDepth = 0;
+    payload.inside = 0;
+    payload.bsdfPdf = 1.0f;
+
     // Cast a ray into the scene and retrieve a shaded color.
-    UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
+    TraceRadianceRay(ray, payload);
 
     // Write the raytraced color to the output texture.
     const float gammaPow = 1.0f / 2.2f;
-    color.xyz = pow(ACES(color.xyz), float3(gammaPow, gammaPow, gammaPow));
-    g_renderTarget[DispatchRaysIndex().xy] = color;
+    float3 finalColor = pow(ACES(payload.color.xyz), float3(gammaPow, gammaPow, gammaPow));
+    g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor, 1.0f);
+
+    // Write the world position to the output texture.
+    g_WorldPositionOutput[DispatchRaysIndex().xy] = payload.worldPosition;
 }
 
-    [shader("raygeneration")] void RaygenShader_PathTracingTemporal()
+[shader("raygeneration")] void RaygenShader_PathTracingTemporal()
 {
     // Initialize the random number generator.
     uint rngState = hash(DispatchRaysIndex().xy, g_sceneCB.elapsedTicks);
@@ -446,20 +472,34 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld, offset);
 
     // Cast a ray into the scene and retrieve a shaded color.
-    UINT currentRecursionDepth = 0;
-    float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
+    RayPayload payload;
+    payload.color = float4(0, 0, 0, 0);
+    payload.worldPosition = float4(0, 0, 0, 0);
+    payload.throughput = float4(1.0f, 1.0f, 1.0f, 1.0f);
+    payload.absorption = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    payload.rngState = rngState;
+    payload.recursionDepth = 0;
+    payload.inside = 0;
+    payload.bsdfPdf = 1.0f;
+
+    TraceRadianceRay(ray, payload);
 
     // Accumulate the color.
-    float3 finalColor = color.xyz;
+    float3 finalColor = payload.color.xyz;
     const float gammaPow = 1.0f / 2.2f;
     finalColor = pow(ACES(finalColor), float3(gammaPow, gammaPow, gammaPow));
     const float lerpFactor = 1.0f * (g_sceneCB.pathFrameCacheIndex - 1) / g_sceneCB.pathFrameCacheIndex;
     g_renderTarget[DispatchRaysIndex().xy] = float4(lerp(finalColor, g_renderTarget[DispatchRaysIndex().xy].xyz, lerpFactor), 1.0f);
+
+    // Write the world position to the new output texture.
+    g_WorldPositionOutput[DispatchRaysIndex().xy] = payload.worldPosition;
 }
 
 [shader("raygeneration")] void RaygenShader_PathTracing()
 {
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
+
+    RayPayload payload; // Create payload once to be reused
 
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
 
@@ -480,16 +520,27 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
             Ray ray = GenerateCameraRay(DispatchRaysIndex().xy, g_sceneCB.cameraPosition.xyz, g_sceneCB.projectionToWorld, offset);
 
             // Cast a ray into the scene and retrieve a shaded color.
-            UINT currentRecursionDepth = 0;
-            float4 color = TraceRadianceRay(ray, float4(1.0f, 1.0f, 1.0f, 1.0f), float4(0.0f, 0.0f, 0.0f, 0.0f), rngState, currentRecursionDepth);
+            payload.color = float4(0, 0, 0, 0);
+            payload.worldPosition = float4(0, 0, 0, 0);
+            payload.throughput = float4(1.0f, 1.0f, 1.0f, 1.0f);
+            payload.absorption = float4(0.0f, 0.0f, 0.0f, 0.0f);
+            payload.rngState = rngState;
+            payload.recursionDepth = 0;
+            payload.inside = 0;
+            payload.bsdfPdf = 1.0f;
+        
+            TraceRadianceRay(ray, payload);
 
             // Accumulate the color.
             const float gammaPow = 1.0f / 2.2f;
-            finalColor += pow(ACES(color.xyz), float3(gammaPow, gammaPow, gammaPow));
+            finalColor += pow(ACES(payload.color.xyz), float3(gammaPow, gammaPow, gammaPow));
         }
 
     // Average the accumulated color.
     g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
+
+    // Write the world position from the last sample to the new output texture.
+    g_WorldPositionOutput[DispatchRaysIndex().xy] = payload.worldPosition;
 }
 
 //***************************************************************************
@@ -498,6 +549,8 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
 
 void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 hitPosition, in bool triangleGeometry)
 {
+    rayPayload.worldPosition = float4(hitPosition, 1.0f);
+
     float4 color = float4(0, 0, 0, 1);
 
     // PERFORMANCE TIP: it is recommended to avoid values carry over across TraceRay() calls.
@@ -522,7 +575,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
                 color.xyz = float3(0, 0, 0);
         }
         else
-            color.xyz = DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
+            color.xyz = l_pbrCB.emission.xyz + DoPathTracing(rayPayload, l_pbrCB, normal, hitPosition, RayTCurrent());
     }
     else // Whitted-style ray tracing
     {
@@ -546,7 +599,9 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
             {
                 // Trace a reflection ray.
                 Ray reflectionRay = {hitPosition, reflect(WorldRayDirection(), normal)};
-                float4 reflectionColor = TraceRadianceRay(reflectionRay, rayPayload.throughput, rayPayload.absorption, rayPayload.rngState, rayPayload.recursionDepth);
+                RayPayload reflectionPayload = rayPayload; // Copy current payload state
+                TraceRadianceRay(reflectionRay, reflectionPayload);
+                float4 reflectionColor = reflectionPayload.color;
 
                 float fresnelR = FresnelDielectric(max(0.0f, dot(-WorldRayDirection(), normal)), 1.0f / 1.5f);
                 color.xyz += reflectanceCoef * fresnelR * reflectionColor.xyz;
@@ -604,7 +659,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
     ClosestHitHelper(rayPayload, triangleNormal, HitWorldPosition(), true);
 }
 
-    [shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
+[shader("closesthit")] void ClosestHitShader_AABB(inout RayPayload rayPayload, in ProceduralPrimitiveAttributes attr)
 {
     // PERFORMANCE TIP: it is recommended to minimize values carry over across TraceRay() calls.
     // Therefore, in cases like retrieving HitWorldPosition(), it is recomputed every time.
@@ -618,6 +673,7 @@ void ClosestHitHelper(inout RayPayload rayPayload, in float3 normal, in float3 h
 
 [shader("miss")] void MissShader(inout RayPayload rayPayload)
 {
+    rayPayload.worldPosition = float4(0, 0, 0, 0);
     rayPayload.color = ComputeBackground() * rayPayload.throughput;
 }
 

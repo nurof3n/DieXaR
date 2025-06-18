@@ -34,12 +34,12 @@
     <Filter Include="Assets\Shaders\PBR">
       <UniqueIdentifier>{51f889b5-0ae8-4093-a26d-098abea363cd}</UniqueIdentifier>
     </Filter>
+    <Filter Include="Header Files\FFX">
+      <UniqueIdentifier>{35f06f3d-405b-4909-9352-918e93ce0c6f}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="stdafx.h">
-      <Filter>Header Files</Filter>
-    </ClInclude>
-    <ClInclude Include="DieXaR.h">
       <Filter>Header Files</Filter>
     </ClInclude>
     <ClInclude Include="DirectXRaytracingHelper.h">
@@ -120,15 +120,45 @@
     <ClInclude Include="Scene.h">
       <Filter>Header Files</Filter>
     </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_api.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_api.hpp">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_api_loader.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_api_types.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_framegeneration.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_framegeneration.hpp">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_upscale.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\ffx_upscale.hpp">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\dx12\ffx_api_dx12.h">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="..\external\ffx_api\dx12\ffx_api_dx12.hpp">
+      <Filter>Header Files\FFX</Filter>
+    </ClInclude>
+    <ClInclude Include="DieXaR.h">
+      <Filter>Header Files</Filter>
+    </ClInclude>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="stdafx.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="Main.cpp">
-      <Filter>Source Files</Filter>
-    </ClCompile>
-    <ClCompile Include="DieXaR.cpp">
       <Filter>Source Files</Filter>
     </ClCompile>
     <ClCompile Include="util\DeviceResources.cpp">
@@ -167,6 +197,9 @@
     <ClCompile Include="..\external\imgui\imgui_impl_dx12.cpp">
       <Filter>Source Files\ImGui</Filter>
     </ClCompile>
+    <ClCompile Include="DieXaR.cpp">
+      <Filter>Source Files</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <None Include="readme.md" />
@@ -183,6 +216,9 @@
   </ItemGroup>
   <ItemGroup>
     <FxCompile Include="Raytracing.hlsl">
+      <Filter>Assets\Shaders</Filter>
+    </FxCompile>
+    <FxCompile Include="MotionVector.hlsl">
       <Filter>Assets\Shaders</Filter>
     </FxCompile>
   </ItemGroup>

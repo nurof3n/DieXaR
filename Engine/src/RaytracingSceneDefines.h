@@ -19,6 +19,7 @@ namespace GlobalRootSignature {
 			OutputView = 0,
 			AccelerationStructure,
 			SceneConstant,
+            WorldPositionOutput,
 			AABBattributeBuffer,
 			VertexBuffers,
 			LightBuffer,
