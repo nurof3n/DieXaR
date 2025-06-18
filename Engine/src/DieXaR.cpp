@@ -2355,7 +2355,7 @@ void DieXaR::CopyFinalOutputToBackbuffer()
 
     D3D12_RESOURCE_BARRIER postCopyBarriers[2];
     postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(
-            renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+            renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
     // Transition the upscaled resource back to UAV state
     postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(
             m_upscaledOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
@@ -2442,7 +2442,7 @@ void DieXaR::CreateWindowSizeDependentResources()
     D3D12_UNORDERED_ACCESS_VIEW_DESC motionVecUAVDesc = {};
     motionVecUAVDesc.ViewDimension                    = D3D12_UAV_DIMENSION_TEXTURE2D;
     device->CreateUnorderedAccessView(m_motionVectorOutput.Get(), nullptr, &motionVecUAVDesc, motionVecUavHandle);
-    m_motionVectorOutputResourceUAVGpuDescriptor
+    m_motionVectorOutputGpuDescriptor
             = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
                     m_motionVectorOutputUAVDescriptorHeapIndex, m_descriptorSize);
 
@@ -2540,22 +2540,12 @@ void DieXaR::OnRender()
     // Render ImGui.
     ImGui::Render();
 
-    // Transition the render target to the render target state.
-    D3D12_RESOURCE_BARRIER barrier{};
-    barrier.Type                   = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-    barrier.Flags                  = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-    barrier.Transition.pResource   = m_deviceResources->GetRenderTarget();
-    barrier.Transition.Subresource = D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES;
-    barrier.Transition.StateBefore = D3D12_RESOURCE_STATE_PRESENT;
-    barrier.Transition.StateAfter  = D3D12_RESOURCE_STATE_RENDER_TARGET;
-    commandList->ResourceBarrier(1, &barrier);
-
     // Render the ImGui draw data.
     commandList->OMSetRenderTargets(1, &m_deviceResources->GetRenderTargetView(), FALSE, nullptr);
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_deviceResources->GetCommandList());
 
     // Transition the render target to the present state.
-    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     commandList->ResourceBarrier(1, &barrier);
 
@@ -2675,7 +2665,7 @@ void DieXaR::DispatchMotionVectorPass(ID3D12GraphicsCommandList* commandList)
             0, m_sceneCB.GpuVirtualAddress(m_deviceResources->GetCurrentFrameIndex()));
     commandList->SetComputeRootDescriptorTable(
             1, m_worldPositionOutputResourceUAVGpuDescriptor);  // Or an SRV descriptor
-    commandList->SetComputeRootDescriptorTable(2, m_motionVectorOutputResourceUAVGpuDescriptor);
+    commandList->SetComputeRootDescriptorTable(2, m_motionVectorOutputGpuDescriptor);
 
     // Dispatch the compute shader
     UINT numGroupsX = (m_renderWidth + 7) / 8;

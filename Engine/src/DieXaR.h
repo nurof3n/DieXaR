@@ -167,10 +167,9 @@ private:
     XMFLOAT4 m_backgroundColor{ 0.678f, 0.788f, 0.819f, 1.0f };
 
     // Motion Vectors
-    bool                          m_visualizeMotionVectors = false;
-    ComPtr<ID3D12RootSignature>   m_visualizeMV_RootSignature;
-    ComPtr<ID3D12PipelineState>   m_visualizeMV_PSO;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_motionVectorOutputGpuDescriptor;
+    bool                        m_visualizeMotionVectors = false;
+    ComPtr<ID3D12RootSignature> m_visualizeMV_RootSignature;
+    ComPtr<ID3D12PipelineState> m_visualizeMV_PSO;
 
     ComPtr<ID3D12Resource>        m_worldPositionOutput;
     UINT                          m_worldPositionOutputUAVDescriptorHeapIndex = UINT_MAX;
@@ -178,7 +177,7 @@ private:
 
     ComPtr<ID3D12Resource>        m_motionVectorOutput;
     UINT                          m_motionVectorOutputUAVDescriptorHeapIndex = UINT_MAX;
-    CD3DX12_GPU_DESCRIPTOR_HANDLE m_motionVectorOutputResourceUAVGpuDescriptor;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_motionVectorOutputGpuDescriptor;
 
     ComPtr<ID3D12RootSignature> m_motionVectorRootSignature;
     ComPtr<ID3D12PipelineState> m_motionVectorPSO;
