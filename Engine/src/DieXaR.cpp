@@ -13,6 +13,7 @@
 #include "DieXaR.h"
 #include "CompiledShaders\Raytracing.hlsl.h"
 #include "CompiledShaders\MotionVector.hlsl.h"
+#include "CompiledShaders\VisualizeMotionVectors.hlsl.h"
 
 // imgui
 #include "imgui.h"
@@ -68,9 +69,7 @@ DieXaR::DieXaR(UINT width, UINT height, std::wstring name)
       m_descriptorSize(0),
       m_missShaderTableStrideInBytes(UINT_MAX),
       m_hitGroupShaderTableStrideInBytes(UINT_MAX)
-{
-    UpdateForSizeChange(width, height);
-}
+{}
 
 void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 {
@@ -93,6 +92,7 @@ void DieXaR::ResetCamera(XMVECTOR eye, XMVECTOR at)
 
 void DieXaR::Reload()
 {
+    m_resetUpscale = true;
     OnDestroy();
     OnInit();
     m_shouldReload = false;
@@ -128,11 +128,13 @@ void DieXaR::ResetPathTracing()
 
 void DieXaR::OnInit()
 {
+    UpdateForSizeChange(m_width, m_height);
+
     m_deviceResources = std::make_unique<DeviceResources>(DXGI_FORMAT_R8G8B8A8_UNORM, DXGI_FORMAT_UNKNOWN, FrameCount,
             D3D_FEATURE_LEVEL_11_0,
-            // Sample shows handling of use cases with tearing support, which is OS dependent and has been supported
-            // since TH2. Since the sample requires build 1809 (RS5) or higher, we don't need to handle non-tearing
-            // cases.
+            // Sample shows handling of use cases with tearing support, which is OS dependent and has been
+            // supported since TH2. Since the sample requires build 1809 (RS5) or higher, we don't need to
+            // handle non-tearing cases.
             DeviceResources::c_RequireTearingSupport, m_adapterIDoverride);
     m_deviceResources->RegisterDeviceNotify(this);
     m_deviceResources->SetWindow(Win32Application::GetHwnd(), m_width, m_height);
@@ -156,6 +158,9 @@ void DieXaR::OnInit()
     CreateDeviceDependentResources();
     CreateWindowSizeDependentResources();
 
+    // FSR3 Initialization
+    InitializeFSR3();
+
     // Initialize imgui.
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
@@ -176,6 +181,13 @@ void DieXaR::OnInit()
 
     // Initialize application settings.
     ResetSettingsCB();
+
+    // Make window not resizable
+    HWND     hwnd  = Win32Application::GetHwnd();
+    LONG_PTR style = GetWindowLongPtr(hwnd, GWL_STYLE);
+    style &= ~WS_THICKFRAME;
+    // style &= ~WS_MAXIMIZEBOX;
+    SetWindowLongPtr(hwnd, GWL_STYLE, style);
 }
 
 // Update camera matrices passed into the shader.
@@ -187,7 +199,33 @@ void DieXaR::UpdateCameraMatrices()
     float    fovAngleY        = 45.0f;
     XMMATRIX view             = XMMatrixLookAtLH(m_eye, m_at, m_up);
     XMMATRIX proj             = XMMatrixPerspectiveFovLH(XMConvertToRadians(fovAngleY), m_aspectRatio, 0.01f, 125.0f);
-    XMMATRIX viewProj         = view * proj;
+
+    // FSR: Apply Jitter
+    if (m_upscalingContext) {
+        int32_t                                  jitterPhaseCount   = 0;
+        ffx::QueryDescUpscaleGetJitterPhaseCount getJitterPhaseDesc = {};
+        getJitterPhaseDesc.renderWidth                              = m_renderWidth;
+        getJitterPhaseDesc.displayWidth                             = m_width;
+        getJitterPhaseDesc.pOutPhaseCount                           = &jitterPhaseCount;
+        ffx::Query(m_upscalingContext, getJitterPhaseDesc);
+
+        m_jitterIndex = (m_jitterIndex + 1) % jitterPhaseCount;
+
+        ffx::QueryDescUpscaleGetJitterOffset getJitterOffsetDesc = {};
+        getJitterOffsetDesc.index                                = m_jitterIndex;
+        getJitterOffsetDesc.phaseCount                           = jitterPhaseCount;
+        getJitterOffsetDesc.pOutX                                = &m_jitterX;
+        getJitterOffsetDesc.pOutY                                = &m_jitterY;
+        ffx::Query(m_upscalingContext, getJitterOffsetDesc);
+
+        // Apply jitter to the projection matrix
+        XMMATRIX jitterMatrix
+                = XMMatrixTranslation(2.0f * m_jitterX / m_renderWidth, -2.0f * m_jitterY / m_renderHeight, 0.0f);
+        proj = proj * jitterMatrix;
+    }
+
+
+    XMMATRIX viewProj            = view * proj;
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
     m_sceneCB->worldToProjection = viewProj;
 }
@@ -587,6 +625,7 @@ void DieXaR::CreateDeviceDependentResources()
 
     // Create Motion Vector PSO.
     CreateMotionVectorPSO();
+    CreateVisualizeMV_PSO();
 
     // Create a raytracing pipeline state object which defines the binding of shaders, state and resources to be used
     // during raytracing.
@@ -612,9 +651,6 @@ void DieXaR::CreateDeviceDependentResources()
 
     // Build shader tables, which define shaders and their local root arguments.
     BuildShaderTables();
-
-    // Create an output 2D texture to store the raytracing result to.
-    CreateRaytracingOutputResource();
 }
 
 void DieXaR::SerializeAndCreateRaytracingRootSignature(
@@ -833,32 +869,6 @@ void DieXaR::CreateRaytracingPipelineStateObject()
     // Create the state object.
     ThrowIfFailed(m_dxrDevice->CreateStateObject(raytracingPipeline, IID_PPV_ARGS(&m_dxrStateObject)),
             L"Couldn't create DirectX Raytracing state object.\n");
-}
-
-// Create a 2D output texture for raytracing.
-void DieXaR::CreateRaytracingOutputResource()
-{
-    auto device           = m_deviceResources->GetD3DDevice();
-    auto backbufferFormat = m_deviceResources->GetBackBufferFormat();
-
-    // Create the output resource. The dimensions and format should match the swap-chain.
-    auto uavDesc = CD3DX12_RESOURCE_DESC::Tex2D(
-            backbufferFormat, m_width, m_height, 1, 1, 1, 0, D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
-
-    auto defaultHeapProperties = CD3DX12_HEAP_PROPERTIES(D3D12_HEAP_TYPE_DEFAULT);
-    ThrowIfFailed(device->CreateCommittedResource(&defaultHeapProperties, D3D12_HEAP_FLAG_NONE, &uavDesc,
-            D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&m_raytracingOutput)));
-    NAME_D3D12_OBJECT(m_raytracingOutput);
-
-    D3D12_CPU_DESCRIPTOR_HANDLE uavDescriptorHandle;
-    m_raytracingOutputResourceUAVDescriptorHeapIndex
-            = AllocateDescriptor(&uavDescriptorHandle, m_raytracingOutputResourceUAVDescriptorHeapIndex);
-    D3D12_UNORDERED_ACCESS_VIEW_DESC UAVDesc = {};
-    UAVDesc.ViewDimension                    = D3D12_UAV_DIMENSION_TEXTURE2D;
-    device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &UAVDesc, uavDescriptorHandle);
-    m_raytracingOutputResourceUAVGpuDescriptor
-            = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
-                    m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 }
 
 void DieXaR::CreateAuxiliaryDeviceResources()
@@ -1786,6 +1796,10 @@ void DieXaR::OnMouseMove(UINT x, UINT y)
 // Update frame-based values.
 void DieXaR::OnUpdate()
 {
+    if (m_shouldReload) {
+        Reload();
+    }
+
     m_timer.Tick();
     CalculateFrameStats();
     float        elapsedTime    = static_cast<float>(m_timer.GetElapsedSeconds());
@@ -1902,7 +1916,7 @@ void DieXaR::DoRaytracing()
         commandList->SetComputeRootDescriptorTable(
                 GlobalRootSignature::Slot::OutputView, m_raytracingOutputResourceUAVGpuDescriptor);
         commandList->SetComputeRootDescriptorTable(
-                +GlobalRootSignature::Slot::WorldPositionOutput, m_worldPositionOutputResourceUAVGpuDescriptor);
+                GlobalRootSignature::Slot::WorldPositionOutput, m_worldPositionOutputResourceUAVGpuDescriptor);
     };
 
     commandList->SetComputeRootSignature(m_raytracingGlobalRootSignature.Get());
@@ -1948,7 +1962,6 @@ void DieXaR::ShowUI()
 
     ImGuiIO& io = ImGui::GetIO();
 
-    ImGui::Text("Upscale ratio: %.2f", m_upscaleRatio);
     ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
     ImGui::Text("Elapsed time: %.2f (s)", m_sceneCB->elapsedTime);
     ImGui::Text("Elapsed ticks: %u", m_sceneCB->elapsedTicks);
@@ -1958,6 +1971,57 @@ void DieXaR::ShowUI()
     ImGui::Text("Camera direction: (%.2f, %.2f, %.2f)", XMVectorGetX(forward), XMVectorGetY(forward),
             XMVectorGetZ(forward));
     ImGui::Spacing();
+
+    if (ImGui::CollapsingHeader("FidelityFX FSR")) {
+        ImGui::Spacing();
+        ImGui::Text("Render resolution: %ux%u", m_renderWidth, m_renderHeight);
+        ImGui::Text("Window resolution: %u%u", m_width, m_height);
+
+        const char* presetOptions[]
+                = { "Quality (1.5x)", "Balanced (1.7x)", "Performance (2.0x)", "Ultra Performance (3.0x)" };
+        int currentPreset = 0;
+        if (m_upscaleRatio == 1.5f)
+            currentPreset = 0;
+        else if (m_upscaleRatio == 1.7f)
+            currentPreset = 1;
+        else if (m_upscaleRatio == 2.0f)
+            currentPreset = 2;
+        else if (m_upscaleRatio == 3.0f)
+            currentPreset = 3;
+
+        if (ImGui::Combo("Quality Preset", &currentPreset, presetOptions, IM_ARRAYSIZE(presetOptions))) {
+            switch (currentPreset) {
+                case 0:
+                    m_upscaleRatio = 1.5f;
+                    break;
+                case 1:
+                    m_upscaleRatio = 1.7f;
+                    break;
+                case 2:
+                    m_upscaleRatio = 2.0f;
+                    break;
+                case 3:
+                    m_upscaleRatio = 3.0f;
+                    break;
+            }
+
+            // When changing ratio, trigger a resize and reset FSR history
+            m_shouldReload = true;
+            m_resetUpscale = true;
+        }
+
+        ImGui::Checkbox("Enable RCAS Sharpening", &m_enableSharpening);
+        if (m_enableSharpening) {
+            ImGui::SliderFloat("Sharpness", &m_sharpness, 0.f, 1.f);
+        }
+
+        if (ImGui::Button("Reset History")) {
+            m_resetUpscale = true;
+        }
+
+        ImGui::Spacing();
+        ImGui::Checkbox("Visualize motion vectors", &m_visualizeMotionVectors);
+    }
 
     if (ImGui::CollapsingHeader("Controls")) {
         ImGui::Spacing();
@@ -2271,12 +2335,10 @@ void DieXaR::UpdateForSizeChange(UINT width, UINT height)
     DXSample::UpdateForSizeChange(width, height);
     m_renderWidth  = static_cast<UINT>(width / m_upscaleRatio);
     m_renderHeight = static_cast<UINT>(height / m_upscaleRatio);
-
-    m_resetUpscale = true;
 }
 
 // Copy the raytracing output to the backbuffer.
-void DieXaR::CopyRaytracingOutputToBackbuffer()
+void DieXaR::CopyFinalOutputToBackbuffer()
 {
     auto commandList  = m_deviceResources->GetCommandList();
     auto renderTarget = m_deviceResources->GetRenderTarget();
@@ -2284,17 +2346,19 @@ void DieXaR::CopyRaytracingOutputToBackbuffer()
     D3D12_RESOURCE_BARRIER preCopyBarriers[2];
     preCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(
             renderTarget, D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_COPY_DEST);
+    // Copy from the new upscaled resource
     preCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(
-            m_raytracingOutput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
+            m_upscaledOutput.Get(), D3D12_RESOURCE_STATE_UNORDERED_ACCESS, D3D12_RESOURCE_STATE_COPY_SOURCE);
     commandList->ResourceBarrier(ARRAYSIZE(preCopyBarriers), preCopyBarriers);
 
-    commandList->CopyResource(renderTarget, m_raytracingOutput.Get());
+    commandList->CopyResource(renderTarget, m_upscaledOutput.Get());
 
     D3D12_RESOURCE_BARRIER postCopyBarriers[2];
     postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(
             renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_PRESENT);
+    // Transition the upscaled resource back to UAV state
     postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(
-            m_raytracingOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
+            m_upscaledOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
 
     commandList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
 }
@@ -2314,7 +2378,16 @@ void DieXaR::CreateWindowSizeDependentResources()
             D3D12_RESOURCE_STATE_UNORDERED_ACCESS, nullptr, IID_PPV_ARGS(&m_raytracingOutput)));
     NAME_D3D12_OBJECT(m_raytracingOutput);
 
-    CreateRaytracingOutputResource();
+    // Create a descriptor for the raytracing output
+    D3D12_CPU_DESCRIPTOR_HANDLE rtUavDescriptorHandle;
+    m_raytracingOutputResourceUAVDescriptorHeapIndex
+            = AllocateDescriptor(&rtUavDescriptorHandle, m_raytracingOutputResourceUAVDescriptorHeapIndex);
+    D3D12_UNORDERED_ACCESS_VIEW_DESC rtUAVDesc = {};
+    rtUAVDesc.ViewDimension                    = D3D12_UAV_DIMENSION_TEXTURE2D;
+    device->CreateUnorderedAccessView(m_raytracingOutput.Get(), nullptr, &rtUAVDesc, rtUavDescriptorHandle);
+    m_raytracingOutputResourceUAVGpuDescriptor
+            = CD3DX12_GPU_DESCRIPTOR_HANDLE(m_descriptorHeap->GetGPUDescriptorHandleForHeapStart(),
+                    m_raytracingOutputResourceUAVDescriptorHeapIndex, m_descriptorSize);
 
     // Create the resource for FSR's upscaled output at display resolution
     auto upscaleUavDesc = CD3DX12_RESOURCE_DESC::Tex2D(
@@ -2390,6 +2463,9 @@ void DieXaR::ReleaseDeviceDependentResources()
     }
 
     m_raytracingGlobalRootSignature.Reset();
+    m_visualizeMV_RootSignature.Reset();
+    m_visualizeMV_PSO.Reset();
+    m_motionVectorRootSignature.Reset();
     m_motionVectorPSO.Reset();
     ResetComPtrArray(&m_raytracingLocalRootSignature);
 
@@ -2448,10 +2524,18 @@ void DieXaR::OnRender()
     }
 
     DoRaytracing();
-    CopyRaytracingOutputToBackbuffer();
+    DispatchMotionVectorPass(commandList);  // Must be called after DoRaytracing and before FSR/Visualization
+    if (m_visualizeMotionVectors) {
+        DispatchVisualizeMVPass(commandList);
+        commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+    }
+    else {
+        DispatchFsrUpscale(commandList);
+        commandList->SetDescriptorHeaps(1, m_descriptorHeap.GetAddressOf());
+    }
 
-    // FFX Upscaling
-    DispatchMotionVectorPass(commandList);
+    // Copy the final result (either the visualization or the upscaled image) to the backbuffer
+    CopyFinalOutputToBackbuffer();
 
     // Render ImGui.
     ImGui::Render();
@@ -2485,17 +2569,55 @@ void DieXaR::OnRender()
 
 void DieXaR::OnDestroy()
 {
-    if (m_shouldReload) {
-        // Restart ImGui.
-        ImGui_ImplWin32_Shutdown();
-    }
-
     // Let GPU finish before releasing D3D resources.
     m_deviceResources->WaitForGpu();
+
+    if (m_shouldReload) {
+        // Restart ImGui.
+        ImGui_ImplDX12_Shutdown();
+        ImGui_ImplWin32_Shutdown();
+        ImGui::DestroyContext();
+    }
+
+    DestroyFSR3();
 
     OnDeviceLost();
 }
 
+
+void DieXaR::CreateVisualizeMV_PSO()
+{
+    auto device = m_deviceResources->GetD3DDevice();
+
+    // Create a root signature for the visualization shader.
+    {
+        CD3DX12_DESCRIPTOR_RANGE ranges[2];
+        // range[0] is for the input motion vector SRV (t0)
+        ranges[0].Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0);
+        // range[1] is for the output texture UAV (u0)
+        ranges[1].Init(D3D12_DESCRIPTOR_RANGE_TYPE_UAV, 1, 0);
+
+        CD3DX12_ROOT_PARAMETER rootParameters[2];
+        // Slot 0: SRV for motion vector texture
+        rootParameters[0].InitAsDescriptorTable(1, &ranges[0]);
+        // Slot 1: UAV for output texture
+        rootParameters[1].InitAsDescriptorTable(1, &ranges[1]);
+
+        CD3DX12_ROOT_SIGNATURE_DESC rootSignatureDesc(ARRAYSIZE(rootParameters), rootParameters);
+        SerializeAndCreateRaytracingRootSignature(rootSignatureDesc, &m_visualizeMV_RootSignature);
+        NAME_D3D12_OBJECT(m_visualizeMV_RootSignature);
+    }
+
+    // Create the compute PSO.
+    {
+        D3D12_COMPUTE_PIPELINE_STATE_DESC psoDesc = {};
+        psoDesc.pRootSignature                    = m_visualizeMV_RootSignature.Get();
+        psoDesc.CS = CD3DX12_SHADER_BYTECODE(g_pVisualizeMotionVectors, ARRAYSIZE(g_pVisualizeMotionVectors));
+
+        ThrowIfFailed(device->CreateComputePipelineState(&psoDesc, IID_PPV_ARGS(&m_visualizeMV_PSO)));
+        NAME_D3D12_OBJECT(m_visualizeMV_PSO);
+    }
+}
 
 void DieXaR::CreateMotionVectorPSO()
 {
@@ -2569,6 +2691,111 @@ void DieXaR::DispatchMotionVectorPass(ID3D12GraphicsCommandList* commandList)
     commandList->ResourceBarrier(2, finalBarriers);
 }
 
+
+void DieXaR::DispatchVisualizeMVPass(ID3D12GraphicsCommandList* commandList)
+{
+    // The motion vector buffer is already in a read state from the previous pass.
+    // We just need to ensure our output buffer is in a write state.
+    auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(m_upscaledOutput.Get());
+    commandList->ResourceBarrier(1, &barrier);
+
+    commandList->SetPipelineState(m_visualizeMV_PSO.Get());
+    commandList->SetComputeRootSignature(m_visualizeMV_RootSignature.Get());
+
+    // Bind resources
+    commandList->SetComputeRootDescriptorTable(0, m_motionVectorOutputGpuDescriptor);  // input
+    commandList->SetComputeRootDescriptorTable(1, m_upscaledOutputGpuDescriptor);      // output
+
+    // Dispatch to cover the full display resolution
+    UINT numGroupsX = (m_width + 7) / 8;
+    UINT numGroupsY = (m_height + 7) / 8;
+    commandList->Dispatch(numGroupsX, numGroupsY, 1);
+}
+
+
+void DieXaR::InitializeFSR3()
+{
+    // 1. Create FFX Backend
+    ffx::CreateBackendDX12Desc backendDesc{};
+    backendDesc.device = m_deviceResources->GetD3DDevice();
+
+    // 2. Create Upscaling Context
+    ffx::CreateContextDescUpscale createUpscaling{};
+    createUpscaling.maxUpscaleSize = { m_width, m_height };
+    createUpscaling.maxRenderSize  = { m_renderWidth, m_renderHeight };
+
+    // Configure FSR flags
+    createUpscaling.flags = FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
+    createUpscaling.flags |= FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE;
+
+    // Assuming you are using an inverted infinite depth projection like most modern engines
+    createUpscaling.flags |= FFX_UPSCALE_ENABLE_DEPTH_INVERTED | FFX_UPSCALE_ENABLE_DEPTH_INFINITE;
+
+    ffx::ReturnCode retCode = ffx::CreateContext(m_upscalingContext, nullptr, createUpscaling, backendDesc);
+    if (retCode != ffx::ReturnCode::Ok) {
+        ThrowIfFalse(false, L"FFX Upscaling context creation failed.");
+    }
+
+    m_resetUpscale = true;  // Ensure history is reset on first frame
+}
+
+
+void DieXaR::DispatchFsrUpscale(ID3D12GraphicsCommandList* commandList)
+{
+    if (!m_upscalingContext)
+        return;
+
+    // This barrier ensures the output resource is in the correct state for writing.
+    // Note: We don't need to transition the inputs because the FFX API handles that internally.
+    auto barrier = CD3DX12_RESOURCE_BARRIER::UAV(m_upscaledOutput.Get());
+    commandList->ResourceBarrier(1, &barrier);
+
+    // Fill the dispatch description
+    ffx::DispatchDescUpscale dispatchUpscale{};
+    dispatchUpscale.commandList = commandList;
+    dispatchUpscale.color       = ffxApiGetResourceDX12(
+            m_raytracingOutput.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS, FFX_API_RESOURCE_USAGE_UAV);
+    dispatchUpscale.depth
+            = ffxApiGetResourceDX12(m_deviceResources->GetDepthStencil(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchUpscale.motionVectors
+            = ffxApiGetResourceDX12(m_motionVectorOutput.Get(), FFX_API_RESOURCE_STATE_PIXEL_COMPUTE_READ);
+    dispatchUpscale.output = ffxApiGetResourceDX12(
+            m_upscaledOutput.Get(), FFX_API_RESOURCE_STATE_UNORDERED_ACCESS, FFX_API_RESOURCE_USAGE_UAV);
+
+    dispatchUpscale.renderSize  = { m_renderWidth, m_renderHeight };
+    dispatchUpscale.upscaleSize = { m_width, m_height };
+
+    dispatchUpscale.jitterOffset      = { -m_jitterX, -m_jitterY };
+    dispatchUpscale.motionVectorScale = { (float) m_renderWidth, (float) m_renderHeight };
+
+    dispatchUpscale.reset          = m_resetUpscale;
+    dispatchUpscale.frameTimeDelta = static_cast<float>(m_timer.GetElapsedSeconds() * 1000.0);
+    dispatchUpscale.preExposure    = 1.0f;  // Set your scene's exposure value here
+
+    dispatchUpscale.cameraFovAngleVertical = XMConvertToRadians(45.0f);
+    dispatchUpscale.cameraNear             = 0.01f;
+    dispatchUpscale.cameraFar              = 125.0f;
+
+    dispatchUpscale.enableSharpening = m_enableSharpening;
+    dispatchUpscale.sharpness        = m_sharpness;
+
+    ffx::ReturnCode retCode = ffx::Dispatch(m_upscalingContext, dispatchUpscale);
+    if (retCode != ffx::ReturnCode::Ok) {
+        OutputDebugString(L"FSR Dispatch Failed\n");
+    }
+
+    // After dispatch, reset the flag
+    m_resetUpscale = false;
+}
+
+void DieXaR::DestroyFSR3()
+{
+    if (m_upscalingContext) {
+        ffx::DestroyContext(m_upscalingContext);
+        m_upscalingContext = nullptr;
+    }
+}
+
 // Release all device dependent resouces when a device is lost.
 void DieXaR::OnDeviceLost()
 {
@@ -2618,9 +2845,7 @@ void DieXaR::OnSizeChanged(UINT width, UINT height, bool minimized)
     }
 
     UpdateForSizeChange(width, height);
-
-    ReleaseWindowSizeDependentResources();
-    CreateWindowSizeDependentResources();
+    m_shouldReload = true;
 }
 
 // Allocate a descriptor and return its index.

@@ -61,8 +61,10 @@ public:
     }
 
     // Motion vectors
+    void CreateVisualizeMV_PSO();
     void CreateMotionVectorPSO();
     void DispatchMotionVectorPass(ID3D12GraphicsCommandList* commandList);
+    void DispatchVisualizeMVPass(ID3D12GraphicsCommandList* commandList);
 
     // FFX Upscale
     void InitializeFSR3();
@@ -165,6 +167,11 @@ private:
     XMFLOAT4 m_backgroundColor{ 0.678f, 0.788f, 0.819f, 1.0f };
 
     // Motion Vectors
+    bool                          m_visualizeMotionVectors = false;
+    ComPtr<ID3D12RootSignature>   m_visualizeMV_RootSignature;
+    ComPtr<ID3D12PipelineState>   m_visualizeMV_PSO;
+    CD3DX12_GPU_DESCRIPTOR_HANDLE m_motionVectorOutputGpuDescriptor;
+
     ComPtr<ID3D12Resource>        m_worldPositionOutput;
     UINT                          m_worldPositionOutputUAVDescriptorHeapIndex = UINT_MAX;
     CD3DX12_GPU_DESCRIPTOR_HANDLE m_worldPositionOutputResourceUAVGpuDescriptor;
@@ -225,7 +232,6 @@ private:
     void CreateRaytracingPipelineStateObject();
     void CreateAuxiliaryDeviceResources();
     void CreateDescriptorHeap();
-    void CreateRaytracingOutputResource();
     void BuildProceduralGeometryAABBs();
     void BuildProceduralGeometryAABBsDemo();
     void BuildProceduralGeometryAABBsCornellBox();
@@ -246,7 +252,7 @@ private:
     void                         BuildAccelerationStructures();
     void                         BuildShaderTables();
     void                         UpdateForSizeChange(UINT clientWidth, UINT clientHeight);
-    void                         CopyRaytracingOutputToBackbuffer();
+    void                         CopyFinalOutputToBackbuffer();
     void                         CalculateFrameStats();
     UINT AllocateDescriptor(D3D12_CPU_DESCRIPTOR_HANDLE* cpuDescriptor, UINT descriptorIndexToUse = UINT_MAX);
     UINT CreateBufferSRV(D3DBuffer* buffer, UINT numElements, UINT elementSize);
