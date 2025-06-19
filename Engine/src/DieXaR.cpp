@@ -171,7 +171,7 @@ void DieXaR::OnInit()
     D3D12_CPU_DESCRIPTOR_HANDLE cpuHandle;
     UINT                        descriptorHeapIndex = AllocateDescriptor(&cpuHandle);
 
-    ImGui_ImplDX12_Shutdown();
+    // ImGui_ImplDX12_Shutdown();
     ImGui_ImplDX12_Init(m_deviceResources->GetD3DDevice(), FrameCount, DXGI_FORMAT_R8G8B8A8_UNORM,
             m_descriptorHeap.Get(), cpuHandle,
             CD3DX12_GPU_DESCRIPTOR_HANDLE(
@@ -223,7 +223,6 @@ void DieXaR::UpdateCameraMatrices()
                 = XMMatrixTranslation(2.0f * m_jitterX / m_renderWidth, -2.0f * m_jitterY / m_renderHeight, 0.0f);
         proj = proj * jitterMatrix;
     }
-
 
     XMMATRIX viewProj            = view * proj;
     m_sceneCB->projectionToWorld = XMMatrixInverse(nullptr, viewProj);
@@ -2353,14 +2352,9 @@ void DieXaR::CopyFinalOutputToBackbuffer()
 
     commandList->CopyResource(renderTarget, m_upscaledOutput.Get());
 
-    D3D12_RESOURCE_BARRIER postCopyBarriers[2];
-    postCopyBarriers[0] = CD3DX12_RESOURCE_BARRIER::Transition(
-            renderTarget, D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
-    // Transition the upscaled resource back to UAV state
-    postCopyBarriers[1] = CD3DX12_RESOURCE_BARRIER::Transition(
+    auto postCopyBarrier = CD3DX12_RESOURCE_BARRIER::Transition(
             m_upscaledOutput.Get(), D3D12_RESOURCE_STATE_COPY_SOURCE, D3D12_RESOURCE_STATE_UNORDERED_ACCESS);
-
-    commandList->ResourceBarrier(ARRAYSIZE(postCopyBarriers), postCopyBarriers);
+    commandList->ResourceBarrier(1, &postCopyBarrier);
 }
 
 // Create resources that are dependent on the size of the main window.
@@ -2537,6 +2531,10 @@ void DieXaR::OnRender()
     // Copy the final result (either the visualization or the upscaled image) to the backbuffer
     CopyFinalOutputToBackbuffer();
 
+    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+            m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_COPY_DEST, D3D12_RESOURCE_STATE_RENDER_TARGET);
+    commandList->ResourceBarrier(1, &barrier);
+
     // Render ImGui.
     ImGui::Render();
 
@@ -2545,7 +2543,7 @@ void DieXaR::OnRender()
     ImGui_ImplDX12_RenderDrawData(ImGui::GetDrawData(), m_deviceResources->GetCommandList());
 
     // Transition the render target to the present state.
-    auto barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+    barrier = CD3DX12_RESOURCE_BARRIER::Transition(
             m_deviceResources->GetRenderTarget(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
     commandList->ResourceBarrier(1, &barrier);
 
@@ -2562,12 +2560,10 @@ void DieXaR::OnDestroy()
     // Let GPU finish before releasing D3D resources.
     m_deviceResources->WaitForGpu();
 
-    if (m_shouldReload) {
-        // Restart ImGui.
-        ImGui_ImplDX12_Shutdown();
-        ImGui_ImplWin32_Shutdown();
-        ImGui::DestroyContext();
-    }
+    // Restart ImGui.
+    ImGui_ImplDX12_Shutdown();
+    ImGui_ImplWin32_Shutdown();
+    ImGui::DestroyContext();
 
     DestroyFSR3();
 
@@ -2697,8 +2693,8 @@ void DieXaR::DispatchVisualizeMVPass(ID3D12GraphicsCommandList* commandList)
     commandList->SetComputeRootDescriptorTable(1, m_upscaledOutputGpuDescriptor);      // output
 
     // Dispatch to cover the full display resolution
-    UINT numGroupsX = (m_width + 7) / 8;
-    UINT numGroupsY = (m_height + 7) / 8;
+    UINT numGroupsX = (m_renderWidth + 7) / 8;
+    UINT numGroupsY = (m_renderHeight + 7) / 8;
     commandList->Dispatch(numGroupsX, numGroupsY, 1);
 }
 
@@ -2715,11 +2711,8 @@ void DieXaR::InitializeFSR3()
     createUpscaling.maxRenderSize  = { m_renderWidth, m_renderHeight };
 
     // Configure FSR flags
-    createUpscaling.flags = FFX_UPSCALE_ENABLE_AUTO_EXPOSURE;
-    createUpscaling.flags |= FFX_UPSCALE_ENABLE_HIGH_DYNAMIC_RANGE;
-
-    // Assuming you are using an inverted infinite depth projection like most modern engines
-    createUpscaling.flags |= FFX_UPSCALE_ENABLE_DEPTH_INVERTED | FFX_UPSCALE_ENABLE_DEPTH_INFINITE;
+    createUpscaling.flags = FFX_UPSCALE_ENABLE_AUTO_EXPOSURE | FFX_UPSCALE_ENABLE_DEBUG_CHECKING
+                            | FFX_UPSCALE_ENABLE_DEPTH_INVERTED | FFX_UPSCALE_ENABLE_DEPTH_INFINITE;
 
     ffx::ReturnCode retCode = ffx::CreateContext(m_upscalingContext, nullptr, createUpscaling, backendDesc);
     if (retCode != ffx::ReturnCode::Ok) {

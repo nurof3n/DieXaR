@@ -500,6 +500,8 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
     float3 finalColor = float3(0.0f, 0.0f, 0.0f);
 
     RayPayload payload; // Create payload once to be reused
+    float4 accumulatedWorldPos = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    uint hitCount = 0;
 
     uint numSamples = g_sceneCB.pathSqrtSamplesPerPixel * g_sceneCB.pathSqrtSamplesPerPixel;
 
@@ -534,13 +536,25 @@ float3 CalculatePhongLighting(in LightBuffer light, in float4 albedo, in float3 
             // Accumulate the color.
             const float gammaPow = 1.0f / 2.2f;
             finalColor += pow(ACES(payload.color.xyz), float3(gammaPow, gammaPow, gammaPow));
+
+            if (payload.worldPosition.w > 0.0f)
+            {
+                accumulatedWorldPos += payload.worldPosition;
+                hitCount++;
+            }
         }
 
     // Average the accumulated color.
     g_renderTarget[DispatchRaysIndex().xy] = float4(finalColor / numSamples, 1.0f);
 
     // Write the world position from the last sample to the new output texture.
-    g_WorldPositionOutput[DispatchRaysIndex().xy] = payload.worldPosition;
+    float4 finalWorldPos = float4(0.0f, 0.0f, 0.0f, 0.0f);
+    if (hitCount > 0)
+    {
+        // Average the position and set w to 1.0 to indicate a valid surface.
+        finalWorldPos = float4(accumulatedWorldPos.xyz / hitCount, 1.0f);
+    }
+    g_WorldPositionOutput[DispatchRaysIndex().xy] = finalWorldPos;
 }
 
 //***************************************************************************

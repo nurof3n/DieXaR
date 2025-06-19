@@ -7,14 +7,9 @@
 #define HLSL
 #include "RaytracingHlslCompat.h"
 
-// The SceneConstantBuffer contains the current and previous camera matrices.
-// It is bound as a root Constant Buffer View (CBV).
-cbuffer SceneConstantBuffer : register(b0)
-{
-    float4x4 worldToProjection;
-    float4x4 previousWorldToProjection;
-    // We only need the matrices, so the rest of the struct is omitted for clarity.
-};
+// Use the full, correct SceneConstantBuffer definition from the include file.
+// It is bound as a root Constant Buffer View (CBV) at register b0.
+ConstantBuffer<SceneConstantBuffer> g_sceneCB : register(b0);
 
 // Input texture containing the world position for each pixel from the ray tracing pass.
 // Bound as a Shader Resource View (SRV).
@@ -41,20 +36,18 @@ void main(uint3 dispatchThreadID : SV_DispatchThreadID)
     }
 
     // Project the 3D world position into the 4D clip space of the current and previous frames.
-    float4 currentClipPos = mul(worldPos, worldToProjection);
-    float4 previousClipPos = mul(worldPos, previousWorldToProjection);
+    // Access the matrices from the correctly defined constant buffer.
+    float4 currentClipPos = mul(worldPos, g_sceneCB.worldToProjection);
+    float4 previousClipPos = mul(worldPos, g_sceneCB.previousWorldToProjection);
 
     // Perform the perspective divide to get Normalized Device Coordinates (NDC) [-1, 1].
     float2 currentNdc = currentClipPos.xy / currentClipPos.w;
     float2 previousNdc = previousClipPos.xy / previousClipPos.w;
-    
-    // The motion vector is the difference in screen position from the last frame to this one.
-    // FSR expects the motion from the current pixel to where it was in the previous frame.
+
+    // Calculate the final motion vector in NDC space.
+    // This represents the motion from the current pixel to where its content was in the previous frame.
     float2 motionVector = previousNdc - currentNdc;
 
-    // The Y-coordinate in NDC space is typically opposite to screen/texture space.
-    motionVector.y = -motionVector.y;
-
-    // Write the final 2D motion vector to the output texture.
+    // Write the final UV-space motion vector to the output texture.
     g_MotionVectorOutput[dispatchThreadID.xy] = motionVector;
 }

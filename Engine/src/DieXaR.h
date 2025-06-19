@@ -97,8 +97,8 @@ private:
     std::vector<D3D12_RAYTRACING_AABB>                m_aabbs;
 
     // Scene description
-    UINT  m_crtScene{ SceneTypes::CornellBox };
-    UINT  m_nextScene{ SceneTypes::CornellBox };
+    UINT  m_crtScene{ SceneTypes::Demo };
+    UINT  m_nextScene{ SceneTypes::Demo };
     Scene m_scenes[SceneTypes::Count];
 
     // Geometry
@@ -152,7 +152,7 @@ private:
 
     // Application settings
     // Most of these have correspondents in the scene constant buffer
-    RaytracingType::Enum         m_raytracingType{ RaytracingType::PathTracing };
+    RaytracingType::Enum         m_raytracingType{ RaytracingType::Whitted };
     ImportanceSamplingType::Enum m_importanceSamplingType{ ImportanceSamplingType::BSDF };
     bool                         m_applyJitter{ true };
     UINT                         m_maxRecursionDepth{ 3 };
@@ -167,6 +167,8 @@ private:
     XMFLOAT4 m_backgroundColor{ 0.678f, 0.788f, 0.819f, 1.0f };
 
     // Motion Vectors
+    ComPtr<ID3D12Resource> m_depthBuffer;
+
     bool                        m_visualizeMotionVectors = false;
     ComPtr<ID3D12RootSignature> m_visualizeMV_RootSignature;
     ComPtr<ID3D12PipelineState> m_visualizeMV_PSO;
